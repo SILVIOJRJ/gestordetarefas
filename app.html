@@ -21,8 +21,6 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-
-  /* SIDEBAR */
   .sidebar{position:fixed;top:0;left:0;width:240px;height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;box-shadow:2px 0 8px rgba(0,0,0,.04)}
   .sidebar-logo{padding:22px 20px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
   .logo-icon{width:36px;height:36px;background:var(--primary);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:800}
@@ -40,11 +38,8 @@
   .sidebar-footer strong{color:var(--text);display:block;font-size:13px}
   .btn-logout{display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-weight:600;color:var(--danger);border:1px solid #fca5a5;background:var(--danger-light);margin-top:8px;width:100%;justify-content:center;transition:all .15s}
   .btn-logout:hover{background:#fee2e2}
-
-  /* TOPBAR */
   .topbar{position:fixed;top:0;left:240px;right:0;height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:16px;z-index:90;box-shadow:0 1px 4px rgba(0,0,0,.04)}
   .topbar-title{font-size:16px;font-weight:700;flex:1}
-  .topbar-sub{font-size:12px;color:var(--text3);font-weight:400}
   .topbar-actions{display:flex;gap:8px;align-items:center}
   .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
   .btn-primary{background:var(--primary);color:#fff}
@@ -56,13 +51,9 @@
   .notif-bell{width:36px;height:36px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:17px;border:1px solid var(--border);transition:all .15s}
   .notif-bell:hover{background:var(--primary-light);border-color:var(--primary)}
   .notif-dot{position:absolute;top:5px;right:5px;width:8px;height:8px;background:var(--danger);border-radius:50%;border:2px solid #fff;display:none}
-
-  /* MAIN */
   .main{margin-left:240px;margin-top:60px;padding:24px;min-height:calc(100vh - 60px)}
   .page{display:none}
   .page.active{display:block}
-
-  /* KPI */
   .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:22px}
   .kpi-card{background:var(--surface);border-radius:var(--radius);padding:18px 20px;border:1px solid var(--border);box-shadow:var(--shadow)}
   .kpi-label{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
@@ -75,8 +66,6 @@
   .kpi-card.red .kpi-value{color:var(--danger)}
   .kpi-card.purple .kpi-value{color:var(--purple)}
   .kpi-card.teal .kpi-value{color:var(--teal)}
-
-  /* CARD / TABLE */
   .card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px}
   .card-header{padding:16px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);background:var(--surface2)}
   .card-title{font-size:14px;font-weight:700;flex:1}
@@ -91,8 +80,6 @@
   .icon-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .15s;color:var(--text2)}
   .icon-btn:hover{background:var(--primary-light);border-color:var(--primary);color:var(--primary)}
   .icon-btn.del:hover{background:var(--danger-light);border-color:var(--danger);color:var(--danger)}
-
-  /* BADGES */
   .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
   .badge::before{content:'●';font-size:8px}
   .badge-green{background:var(--success-light);color:#059669}
@@ -102,15 +89,11 @@
   .badge-purple{background:var(--purple-light);color:#7c3aed}
   .badge-teal{background:var(--teal-light);color:#0f766e}
   .badge-gray{background:#f1f5f9;color:var(--text3)}
-
-  /* TOOLBAR */
   .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface)}
   .search-box{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px;flex:1;min-width:180px}
   .search-box input{border:none;background:transparent;outline:none;font-size:13px;color:var(--text);width:100%}
   .search-box input::placeholder{color:var(--text3)}
   .select-filter{padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);font-size:13px;color:var(--text);outline:none;cursor:pointer}
-
-  /* MODAL */
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:1000;align-items:center;justify-content:center}
   .modal-overlay.open{display:flex}
   .modal{background:var(--surface);border-radius:16px;width:580px;max-width:calc(100vw - 32px);max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:slideUp .18s ease}
@@ -120,6 +103,7 @@
   .modal-icon.blue{background:var(--primary-light)}
   .modal-icon.green{background:var(--success-light)}
   .modal-icon.orange{background:var(--warning-light)}
+  .modal-icon.purple{background:var(--purple-light)}
   .modal-title{font-size:16px;font-weight:700;flex:1}
   .modal-close{width:30px;height:30px;border-radius:50%;border:none;background:var(--bg);cursor:pointer;font-size:16px;color:var(--text3);display:flex;align-items:center;justify-content:center}
   .modal-close:hover{background:var(--danger-light);color:var(--danger)}
@@ -132,8 +116,6 @@
   .form-control{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13.5px;color:var(--text);outline:none;background:var(--surface);transition:border .15s}
   .form-control:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(59,130,246,.12)}
   .form-control::placeholder{color:var(--text3)}
-
-  /* TOAST */
   #toast-container{position:fixed;top:70px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
   .toast{background:var(--surface);border-radius:var(--radius);padding:14px 18px;box-shadow:var(--shadow-lg);border-left:4px solid var(--primary);min-width:280px;max-width:360px;animation:slideIn .2s ease;pointer-events:all;display:flex;align-items:flex-start;gap:10px}
   .toast.success{border-color:var(--success)}
@@ -145,14 +127,10 @@
   .toast-title{font-size:13px;font-weight:700;margin-bottom:2px}
   .toast-msg{font-size:12px;color:var(--text2)}
   .toast-close{background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:0}
-
-  /* ALERTS */
   .alert-banner{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--radius-sm);margin-bottom:12px;font-size:13px}
   .alert-banner.warning{background:var(--warning-light);color:#92400e;border:1px solid #fde68a}
   .alert-banner.danger{background:var(--danger-light);color:#991b1b;border:1px solid #fca5a5}
   .alert-banner.info{background:var(--primary-light);color:#1e40af;border:1px solid #bfdbfe}
-
-  /* MISC */
   .page-title{font-size:20px;font-weight:800;margin-bottom:4px}
   .page-sub{font-size:13px;color:var(--text3);margin-bottom:20px}
   .empty-state{text-align:center;padding:48px 24px;color:var(--text3)}
@@ -177,18 +155,22 @@
   @keyframes spin{to{transform:rotate(360deg)}}
   .loading-screen{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:9000;flex-direction:column;gap:16px}
   .loading-screen .spinner{width:36px;height:36px;border-width:3px}
+  .tabs{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:20px}
+  .tab-btn{padding:9px 18px;font-size:13px;font-weight:600;color:var(--text2);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+  .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
+  .tab-btn:hover{color:var(--text)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
   @media(max-width:900px){.dashboard-grid{grid-template-columns:1fr}.sidebar{display:none}.main{margin-left:0}}
 </style>
 </head>
 <body>
 
-<!-- LOADING -->
 <div class="loading-screen" id="loading-screen">
   <div class="spinner"></div>
   <div style="font-size:14px;color:#64748b">Carregando...</div>
 </div>
 
-<!-- SIDEBAR -->
 <nav class="sidebar">
   <div class="sidebar-logo">
     <div class="logo-icon">N</div>
@@ -210,6 +192,8 @@
     <div class="nav-item" onclick="navigate('legalizacao')"><span class="nav-icon">🔏</span> Legalização</div>
     <div class="nav-section-title">Geral</div>
     <div class="nav-item" onclick="navigate('tarefas')"><span class="nav-icon">✅</span> Tarefas <span class="nav-badge" id="badge-tar">0</span></div>
+    <div class="nav-item" onclick="navigate('clientes')"><span class="nav-icon">👤</span> Clientes</div>
+    <div class="nav-item" onclick="navigate('configuracoes')"><span class="nav-icon">⚙️</span> Configurações</div>
   </div>
   <div class="sidebar-footer">
     <strong id="user-name">Carregando...</strong>
@@ -218,7 +202,6 @@
   </div>
 </nav>
 
-<!-- TOPBAR -->
 <header class="topbar">
   <div>
     <div class="topbar-title" id="topbar-title">Dashboard</div>
@@ -231,13 +214,13 @@
 
 <div id="toast-container"></div>
 
-<!-- ═══ PAGES ═══ -->
 <main class="main">
 
 <!-- DASHBOARD -->
 <div class="page active" id="page-dashboard">
   <div class="page-title">Visão Geral</div>
   <div class="page-sub" id="dash-date"></div>
+  <div id="dash-competencia" style="margin-bottom:12px;font-size:13px;font-weight:600;color:var(--primary)"></div>
   <div id="dash-alerts"></div>
   <div class="kpi-grid" id="kpi-dash"></div>
   <div class="dashboard-grid">
@@ -325,7 +308,6 @@
       <div class="search-box">🔍<input type="text" id="tar-search" placeholder="Pesquisar..." oninput="filterTarefas()"></div>
       <select class="select-filter" id="tar-f-setor" onchange="filterTarefas()">
         <option value="">Todos os Setores</option>
-        <option>Fiscal</option><option>DP</option><option>Contábil</option><option>Legalização</option><option>Administração</option>
       </select>
       <select class="select-filter" id="tar-f-prior" onchange="filterTarefas()">
         <option value="">Todas as Prioridades</option>
@@ -334,23 +316,64 @@
       <button class="btn btn-primary" onclick="openModal('tarefa')">＋ Nova</button>
     </div>
     <div class="table-wrap">
-      <table><thead><tr><th>Título</th><th>Setor</th><th>Responsável</th><th>Prioridade</th><th>Prazo</th><th>Status</th><th></th></tr></thead>
+      <table><thead><tr><th>Título</th><th>Setor</th><th>Responsável</th><th>Cliente</th><th>Prioridade</th><th>Prazo</th><th>Competência</th><th>Doc.</th><th>Status</th><th></th></tr></thead>
       <tbody id="tar-tbody"></tbody></table>
     </div>
   </div>
 </div>
 
-<!-- SETORES -->
+<!-- SETORES FIXOS -->
 <div class="page" id="page-fiscal"><div class="page-title">Setor Fiscal</div><div class="page-sub">Carol — Obrigações e entregas fiscais</div><div id="content-fiscal"></div></div>
 <div class="page" id="page-dp"><div class="page-title">Departamento Pessoal</div><div class="page-sub">Iris — Folha, admissões, demissões e SST</div><div id="content-dp"></div></div>
 <div class="page" id="page-contabil"><div class="page-title">Setor Contábil</div><div class="page-sub">Rayssa — Balanço, DRE, ECF e ECD</div><div id="content-contabil"></div></div>
 <div class="page" id="page-legalizacao"><div class="page-title">Legalização / Cert. Digital</div><div class="page-sub">Deivydi — Abertura, alteração e certificados</div><div id="content-legalizacao"></div></div>
 
+<!-- CLIENTES -->
+<div class="page" id="page-clientes">
+  <div class="page-title">Clientes</div>
+  <div class="page-sub">Cadastro e gerenciamento de clientes</div>
+  <div class="card">
+    <div class="toolbar">
+      <div class="search-box">🔍<input type="text" id="cli-search" placeholder="Pesquisar por nome, CNPJ/CPF..." oninput="filterClientes()"></div>
+      <select class="select-filter" id="cli-f-status" onchange="filterClientes()">
+        <option value="">Todos</option>
+        <option value="true">Ativos</option>
+        <option value="false">Inativos</option>
+      </select>
+      <button class="btn btn-primary" onclick="openModal('cliente')">＋ Novo Cliente</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Nome</th><th>CNPJ/CPF</th><th>Email</th><th>Telefone</th><th>Responsável</th><th>Status</th><th></th></tr></thead>
+      <tbody id="cli-tbody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIGURAÇÕES -->
+<div class="page" id="page-configuracoes">
+  <div class="page-title">Configurações</div>
+  <div class="page-sub">Gerencie setores e funcionários</div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('setores')">🏢 Setores</button>
+    <button class="tab-btn" onclick="switchTab('funcionarios')">👷 Funcionários</button>
+  </div>
+  <div class="tab-panel active" id="tab-setores">
+    <div class="card">
+      <div class="card-header"><div class="card-title">Setores</div><button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openModal('setor')">＋ Novo Setor</button></div>
+      <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Descrição</th><th>Status</th><th></th></tr></thead><tbody id="setores-tbody"></tbody></table></div>
+    </div>
+  </div>
+  <div class="tab-panel" id="tab-funcionarios">
+    <div class="card">
+      <div class="card-header"><div class="card-title">Funcionários</div><button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openModal('funcionario')">＋ Novo Funcionário</button></div>
+      <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Setor</th><th>Cargo</th><th>Email</th><th>Status</th><th></th></tr></thead><tbody id="funcs-tbody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
 </main>
 
-<!-- ═══ MODALS ═══ -->
-
-<!-- PARCELAMENTO -->
+<!-- MODAL PARCELAMENTO -->
 <div class="modal-overlay" id="modal-parc">
   <div class="modal">
     <div class="modal-header">
@@ -379,6 +402,13 @@
         <div class="form-group"><label class="form-label">Status</label>
           <select class="form-control" id="p-status"><option>Não iniciada</option><option>Em andamento</option><option>Concluído</option><option>Enviado p/ cliente</option><option>Atrasado</option><option>Cancelado</option></select></div>
         <div class="form-group"><label class="form-label">Competência</label><input type="month" class="form-control" id="p-competencia"></div>
+        <div class="form-group form-full"><label class="form-label">Cliente</label><select class="form-control" id="p-cliente"><option value="">Sem cliente</option></select></div>
+        <div class="form-group form-full">
+          <label class="form-label" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="p-enviado-cliente" onchange="toggleParcEnvio()"> Enviado ao cliente
+          </label>
+        </div>
+        <div class="form-group form-full" id="p-envio-wrap" style="display:none"><label class="form-label">Data de envio da parcela</label><input type="date" class="form-control" id="p-data-envio-parcela"></div>
         <div class="form-group form-full"><label class="form-label">Observação</label><input type="text" class="form-control" id="p-obs" placeholder="Informações adicionais"></div>
       </div>
     </div>
@@ -389,7 +419,7 @@
   </div>
 </div>
 
-<!-- INSS PF -->
+<!-- MODAL INSS PF -->
 <div class="modal-overlay" id="modal-inss">
   <div class="modal">
     <div class="modal-header">
@@ -423,7 +453,7 @@
   </div>
 </div>
 
-<!-- TAREFA -->
+<!-- MODAL TAREFA -->
 <div class="modal-overlay" id="modal-tarefa">
   <div class="modal">
     <div class="modal-header">
@@ -435,15 +465,24 @@
       <div class="form-grid">
         <div class="form-group form-full"><label class="form-label">Título *</label><input type="text" class="form-control" id="t-titulo" placeholder="Descreva a tarefa"></div>
         <div class="form-group"><label class="form-label">Setor</label>
-          <select class="form-control" id="t-setor"><option>Fiscal</option><option>DP</option><option>Contábil</option><option>Legalização</option><option>Administração</option></select></div>
+          <select class="form-control" id="t-setor" onchange="onSetorChangeTarefa()"><option value="">Selecione…</option></select></div>
         <div class="form-group"><label class="form-label">Responsável</label>
-          <select class="form-control" id="t-resp"><option>Carol</option><option>Iris</option><option>Rayssa</option><option>Deivydi</option><option>Silvio</option></select></div>
+          <select class="form-control" id="t-resp"><option value="">Selecione…</option></select></div>
         <div class="form-group"><label class="form-label">Prioridade</label>
           <select class="form-control" id="t-prioridade"><option>Alta</option><option>Média</option><option>Baixa</option></select></div>
         <div class="form-group"><label class="form-label">Prazo</label><input type="date" class="form-control" id="t-prazo"></div>
         <div class="form-group"><label class="form-label">Status</label>
           <select class="form-control" id="t-status"><option>Pendente</option><option>Em andamento</option><option>Concluída</option><option>Atrasada</option></select></div>
+        <div class="form-group"><label class="form-label">Competência</label><input type="month" class="form-control" id="t-competencia"></div>
+        <div class="form-group form-full"><label class="form-label">Cliente</label>
+          <select class="form-control" id="t-cliente"><option value="">Sem cliente</option></select></div>
         <div class="form-group form-full"><label class="form-label">Descrição</label><input type="text" class="form-control" id="t-desc" placeholder="Detalhes adicionais"></div>
+        <div class="form-group form-full">
+          <label class="form-label" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="t-doc-enviado" onchange="toggleDocEnvio()"> Documento enviado
+          </label>
+        </div>
+        <div class="form-group form-full" id="t-envio-wrap" style="display:none"><label class="form-label">Data de envio</label><input type="date" class="form-control" id="t-data-envio"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -453,7 +492,93 @@
   </div>
 </div>
 
-<!-- ALERTAS -->
+<!-- MODAL CLIENTE -->
+<div class="modal-overlay" id="modal-cliente">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon blue">👤</div>
+      <div class="modal-title" id="modal-cli-title">Novo Cliente</div>
+      <button class="modal-close" onclick="closeModal('cliente')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full"><label class="form-label">Nome / Razão Social *</label><input type="text" class="form-control" id="c-nome" placeholder="Nome do cliente"></div>
+        <div class="form-group"><label class="form-label">CNPJ / CPF</label><input type="text" class="form-control" id="c-cnpj" placeholder="00.000.000/0000-00"></div>
+        <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-control" id="c-email" placeholder="email@cliente.com"></div>
+        <div class="form-group"><label class="form-label">Telefone</label><input type="text" class="form-control" id="c-telefone" placeholder="(00) 00000-0000"></div>
+        <div class="form-group form-full"><label class="form-label">Responsável (Funcionário)</label>
+          <select class="form-control" id="c-responsavel"><option value="">Sem responsável</option></select></div>
+        <div class="form-group form-full"><label class="form-label">Observações</label><input type="text" class="form-control" id="c-obs" placeholder="Informações adicionais"></div>
+        <div class="form-group form-full">
+          <label class="form-label" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="c-ativo" checked> Ativo
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('cliente')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-cli" onclick="saveCliente()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SETOR -->
+<div class="modal-overlay" id="modal-setor">
+  <div class="modal" style="width:460px">
+    <div class="modal-header">
+      <div class="modal-icon purple">🏢</div>
+      <div class="modal-title" id="modal-setor-title">Novo Setor</div>
+      <button class="modal-close" onclick="closeModal('setor')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full"><label class="form-label">Nome *</label><input type="text" class="form-control" id="s-nome" placeholder="Nome do setor"></div>
+        <div class="form-group form-full"><label class="form-label">Descrição</label><input type="text" class="form-control" id="s-descricao" placeholder="Descrição do setor"></div>
+        <div class="form-group form-full">
+          <label class="form-label" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="s-ativo" checked> Ativo
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('setor')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-setor" onclick="saveSetor()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FUNCIONÁRIO -->
+<div class="modal-overlay" id="modal-funcionario">
+  <div class="modal" style="width:460px">
+    <div class="modal-header">
+      <div class="modal-icon green">👷</div>
+      <div class="modal-title" id="modal-func-title">Novo Funcionário</div>
+      <button class="modal-close" onclick="closeModal('funcionario')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full"><label class="form-label">Nome *</label><input type="text" class="form-control" id="f-nome" placeholder="Nome do funcionário"></div>
+        <div class="form-group"><label class="form-label">Setor</label>
+          <select class="form-control" id="f-setor"><option value="">Selecione…</option></select></div>
+        <div class="form-group"><label class="form-label">Cargo</label><input type="text" class="form-control" id="f-cargo" placeholder="Ex: Contador, Analista"></div>
+        <div class="form-group form-full"><label class="form-label">Email</label><input type="email" class="form-control" id="f-email" placeholder="funcionario@empresa.com"></div>
+        <div class="form-group form-full">
+          <label class="form-label" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="f-ativo" checked> Ativo
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('funcionario')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-func" onclick="saveFuncionario()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ALERTAS -->
 <div class="modal-overlay" id="modal-notif">
   <div class="modal" style="max-width:440px">
     <div class="modal-header"><div class="modal-icon orange">🔔</div><div class="modal-title">Alertas</div><button class="modal-close" onclick="closeModal('notif')">✕</button></div>
@@ -462,29 +587,30 @@
   </div>
 </div>
 
-<!-- ═══ SCRIPT ═══ -->
 <script>
 const SUPABASE_URL = 'https://ruuoxvqhpnajghiqafml.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1dW94dnFocG5hamdoaXFhZm1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMjYxMjcsImV4cCI6MjA5NjYwMjEyN30.nHfSPTUdA9N02m0N7rgAlOsQLaTIIPhbVKWQLg3sQAc';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ─── STATE ───────────────────────────────────────────────
-let parcelamentos = [], inss = [], tarefas = [];
+// STATE
+let parcelamentos = [], inss = [], tarefas = [], setores = [], funcionarios = [], clientes = [];
 let currentPage = 'dashboard';
-let editingId = { parc: null, inss: null, tarefa: null };
+let editingId = { parc: null, inss: null, tarefa: null, cliente: null, setor: null, funcionario: null };
 
-// ─── AUTH CHECK ──────────────────────────────────────────
+function currentMonthStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+// AUTH
 async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '/'; return; }
-
   const user = session.user;
   document.getElementById('user-email').textContent = user.email;
   document.getElementById('user-name').textContent = user.user_metadata?.nome || user.email.split('@')[0];
-
   await loadAll();
   document.getElementById('loading-screen').style.display = 'none';
-
   const alerts = buildAlerts();
   if (alerts.length) {
     toast(`${alerts.filter(a=>a.type==='error').length || alerts.length} alerta(s)`,
@@ -498,30 +624,38 @@ async function logout() {
   window.location.href = '/';
 }
 
-// ─── LOAD DATA ───────────────────────────────────────────
+// LOAD
 async function loadAll() {
-  const [p, i, t] = await Promise.all([
+  const [p, i, t, s, f, c] = await Promise.all([
     sb.from('parcelamentos').select('*').order('vencimento', { ascending: true }),
     sb.from('inss_pf').select('*').order('vencimento', { ascending: true }),
-    sb.from('tarefas').select('*').order('prazo', { ascending: true })
+    sb.from('tarefas').select('*').order('prazo', { ascending: true }),
+    sb.from('setores').select('*').order('nome', { ascending: true }),
+    sb.from('funcionarios').select('*').order('nome', { ascending: true }),
+    sb.from('clientes').select('*').order('nome', { ascending: true })
   ]);
   parcelamentos = p.data || [];
   inss = i.data || [];
   tarefas = t.data || [];
+  setores = s.data || [];
+  funcionarios = f.data || [];
+  clientes = c.data || [];
   renderAll();
 }
 
-// ─── RENDER ALL ──────────────────────────────────────────
 function renderAll() {
   renderDashboard();
   renderParcelamentos();
   renderInss();
   renderTarefas();
   renderSetores();
+  renderClientes();
+  renderConfig();
+  populateSetorFilter();
   updateBadges();
 }
 
-// ─── NAVIGATE ────────────────────────────────────────────
+// NAVIGATE
 function navigate(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -532,14 +666,24 @@ function navigate(page) {
   currentPage = page;
   const titles = { dashboard:'Dashboard', parcelamentos:'Parcelamentos', 'inss-pf':'INSS PF',
     fiscal:'Fiscal', dp:'Departamento Pessoal', contabil:'Contábil',
-    legalizacao:'Legalização', tarefas:'Tarefas' };
+    legalizacao:'Legalização', tarefas:'Tarefas', clientes:'Clientes', configuracoes:'Configurações' };
   document.getElementById('topbar-title').textContent = titles[page] || page;
 }
 
-// ─── ALERTS ──────────────────────────────────────────────
+// TABS (Configurações)
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ALERTS
 function buildAlerts() {
   const today = new Date(); today.setHours(0,0,0,0);
+  const compAtual = currentMonthStr();
   const list = [];
+
   parcelamentos.forEach(p => {
     if (!p.vencimento) return;
     const d = new Date(p.vencimento + 'T00:00:00');
@@ -548,7 +692,18 @@ function buildAlerts() {
       list.push({ type:'error', icon:'🚨', title:'Parcelamento ATRASADO', msg:`${p.empresa} — ${p.tipo} — ${Math.abs(diff)}d atraso` });
     else if (diff <= 2 && diff >= 0 && !['Concluído','Cancelado'].includes(p.status))
       list.push({ type:'warning', icon:'⚠️', title:`Vence em ${diff}d`, msg:`${p.empresa} — ${p.tipo}` });
+    // Alertas de envio ao cliente
+    if (!p.enviado_cliente && p.cliente_id && p.vencimento) {
+      const dv = new Date(p.vencimento + 'T00:00:00');
+      const dif2 = Math.round((dv - today) / 86400000);
+      if (dif2 <= 7 && !['Cancelado'].includes(p.status)) {
+        const cli = clientes.find(c => c.id === p.cliente_id);
+        const nomeEnt = cli ? cli.nome : (p.empresa || 'Empresa');
+        list.push({ type:'info', icon:'📬', title:'Parcela não enviada ao cliente', msg:`Parcela de ${nomeEnt} não enviada — vence em ${dif2 < 0 ? Math.abs(dif2)+'d atraso' : dif2+'d'}` });
+      }
+    }
   });
+
   inss.forEach(i => {
     if (!i.vencimento) return;
     const d = new Date(i.vencimento + 'T00:00:00');
@@ -558,11 +713,19 @@ function buildAlerts() {
     else if (diff <= 3 && diff >= 0 && i.status !== 'Pago')
       list.push({ type:'warning', icon:'⚠️', title:`INSS vence em ${diff}d`, msg:i.nome });
   });
+
   tarefas.forEach(t => {
     if (!t.prazo || t.status === 'Concluída') return;
     const d = new Date(t.prazo + 'T00:00:00');
     if (d < today) list.push({ type:'error', icon:'📌', title:'Tarefa ATRASADA', msg:`${t.titulo} — ${t.responsavel}` });
+    // Doc não enviado na competência atual
+    if (t.competencia === compAtual && !t.documento_enviado && t.cliente_id) {
+      const cli = clientes.find(c => c.id === t.cliente_id);
+      const nomeC = cli ? cli.nome : 'Cliente';
+      list.push({ type:'info', icon:'📤', title:'Documento não enviado', msg:`${nomeC} — ${t.titulo} — documento não enviado` });
+    }
   });
+
   return list;
 }
 
@@ -577,21 +740,27 @@ function updateBadges() {
   document.getElementById('notif-dot').style.display = hasAlert ? '' : 'none';
 }
 
-// ─── DASHBOARD ───────────────────────────────────────────
+// DASHBOARD
 function renderDashboard() {
   const today = new Date(); today.setHours(0,0,0,0);
   document.getElementById('dash-date').textContent =
     today.toLocaleDateString('pt-BR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 
+  const mesNomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  document.getElementById('dash-competencia').textContent =
+    'Competência: ' + mesNomes[today.getMonth()] + '/' + today.getFullYear();
+
   const alerts = buildAlerts();
-  document.getElementById('dash-alerts').innerHTML = alerts.slice(0,3).map(a =>
-    `<div class="alert-banner ${a.type==='error'?'danger':'warning'}">${a.icon} <div><strong>${a.title}</strong> — ${a.msg}</div></div>`
-  ).join('');
+  document.getElementById('dash-alerts').innerHTML = alerts.slice(0,5).map(a => {
+    const cls = a.type==='error'?'danger':a.type==='info'?'info':'warning';
+    return `<div class="alert-banner ${cls}">${a.icon} <div><strong>${a.title}</strong> — ${a.msg}</div></div>`;
+  }).join('');
 
   const pPend = parcelamentos.filter(p => ['Não iniciada','Em andamento'].includes(p.status)).length;
   const pAtr = parcelamentos.filter(p => p.vencimento && new Date(p.vencimento+'T00:00:00') < today && !['Concluído','Cancelado'].includes(p.status)).length;
   const iPend = inss.filter(i => ['Pendente','Em Atraso'].includes(i.status)).length;
   const tAtr = tarefas.filter(t => t.prazo && new Date(t.prazo+'T00:00:00') < today && t.status !== 'Concluída').length;
+  const cliAtivos = clientes.filter(c => c.ativo !== false).length;
 
   document.getElementById('kpi-dash').innerHTML = `
     <div class="kpi-card blue"><div class="kpi-icon">📋</div><div class="kpi-label">Parcelamentos</div><div class="kpi-value">${parcelamentos.length}</div><div class="kpi-sub">${pPend} pendentes</div></div>
@@ -599,10 +768,9 @@ function renderDashboard() {
     <div class="kpi-card green"><div class="kpi-icon">🧾</div><div class="kpi-label">INSS PF</div><div class="kpi-value">${inss.length}</div><div class="kpi-sub">${iPend} pendentes</div></div>
     <div class="kpi-card orange"><div class="kpi-icon">📌</div><div class="kpi-label">Tarefas Atrasadas</div><div class="kpi-value">${tAtr}</div></div>
     <div class="kpi-card purple"><div class="kpi-icon">✅</div><div class="kpi-label">Total Tarefas</div><div class="kpi-value">${tarefas.length}</div><div class="kpi-sub">${tarefas.filter(t=>t.status==='Concluída').length} concluídas</div></div>
-    <div class="kpi-card teal"><div class="kpi-icon">👥</div><div class="kpi-label">Equipe</div><div class="kpi-value">4</div><div class="kpi-sub">setores ativos</div></div>
+    <div class="kpi-card teal"><div class="kpi-icon">👤</div><div class="kpi-label">Clientes</div><div class="kpi-value">${cliAtivos}</div><div class="kpi-sub">ativos</div></div>
   `;
 
-  // Parcelamentos vencendo em 5 dias
   const parc5 = parcelamentos.filter(p => {
     if (!p.vencimento) return false;
     const diff = Math.round((new Date(p.vencimento+'T00:00:00') - today) / 86400000);
@@ -618,7 +786,6 @@ function renderDashboard() {
       <td>${sBadge(p.status)}</td></tr>`;
   }).join('') : '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:16px">Nenhum vencendo em 5 dias ✅</td></tr>';
 
-  // INSS abertos
   const inssAberto = inss.filter(i => i.status !== 'Pago').slice(0,6);
   document.getElementById('dash-inss-tbody').innerHTML = inssAberto.length ? inssAberto.map(i => {
     const diff = i.vencimento ? Math.round((new Date(i.vencimento+'T00:00:00') - today) / 86400000) : null;
@@ -628,7 +795,6 @@ function renderDashboard() {
       <td class="${cls}">${fmtDate(i.vencimento)}</td><td>${iBadge(i.status)}</td></tr>`;
   }).join('') : '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:16px">Nenhum aberto ✅</td></tr>';
 
-  // Tarefas pendentes
   const tarPend = tarefas.filter(t => t.status !== 'Concluída').slice(0,7);
   document.getElementById('dash-tarefas-list').innerHTML = tarPend.map(t => {
     const diff = t.prazo ? Math.round((new Date(t.prazo+'T00:00:00') - today) / 86400000) : null;
@@ -640,18 +806,21 @@ function renderDashboard() {
   }).join('') || '<div style="padding:20px;text-align:center;color:var(--text3)">Nenhuma tarefa pendente ✅</div>';
 }
 
-// ─── SETORES ─────────────────────────────────────────────
+// SETORES DASHBOARD
 function renderSetores() {
-  document.getElementById('dash-setores').innerHTML = ['Fiscal','DP','Contábil','Legalização'].map(s => {
-    const t = tarefas.filter(x => x.setor === s);
+  const setoresList = setores.length
+    ? setores.filter(s => s.ativo !== false).map(s => s.nome)
+    : ['Fiscal','DP','Contábil','Legalização'];
+
+  document.getElementById('dash-setores').innerHTML = setoresList.map(sNome => {
+    const t = tarefas.filter(x => x.setor === sNome);
     const conc = t.filter(x => x.status === 'Concluída').length;
     const total = t.length || 1;
     const pct = Math.round((conc/total)*100);
     const atr = t.filter(x => x.status === 'Atrasada').length;
-    const resp = { Fiscal:'Carol', DP:'Iris', Contábil:'Rayssa', Legalização:'Deivydi' }[s];
     return `<div style="margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-        <span style="font-size:13px;font-weight:700;flex:1">${s} <span style="font-size:11px;font-weight:400;color:var(--text3)">${resp}</span></span>
+        <span style="font-size:13px;font-weight:700;flex:1">${sNome}</span>
         <span style="font-size:11px;color:var(--text3)">${conc}/${t.length}</span>
         ${atr ? `<span class="badge badge-red">${atr} atr.</span>` : ''}
       </div>
@@ -659,7 +828,6 @@ function renderSetores() {
     </div>`;
   }).join('');
 
-  // Páginas de setor
   ['fiscal','dp','contabil','legalizacao'].forEach(s => {
     const map = { fiscal:'Fiscal', dp:'DP', contabil:'Contábil', legalizacao:'Legalização' };
     const el = document.getElementById('content-'+s);
@@ -675,7 +843,7 @@ function renderSetores() {
       </div>
       <div class="card">
         <div class="card-header"><div class="card-title">Tarefas</div>
-          <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openModal('tarefa');setV('t-setor','${map[s]}')">＋ Nova</button>
+          <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openModal('tarefa');setTimeout(()=>setV('t-setor','${map[s]}'),50)">＋ Nova</button>
         </div>
         <div class="table-wrap"><table>
           <thead><tr><th>Título</th><th>Responsável</th><th>Prioridade</th><th>Prazo</th><th>Status</th><th></th></tr></thead>
@@ -698,7 +866,7 @@ function renderSetores() {
   });
 }
 
-// ─── PARCELAMENTOS ───────────────────────────────────────
+// PARCELAMENTOS
 function filterParcelamentos() { renderParcelamentos(); }
 function renderParcelamentos() {
   const search = (gv('parc-search')||'').toLowerCase();
@@ -718,9 +886,10 @@ function renderParcelamentos() {
       if (diff<0 && !['Concluído','Cancelado'].includes(p.status)) vCls='vencimento-alert';
       else if (diff<=3 && !['Concluído','Cancelado'].includes(p.status)) vCls='vencimento-warn';
     }
+    const cli = clientes.find(c => c.id === p.cliente_id);
     return `<tr>
       <td>${sBadge(p.status)}</td>
-      <td><strong>${p.empresa}</strong></td>
+      <td><strong>${p.empresa}</strong>${cli?`<div style="font-size:11px;color:var(--text3)">${cli.nome}</div>`:''}</td>
       <td class="font-mono">${p.codigo||'—'}</td>
       <td><span class="chip">${p.tipo||'—'}</span></td>
       <td>${p.parcela||'—'}${p.total_parcelas?'/'+p.total_parcelas:''}</td>
@@ -748,7 +917,7 @@ function renderParcelamentos() {
   `;
 }
 
-// ─── INSS ─────────────────────────────────────────────────
+// INSS
 function filterInss() { renderInss(); }
 function renderInss() {
   const search = (gv('inss-search')||'').toLowerCase();
@@ -795,7 +964,7 @@ function renderInss() {
   `;
 }
 
-// ─── TAREFAS ──────────────────────────────────────────────
+// TAREFAS
 function filterTarefas() { renderTarefas(); }
 function renderTarefas() {
   const search = (gv('tar-search')||'').toLowerCase();
@@ -812,21 +981,203 @@ function renderTarefas() {
     const diff = t.prazo ? Math.round((new Date(t.prazo+'T00:00:00') - today)/86400000) : null;
     const pc = diff!==null&&diff<0&&t.status!=='Concluída'?'vencimento-alert':diff!==null&&diff<=1&&t.status!=='Concluída'?'vencimento-warn':'';
     const pr = {Alta:'badge-red',Média:'badge-orange',Baixa:'badge-teal'}[t.prioridade]||'badge-gray';
+    const cli = clientes.find(c => c.id === t.cliente_id);
+    const docIcon = t.documento_enviado ? '✅' : (t.cliente_id ? '📤' : '—');
     return `<tr>
       <td><strong>${t.titulo}</strong>${t.descricao?`<div style="font-size:11px;color:var(--text3)">${t.descricao}</div>`:''}</td>
       <td><span class="chip">${t.setor||'—'}</span></td>
       <td>${t.responsavel||'—'}</td>
+      <td style="font-size:12px">${cli?cli.nome:'—'}</td>
       <td><span class="badge ${pr}">${t.prioridade||'—'}</span></td>
       <td class="${pc}">${fmtDate(t.prazo)}</td>
+      <td>${t.competencia?fmtMonth(t.competencia):'—'}</td>
+      <td title="${t.documento_enviado?'Enviado':'Pendente'}">${docIcon}</td>
       <td>${tBadge(t.status)}</td>
       <td><div class="td-actions">
         <button class="icon-btn" onclick='editTarefa("${t.id}")'>✏️</button>
         <button class="icon-btn del" onclick='deleteItem("tarefa","${t.id}")'>🗑️</button>
       </div></td></tr>`;
-  }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="es-icon">📭</div><p>Nenhuma tarefa</p></div></td></tr>';
+  }).join('') : '<tr><td colspan="10"><div class="empty-state"><div class="es-icon">📭</div><p>Nenhuma tarefa</p></div></td></tr>';
 }
 
-// ─── SAVE / EDIT ──────────────────────────────────────────
+// CLIENTES
+function filterClientes() { renderClientes(); }
+function renderClientes() {
+  const search = (gv('cli-search')||'').toLowerCase();
+  const fS = gv('cli-f-status')||'';
+
+  let data = clientes.filter(c => {
+    const m = search ? [c.nome,c.cnpj_cpf,c.email].join(' ').toLowerCase().includes(search) : true;
+    const sMatch = fS === '' ? true : fS === 'true' ? c.ativo !== false : c.ativo === false;
+    return m && sMatch;
+  });
+
+  document.getElementById('cli-tbody').innerHTML = data.length ? data.map(c => {
+    const func = funcionarios.find(f => f.id === c.responsavel_id);
+    return `<tr>
+      <td><strong>${c.nome}</strong></td>
+      <td class="font-mono">${c.cnpj_cpf||'—'}</td>
+      <td style="font-size:12px">${c.email||'—'}</td>
+      <td>${c.telefone||'—'}</td>
+      <td>${func?func.nome:'—'}</td>
+      <td>${c.ativo!==false?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td>
+      <td><div class="td-actions">
+        <button class="icon-btn" onclick='editCliente("${c.id}")'>✏️</button>
+        <button class="icon-btn del" onclick='deleteItem("cliente","${c.id}")'>🗑️</button>
+      </div></td></tr>`;
+  }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="es-icon">👤</div><p>Nenhum cliente</p></div></td></tr>';
+}
+
+// CONFIG
+function renderConfig() {
+  document.getElementById('setores-tbody').innerHTML = setores.length ? setores.map(s =>
+    `<tr>
+      <td><strong>${s.nome}</strong></td>
+      <td style="font-size:12px;color:var(--text3)">${s.descricao||'—'}</td>
+      <td>${s.ativo!==false?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td>
+      <td><div class="td-actions">
+        <button class="icon-btn" onclick='editSetor("${s.id}")'>✏️</button>
+        <button class="icon-btn del" onclick='deleteItem("setor","${s.id}")'>🗑️</button>
+      </div></td></tr>`
+  ).join('') : '<tr><td colspan="4"><div class="empty-state"><div class="es-icon">🏢</div><p>Nenhum setor cadastrado</p></div></td></tr>';
+
+  document.getElementById('funcs-tbody').innerHTML = funcionarios.length ? funcionarios.map(f => {
+    const s = setores.find(x => x.id === f.setor_id);
+    return `<tr>
+      <td><strong>${f.nome}</strong></td>
+      <td>${s?s.nome:'—'}</td>
+      <td>${f.cargo||'—'}</td>
+      <td style="font-size:12px">${f.email||'—'}</td>
+      <td>${f.ativo!==false?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td>
+      <td><div class="td-actions">
+        <button class="icon-btn" onclick='editFuncionario("${f.id}")'>✏️</button>
+        <button class="icon-btn del" onclick='deleteItem("funcionario","${f.id}")'>🗑️</button>
+      </div></td></tr>`;
+  }).join('') : '<tr><td colspan="6"><div class="empty-state"><div class="es-icon">👷</div><p>Nenhum funcionário</p></div></td></tr>';
+}
+
+// POPULATE SETOR FILTER
+function populateSetorFilter() {
+  const sel = document.getElementById('tar-f-setor');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Todos os Setores</option>';
+  setores.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.nome; o.textContent = s.nome;
+    sel.appendChild(o);
+  });
+  // fallback se não houver setores no banco
+  if (!setores.length) {
+    ['Fiscal','DP','Contábil','Legalização','Administração'].forEach(n => {
+      const o = document.createElement('option'); o.value = n; o.textContent = n;
+      sel.appendChild(o);
+    });
+  }
+  sel.value = cur;
+}
+
+// POPULATE DYNAMIC SELECTS IN MODALS
+function populateTarefaSelects(setorValue) {
+  const setorSel = document.getElementById('t-setor');
+  const respSel = document.getElementById('t-resp');
+  const cliSel = document.getElementById('t-cliente');
+
+  setorSel.innerHTML = '<option value="">Selecione…</option>';
+  setores.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.nome; o.textContent = s.nome;
+    setorSel.appendChild(o);
+  });
+  if (!setores.length) {
+    ['Fiscal','DP','Contábil','Legalização','Administração'].forEach(n => {
+      const o = document.createElement('option'); o.value = n; o.textContent = n;
+      setorSel.appendChild(o);
+    });
+  }
+  if (setorValue) setorSel.value = setorValue;
+
+  const setor = setorValue || setorSel.value;
+  respSel.innerHTML = '<option value="">Selecione…</option>';
+  const funcsSetor = setor
+    ? funcionarios.filter(f => { const s = setores.find(x => x.id === f.setor_id); return s && s.nome === setor; })
+    : funcionarios;
+  const lista = funcsSetor.length ? funcsSetor : funcionarios;
+  lista.forEach(f => {
+    const o = document.createElement('option'); o.value = f.nome; o.textContent = f.nome;
+    respSel.appendChild(o);
+  });
+  if (!funcionarios.length) {
+    ['Carol','Iris','Rayssa','Deivydi','Silvio'].forEach(n => {
+      const o = document.createElement('option'); o.value = n; o.textContent = n;
+      respSel.appendChild(o);
+    });
+  }
+
+  cliSel.innerHTML = '<option value="">Sem cliente</option>';
+  clientes.filter(c => c.ativo !== false).forEach(c => {
+    const o = document.createElement('option'); o.value = c.id; o.textContent = c.nome;
+    cliSel.appendChild(o);
+  });
+}
+
+function onSetorChangeTarefa() {
+  const setor = document.getElementById('t-setor').value;
+  const respSel = document.getElementById('t-resp');
+  respSel.innerHTML = '<option value="">Selecione…</option>';
+  const funcsSetor = setor
+    ? funcionarios.filter(f => { const s = setores.find(x => x.id === f.setor_id); return s && s.nome === setor; })
+    : funcionarios;
+  const lista = funcsSetor.length ? funcsSetor : funcionarios;
+  lista.forEach(f => {
+    const o = document.createElement('option'); o.value = f.nome; o.textContent = f.nome;
+    respSel.appendChild(o);
+  });
+  if (!funcionarios.length) {
+    ['Carol','Iris','Rayssa','Deivydi','Silvio'].forEach(n => {
+      const o = document.createElement('option'); o.value = n; o.textContent = n;
+      respSel.appendChild(o);
+    });
+  }
+}
+
+function populateParcSelects() {
+  const cliSel = document.getElementById('p-cliente');
+  cliSel.innerHTML = '<option value="">Sem cliente</option>';
+  clientes.filter(c => c.ativo !== false).forEach(c => {
+    const o = document.createElement('option'); o.value = c.id; o.textContent = c.nome;
+    cliSel.appendChild(o);
+  });
+}
+
+function populateClienteSelects() {
+  const respSel = document.getElementById('c-responsavel');
+  respSel.innerHTML = '<option value="">Sem responsável</option>';
+  funcionarios.filter(f => f.ativo !== false).forEach(f => {
+    const o = document.createElement('option'); o.value = f.id; o.textContent = f.nome;
+    respSel.appendChild(o);
+  });
+}
+
+function populateFuncSelects() {
+  const setorSel = document.getElementById('f-setor');
+  setorSel.innerHTML = '<option value="">Selecione…</option>';
+  setores.forEach(s => {
+    const o = document.createElement('option'); o.value = s.id; o.textContent = s.nome;
+    setorSel.appendChild(o);
+  });
+}
+
+// TOGGLE FIELDS
+function toggleDocEnvio() {
+  document.getElementById('t-envio-wrap').style.display =
+    document.getElementById('t-doc-enviado').checked ? '' : 'none';
+}
+function toggleParcEnvio() {
+  document.getElementById('p-envio-wrap').style.display =
+    document.getElementById('p-enviado-cliente').checked ? '' : 'none';
+}
+
+// SAVE
 async function saveParcelamento() {
   const empresa = gv('p-empresa');
   if (!empresa) { toast('Atenção','Informe o nome da empresa','warning'); return; }
@@ -838,6 +1189,9 @@ async function saveParcelamento() {
     valor:gv('p-valor'), vencimento:gv('p-vencimento')||null,
     login_acesso:gv('p-login'), senha:gv('p-senha'),
     status:gv('p-status'), competencia:gv('p-competencia')||null, obs:gv('p-obs'),
+    cliente_id:gv('p-cliente')||null,
+    enviado_cliente:document.getElementById('p-enviado-cliente').checked,
+    data_envio_parcela:gv('p-data-envio-parcela')||null,
     updated_at: new Date().toISOString()
   };
   const id = editingId.parc;
@@ -881,6 +1235,10 @@ async function saveTarefa() {
     titulo, setor:gv('t-setor'), responsavel:gv('t-resp'),
     prioridade:gv('t-prioridade'), prazo:gv('t-prazo')||null,
     status:gv('t-status'), descricao:gv('t-desc'),
+    competencia:gv('t-competencia')||null,
+    cliente_id:gv('t-cliente')||null,
+    documento_enviado:document.getElementById('t-doc-enviado').checked,
+    data_envio:gv('t-data-envio')||null,
     updated_at: new Date().toISOString()
   };
   const id = editingId.tarefa;
@@ -894,16 +1252,83 @@ async function saveTarefa() {
   await loadAll();
 }
 
+async function saveCliente() {
+  const nome = gv('c-nome');
+  if (!nome) { toast('Atenção','Informe o nome do cliente','warning'); return; }
+  setBusy('btn-save-cli', true);
+  const obj = {
+    nome, cnpj_cpf:gv('c-cnpj'), email:gv('c-email'), telefone:gv('c-telefone'),
+    responsavel_id:gv('c-responsavel')||null, obs:gv('c-obs'),
+    ativo:document.getElementById('c-ativo').checked,
+    updated_at: new Date().toISOString()
+  };
+  const id = editingId.cliente;
+  const { error } = id
+    ? await sb.from('clientes').update(obj).eq('id', id)
+    : await sb.from('clientes').insert(obj);
+  setBusy('btn-save-cli', false);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  closeModal('cliente');
+  toast('Salvo!', id ? 'Cliente atualizado' : 'Cliente cadastrado', 'success');
+  await loadAll();
+}
+
+async function saveSetor() {
+  const nome = gv('s-nome');
+  if (!nome) { toast('Atenção','Informe o nome do setor','warning'); return; }
+  setBusy('btn-save-setor', true);
+  const obj = {
+    nome, descricao:gv('s-descricao'),
+    ativo:document.getElementById('s-ativo').checked,
+    updated_at: new Date().toISOString()
+  };
+  const id = editingId.setor;
+  const { error } = id
+    ? await sb.from('setores').update(obj).eq('id', id)
+    : await sb.from('setores').insert(obj);
+  setBusy('btn-save-setor', false);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  closeModal('setor');
+  toast('Salvo!', id ? 'Setor atualizado' : 'Setor cadastrado', 'success');
+  await loadAll();
+}
+
+async function saveFuncionario() {
+  const nome = gv('f-nome');
+  if (!nome) { toast('Atenção','Informe o nome do funcionário','warning'); return; }
+  setBusy('btn-save-func', true);
+  const obj = {
+    nome, setor_id:gv('f-setor')||null, cargo:gv('f-cargo'), email:gv('f-email'),
+    ativo:document.getElementById('f-ativo').checked,
+    updated_at: new Date().toISOString()
+  };
+  const id = editingId.funcionario;
+  const { error } = id
+    ? await sb.from('funcionarios').update(obj).eq('id', id)
+    : await sb.from('funcionarios').insert(obj);
+  setBusy('btn-save-func', false);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  closeModal('funcionario');
+  toast('Salvo!', id ? 'Funcionário atualizado' : 'Funcionário cadastrado', 'success');
+  await loadAll();
+}
+
+// EDIT
 function editParcelamento(id) {
   const p = parcelamentos.find(x => x.id === id);
   if (!p) return;
   editingId.parc = id;
+  populateParcSelects();
   document.getElementById('modal-parc-title').textContent = 'Editar Parcelamento';
   setV('p-empresa',p.empresa); setV('p-codigo',p.codigo); setV('p-tipo',p.tipo);
   setV('p-orgao',p.orgao); setV('p-modalidade',p.modalidade); setV('p-instancia',p.instancia);
   setV('p-parcela',p.parcela); setV('p-total',p.total_parcelas); setV('p-valor',p.valor);
   setV('p-vencimento',p.vencimento); setV('p-login',p.login_acesso); setV('p-senha',p.senha);
   setV('p-status',p.status); setV('p-competencia',p.competencia); setV('p-obs',p.obs);
+  setV('p-cliente',p.cliente_id||'');
+  document.getElementById('p-enviado-cliente').checked = !!p.enviado_cliente;
+  setV('p-data-envio-parcela',p.data_envio_parcela);
+  document.getElementById('p-envio-wrap').style.display = p.enviado_cliente ? '' : 'none';
   document.getElementById('modal-parc').classList.add('open');
 }
 
@@ -924,55 +1349,136 @@ function editTarefa(id) {
   if (!t) return;
   editingId.tarefa = id;
   document.getElementById('modal-tar-title').textContent = 'Editar Tarefa';
+  populateTarefaSelects(t.setor);
   setV('t-titulo',t.titulo); setV('t-setor',t.setor); setV('t-resp',t.responsavel);
   setV('t-prioridade',t.prioridade); setV('t-prazo',t.prazo);
   setV('t-status',t.status); setV('t-desc',t.descricao);
+  setV('t-competencia',t.competencia);
+  setV('t-cliente',t.cliente_id||'');
+  document.getElementById('t-doc-enviado').checked = !!t.documento_enviado;
+  setV('t-data-envio',t.data_envio);
+  document.getElementById('t-envio-wrap').style.display = t.documento_enviado ? '' : 'none';
   document.getElementById('modal-tarefa').classList.add('open');
+}
+
+function editCliente(id) {
+  const c = clientes.find(x => x.id === id);
+  if (!c) return;
+  editingId.cliente = id;
+  populateClienteSelects();
+  document.getElementById('modal-cli-title').textContent = 'Editar Cliente';
+  setV('c-nome',c.nome); setV('c-cnpj',c.cnpj_cpf); setV('c-email',c.email);
+  setV('c-telefone',c.telefone); setV('c-responsavel',c.responsavel_id||''); setV('c-obs',c.obs);
+  document.getElementById('c-ativo').checked = c.ativo !== false;
+  document.getElementById('modal-cliente').classList.add('open');
+}
+
+function editSetor(id) {
+  const s = setores.find(x => x.id === id);
+  if (!s) return;
+  editingId.setor = id;
+  document.getElementById('modal-setor-title').textContent = 'Editar Setor';
+  setV('s-nome',s.nome); setV('s-descricao',s.descricao);
+  document.getElementById('s-ativo').checked = s.ativo !== false;
+  document.getElementById('modal-setor').classList.add('open');
+}
+
+function editFuncionario(id) {
+  const f = funcionarios.find(x => x.id === id);
+  if (!f) return;
+  editingId.funcionario = id;
+  populateFuncSelects();
+  document.getElementById('modal-func-title').textContent = 'Editar Funcionário';
+  setV('f-nome',f.nome); setV('f-setor',f.setor_id||''); setV('f-cargo',f.cargo); setV('f-email',f.email);
+  document.getElementById('f-ativo').checked = f.ativo !== false;
+  document.getElementById('modal-funcionario').classList.add('open');
 }
 
 async function deleteItem(type, id) {
   if (!confirm('Confirma exclusão?')) return;
-  const table = { parc:'parcelamentos', inss:'inss_pf', tarefa:'tarefas' }[type];
+  const table = { parc:'parcelamentos', inss:'inss_pf', tarefa:'tarefas', cliente:'clientes', setor:'setores', funcionario:'funcionarios' }[type];
   const { error } = await sb.from(table).delete().eq('id', id);
   if (error) { toast('Erro', error.message, 'error'); return; }
   toast('Excluído','Registro removido','success');
   await loadAll();
 }
 
-// ─── MODALS ───────────────────────────────────────────────
+// MODALS
 function openModal(type) {
-  editingId[type === 'tarefa' ? 'tarefa' : type === 'inss' ? 'inss' : 'parc'] = null;
-  clearForm(type);
-  const map = { parc:'modal-parc', inss:'modal-inss', tarefa:'modal-tarefa' };
-  document.getElementById(map[type]).classList.add('open');
-  const titles = { parc:'Novo Parcelamento', inss:'Novo INSS PF', tarefa:'Nova Tarefa' };
-  const tEl = { parc:'modal-parc-title', inss:'modal-inss-title', tarefa:'modal-tar-title' };
-  document.getElementById(tEl[type]).textContent = titles[type];
+  const keyMap = { parc:'parc', inss:'inss', tarefa:'tarefa', cliente:'cliente', setor:'setor', funcionario:'funcionario' };
+  editingId[keyMap[type]] = null;
+
+  if (type === 'parc') {
+    clearFormPadr(['p-empresa','p-codigo','p-tipo','p-orgao','p-modalidade','p-instancia','p-parcela','p-total','p-valor','p-vencimento','p-login','p-senha','p-obs','p-data-envio-parcela']);
+    setV('p-competencia', currentMonthStr());
+    document.getElementById('p-enviado-cliente').checked = false;
+    document.getElementById('p-envio-wrap').style.display = 'none';
+    populateParcSelects();
+    document.getElementById('modal-parc-title').textContent = 'Novo Parcelamento';
+    document.getElementById('modal-parc').classList.add('open');
+  } else if (type === 'inss') {
+    clearFormPadr(['i-nome','i-nit','i-codigo','i-salario','i-valor','i-vencimento','i-envio','i-obs']);
+    setV('i-competencia', currentMonthStr());
+    document.getElementById('modal-inss-title').textContent = 'Novo INSS PF';
+    document.getElementById('modal-inss').classList.add('open');
+  } else if (type === 'tarefa') {
+    clearFormPadr(['t-titulo','t-prazo','t-desc','t-data-envio']);
+    setV('t-competencia', currentMonthStr());
+    document.getElementById('t-doc-enviado').checked = false;
+    document.getElementById('t-envio-wrap').style.display = 'none';
+    populateTarefaSelects('');
+    document.getElementById('modal-tar-title').textContent = 'Nova Tarefa';
+    document.getElementById('modal-tarefa').classList.add('open');
+  } else if (type === 'cliente') {
+    clearFormPadr(['c-nome','c-cnpj','c-email','c-telefone','c-obs']);
+    document.getElementById('c-ativo').checked = true;
+    populateClienteSelects();
+    document.getElementById('modal-cli-title').textContent = 'Novo Cliente';
+    document.getElementById('modal-cliente').classList.add('open');
+  } else if (type === 'setor') {
+    clearFormPadr(['s-nome','s-descricao']);
+    document.getElementById('s-ativo').checked = true;
+    document.getElementById('modal-setor-title').textContent = 'Novo Setor';
+    document.getElementById('modal-setor').classList.add('open');
+  } else if (type === 'funcionario') {
+    clearFormPadr(['f-nome','f-cargo','f-email']);
+    document.getElementById('f-ativo').checked = true;
+    populateFuncSelects();
+    document.getElementById('modal-func-title').textContent = 'Novo Funcionário';
+    document.getElementById('modal-funcionario').classList.add('open');
+  }
 }
+
+function clearFormPadr(ids) {
+  ids.forEach(id => { const e = document.getElementById(id); if(e) e.value = ''; });
+}
+
 function closeModal(type) {
-  const map = { parc:'modal-parc', inss:'modal-inss', tarefa:'modal-tarefa', notif:'modal-notif' };
+  const map = { parc:'modal-parc', inss:'modal-inss', tarefa:'modal-tarefa',
+    notif:'modal-notif', cliente:'modal-cliente', setor:'modal-setor', funcionario:'modal-funcionario' };
   document.getElementById(map[type])?.classList.remove('open');
 }
+
 function openContextModal() {
   if (currentPage === 'parcelamentos') openModal('parc');
   else if (currentPage === 'inss-pf') openModal('inss');
+  else if (currentPage === 'clientes') openModal('cliente');
+  else if (currentPage === 'configuracoes') openModal('setor');
   else openModal('tarefa');
-}
-function clearForm(type) {
-  if (type==='parc') ['p-empresa','p-codigo','p-tipo','p-orgao','p-modalidade','p-instancia','p-parcela','p-total','p-valor','p-vencimento','p-login','p-senha','p-competencia','p-obs'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-  if (type==='inss') ['i-nome','i-nit','i-codigo','i-salario','i-valor','i-competencia','i-vencimento','i-envio','i-obs'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-  if (type==='tarefa') ['t-titulo','t-prazo','t-desc'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
 }
 
 function openNotif() {
   const alerts = buildAlerts();
   document.getElementById('notif-body').innerHTML = alerts.length ?
-    alerts.map(a => `<div class="alert-banner ${a.type==='error'?'danger':'warning'}" style="margin-bottom:8px">${a.icon} <div><strong>${a.title}</strong><div style="font-size:12px;margin-top:2px">${a.msg}</div></div></div>`).join('') :
+    alerts.map(a => {
+      const cls = a.type==='error'?'danger':a.type==='info'?'info':'warning';
+      return `<div class="alert-banner ${cls}" style="margin-bottom:8px">${a.icon} <div><strong>${a.title}</strong><div style="font-size:12px;margin-top:2px">${a.msg}</div></div></div>`;
+    }).join('') :
     '<div style="text-align:center;padding:24px;color:var(--text3)">✅ Nenhum alerta!</div>';
   document.getElementById('modal-notif').classList.add('open');
 }
 
-// ─── HELPERS ──────────────────────────────────────────────
+// HELPERS
 const sBadge = s => { const m={'Concluído':'badge-green','Em andamento':'badge-blue','Não iniciada':'badge-gray','Enviado p/ cliente':'badge-teal','Atrasado':'badge-red','Cancelado':'badge-gray'}; return `<span class="badge ${m[s]||'badge-gray'}">${s||'—'}</span>`; };
 const iBadge = s => { const m={'Pago':'badge-green','Gerado':'badge-blue','Pendente':'badge-orange','Em Atraso':'badge-red'}; return `<span class="badge ${m[s]||'badge-gray'}">${s||'—'}</span>`; };
 const tBadge = s => { const m={'Concluída':'badge-green','Em andamento':'badge-blue','Pendente':'badge-orange','Atrasada':'badge-red'}; return `<span class="badge ${m[s]||'badge-gray'}">${s||'—'}</span>`; };
@@ -991,12 +1497,10 @@ function toast(title, msg, type='info') {
   setTimeout(()=>el.remove(),4500);
 }
 
-// Fechar modal clicando no overlay
 document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); });
 });
 
-// ─── START ────────────────────────────────────────────────
 init();
 </script>
 </body>
