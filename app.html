@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nascente Contábil · Gestor</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg:#f0f4f8;--surface:#fff;--surface2:#f7f9fc;--border:#e2e8f0;
+    --primary:#3b82f6;--primary-dark:#2563eb;--primary-light:#eff6ff;
+    --success:#10b981;--success-light:#ecfdf5;
+    --warning:#f59e0b;--warning-light:#fffbeb;
+    --danger:#ef4444;--danger-light:#fef2f2;
+    --purple:#8b5cf6;--purple-light:#f5f3ff;
+    --teal:#14b8a6;--teal-light:#f0fdfa;
+    --text:#1e293b;--text2:#64748b;--text3:#94a3b8;
+    --radius:12px;--radius-sm:8px;
+    --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.04);
+    --shadow-lg:0 8px 32px rgba(0,0,0,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+  /* SIDEBAR */
+  .sidebar{position:fixed;top:0;left:0;width:240px;height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;box-shadow:2px 0 8px rgba(0,0,0,.04)}
+  .sidebar-logo{padding:22px 20px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+  .logo-icon{width:36px;height:36px;background:var(--primary);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:800}
+  .logo-text{font-size:14px;font-weight:700;line-height:1.2}
+  .logo-sub{font-size:11px;color:var(--text3)}
+  .sidebar-nav{padding:12px 10px;flex:1;overflow-y:auto}
+  .nav-section-title{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:8px 10px 4px}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:13.5px;font-weight:500;color:var(--text2);transition:all .15s;margin-bottom:2px}
+  .nav-item:hover{background:var(--bg);color:var(--text)}
+  .nav-item.active{background:var(--primary-light);color:var(--primary);font-weight:600}
+  .nav-icon{font-size:16px;width:20px;text-align:center}
+  .nav-badge{margin-left:auto;background:var(--danger);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;min-width:18px;text-align:center}
+  .nav-badge.warn{background:var(--warning)}
+  .sidebar-footer{padding:14px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--text3)}
+  .sidebar-footer strong{color:var(--text);display:block;font-size:13px}
+  .btn-logout{display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-weight:600;color:var(--danger);border:1px solid #fca5a5;background:var(--danger-light);margin-top:8px;width:100%;justify-content:center;transition:all .15s}
+  .btn-logout:hover{background:#fee2e2}
+
+  /* TOPBAR */
+  .topbar{position:fixed;top:0;left:240px;right:0;height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:16px;z-index:90;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+  .topbar-title{font-size:16px;font-weight:700;flex:1}
+  .topbar-sub{font-size:12px;color:var(--text3);font-weight:400}
+  .topbar-actions{display:flex;gap:8px;align-items:center}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+  .btn-primary{background:var(--primary);color:#fff}
+  .btn-primary:hover{background:var(--primary-dark)}
+  .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
+  .btn-ghost:hover{background:var(--bg)}
+  .btn-success{background:var(--success);color:#fff}
+  .btn-danger2{background:var(--danger);color:#fff}
+  .notif-bell{width:36px;height:36px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:17px;border:1px solid var(--border);transition:all .15s}
+  .notif-bell:hover{background:var(--primary-light);border-color:var(--primary)}
+  .notif-dot{position:absolute;top:5px;right:5px;width:8px;height:8px;background:var(--danger);border-radius:50%;border:2px solid #fff;display:none}
+
+  /* MAIN */
+  .main{margin-left:240px;margin-top:60px;padding:24px;min-height:calc(100vh - 60px)}
+  .page{display:none}
+  .page.active{display:block}
+
+  /* KPI */
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:22px}
+  .kpi-card{background:var(--surface);border-radius:var(--radius);padding:18px 20px;border:1px solid var(--border);box-shadow:var(--shadow)}
+  .kpi-label{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  .kpi-value{font-size:28px;font-weight:800;line-height:1}
+  .kpi-sub{font-size:11px;color:var(--text3);margin-top:4px}
+  .kpi-icon{font-size:20px;margin-bottom:6px}
+  .kpi-card.blue .kpi-value{color:var(--primary)}
+  .kpi-card.green .kpi-value{color:var(--success)}
+  .kpi-card.orange .kpi-value{color:var(--warning)}
+  .kpi-card.red .kpi-value{color:var(--danger)}
+  .kpi-card.purple .kpi-value{color:var(--purple)}
+  .kpi-card.teal .kpi-value{color:var(--teal)}
+
+  /* CARD / TABLE */
+  .card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px}
+  .card-header{padding:16px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);background:var(--surface2)}
+  .card-title{font-size:14px;font-weight:700;flex:1}
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead{background:var(--surface2)}
+  th{padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+  td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--bg)}
+  .td-actions{display:flex;gap:6px}
+  .icon-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .15s;color:var(--text2)}
+  .icon-btn:hover{background:var(--primary-light);border-color:var(--primary);color:var(--primary)}
+  .icon-btn.del:hover{background:var(--danger-light);border-color:var(--danger);color:var(--danger)}
+
+  /* BADGES */
+  .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+  .badge::before{content:'●';font-size:8px}
+  .badge-green{background:var(--success-light);color:#059669}
+  .badge-orange{background:var(--warning-light);color:#b45309}
+  .badge-red{background:var(--danger-light);color:#dc2626}
+  .badge-blue{background:var(--primary-light);color:var(--primary-dark)}
+  .badge-purple{background:var(--purple-light);color:#7c3aed}
+  .badge-teal{background:var(--teal-light);color:#0f766e}
+  .badge-gray{background:#f1f5f9;color:var(--text3)}
+
+  /* TOOLBAR */
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface)}
+  .search-box{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px;flex:1;min-width:180px}
+  .search-box input{border:none;background:transparent;outline:none;font-size:13px;color:var(--text);width:100%}
+  .search-box input::placeholder{color:var(--text3)}
+  .select-filter{padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);font-size:13px;color:var(--text);outline:none;cursor:pointer}
+
+  /* MODAL */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:1000;align-items:center;justify-content:center}
+  .modal-overlay.open{display:flex}
+  .modal{background:var(--surface);border-radius:16px;width:580px;max-width:calc(100vw - 32px);max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:slideUp .18s ease}
+  @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  .modal-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+  .modal-icon.blue{background:var(--primary-light)}
+  .modal-icon.green{background:var(--success-light)}
+  .modal-icon.orange{background:var(--warning-light)}
+  .modal-title{font-size:16px;font-weight:700;flex:1}
+  .modal-close{width:30px;height:30px;border-radius:50%;border:none;background:var(--bg);cursor:pointer;font-size:16px;color:var(--text3);display:flex;align-items:center;justify-content:center}
+  .modal-close:hover{background:var(--danger-light);color:var(--danger)}
+  .modal-body{padding:20px 24px}
+  .modal-footer{padding:14px 24px 20px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--border)}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .form-full{grid-column:1/-1}
+  .form-group{display:flex;flex-direction:column;gap:5px}
+  .form-label{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px}
+  .form-control{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13.5px;color:var(--text);outline:none;background:var(--surface);transition:border .15s}
+  .form-control:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+  .form-control::placeholder{color:var(--text3)}
+
+  /* TOAST */
+  #toast-container{position:fixed;top:70px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+  .toast{background:var(--surface);border-radius:var(--radius);padding:14px 18px;box-shadow:var(--shadow-lg);border-left:4px solid var(--primary);min-width:280px;max-width:360px;animation:slideIn .2s ease;pointer-events:all;display:flex;align-items:flex-start;gap:10px}
+  .toast.success{border-color:var(--success)}
+  .toast.warning{border-color:var(--warning)}
+  .toast.error{border-color:var(--danger)}
+  @keyframes slideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+  .toast-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+  .toast-content{flex:1}
+  .toast-title{font-size:13px;font-weight:700;margin-bottom:2px}
+  .toast-msg{font-size:12px;color:var(--text2)}
+  .toast-close{background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:0}
+
+  /* ALERTS */
+  .alert-banner{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--radius-sm);margin-bottom:12px;font-size:13px}
+  .alert-banner.warning{background:var(--warning-light);color:#92400e;border:1px solid #fde68a}
+  .alert-banner.danger{background:var(--danger-light);color:#991b1b;border:1px solid #fca5a5}
+  .alert-banner.info{background:var(--primary-light);color:#1e40af;border:1px solid #bfdbfe}
+
+  /* MISC */
+  .page-title{font-size:20px;font-weight:800;margin-bottom:4px}
+  .page-sub{font-size:13px;color:var(--text3);margin-bottom:20px}
+  .empty-state{text-align:center;padding:48px 24px;color:var(--text3)}
+  .empty-state .es-icon{font-size:40px;margin-bottom:12px}
+  .dashboard-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+  .font-mono{font-family:'Consolas',monospace;font-size:12px}
+  .chip{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:var(--bg);color:var(--text2);border:1px solid var(--border)}
+  .vencimento-alert{color:var(--danger);font-weight:700}
+  .vencimento-warn{color:var(--warning);font-weight:600}
+  .tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:11px;font-weight:600}
+  .tag-pgfn{background:#dbeafe;color:#1e40af}
+  .tag-ecac{background:#f0fdf4;color:#166534}
+  .tag-srf{background:#fdf4ff;color:#7e22ce}
+  .tag-estado{background:#fff7ed;color:#c2410c}
+  .tag-municipal{background:#f0fdfa;color:#0f766e}
+  .tag-carf{background:#faf5ff;color:#6b21a8}
+  .prog-bar{background:var(--border);border-radius:20px;height:6px;overflow:hidden;margin-top:6px}
+  .prog-fill{height:100%;border-radius:20px;background:var(--primary);transition:width .4s}
+  .prog-fill.green{background:var(--success)}
+  .prog-fill.red{background:var(--danger)}
+  .spinner{display:inline-block;width:18px;height:18px;border:2px solid #e2e8f0;border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-screen{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:9000;flex-direction:column;gap:16px}
+  .loading-screen .spinner{width:36px;height:36px;border-width:3px}
+  @media(max-width:900px){.dashboard-grid{grid-template-columns:1fr}.sidebar{display:none}.main{margin-left:0}}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-screen" id="loading-screen">
+  <div class="spinner"></div>
+  <div style="font-size:14px;color:#64748b">Carregando...</div>
+</div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">N</div>
+    <div>
+      <div class="logo-text">Nascente Contábil</div>
+      <div class="logo-sub">Gestor de Tarefas</div>
+    </div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section-title">Principal</div>
+    <div class="nav-item active" onclick="navigate('dashboard')"><span class="nav-icon">🏠</span> Dashboard</div>
+    <div class="nav-section-title">Financeiro</div>
+    <div class="nav-item" onclick="navigate('parcelamentos')"><span class="nav-icon">📋</span> Parcelamentos <span class="nav-badge warn" id="badge-parc">0</span></div>
+    <div class="nav-item" onclick="navigate('inss-pf')"><span class="nav-icon">🧾</span> INSS PF <span class="nav-badge" id="badge-inss">0</span></div>
+    <div class="nav-section-title">Departamentos</div>
+    <div class="nav-item" onclick="navigate('fiscal')"><span class="nav-icon">💼</span> Fiscal</div>
+    <div class="nav-item" onclick="navigate('dp')"><span class="nav-icon">👥</span> Depto. Pessoal</div>
+    <div class="nav-item" onclick="navigate('contabil')"><span class="nav-icon">📊</span> Contábil</div>
+    <div class="nav-item" onclick="navigate('legalizacao')"><span class="nav-icon">🔏</span> Legalização</div>
+    <div class="nav-section-title">Geral</div>
+    <div class="nav-item" onclick="navigate('tarefas')"><span class="nav-icon">✅</span> Tarefas <span class="nav-badge" id="badge-tar">0</span></div>
+  </div>
+  <div class="sidebar-footer">
+    <strong id="user-name">Carregando...</strong>
+    <div id="user-email" style="font-size:11px;color:#94a3b8;margin-top:1px"></div>
+    <button class="btn-logout" onclick="logout()">🚪 Sair</button>
+  </div>
+</nav>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div>
+    <div class="topbar-title" id="topbar-title">Dashboard</div>
+  </div>
+  <div class="topbar-actions">
+    <div class="notif-bell" onclick="openNotif()" title="Alertas">🔔<span class="notif-dot" id="notif-dot"></span></div>
+    <button class="btn btn-primary" onclick="openContextModal()">＋ Novo</button>
+  </div>
+</header>
+
+<div id="toast-container"></div>
+
+<!-- ═══ PAGES ═══ -->
+<main class="main">
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="page-title">Visão Geral</div>
+  <div class="page-sub" id="dash-date"></div>
+  <div id="dash-alerts"></div>
+  <div class="kpi-grid" id="kpi-dash"></div>
+  <div class="dashboard-grid">
+    <div>
+      <div class="card">
+        <div class="card-header"><span>📋</span><div class="card-title">Parcelamentos · Vencendo em 5 dias</div></div>
+        <div class="table-wrap"><table><thead><tr><th>Empresa</th><th>Tipo</th><th>Órgão</th><th>Valor</th><th>Vencimento</th><th>Status</th></tr></thead><tbody id="dash-parc-tbody"></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span>🧾</span><div class="card-title">INSS PF · Abertos</div></div>
+        <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Categoria</th><th>Competência</th><th>Vencimento</th><th>Status</th></tr></thead><tbody id="dash-inss-tbody"></tbody></table></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-header"><span>📌</span><div class="card-title">Tarefas Pendentes</div></div>
+        <div id="dash-tarefas-list"></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-header"><span>📊</span><div class="card-title">Setores</div></div>
+        <div style="padding:16px 20px" id="dash-setores"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PARCELAMENTOS -->
+<div class="page" id="page-parcelamentos">
+  <div class="page-title">Parcelamentos</div>
+  <div class="page-sub">Todas as modalidades, instâncias e regiões</div>
+  <div class="kpi-grid" id="kpi-parc"></div>
+  <div class="card">
+    <div class="toolbar">
+      <div class="search-box">🔍<input type="text" id="parc-search" placeholder="Pesquisar..." oninput="filterParcelamentos()"></div>
+      <select class="select-filter" id="parc-f-status" onchange="filterParcelamentos()">
+        <option value="">Todos os Status</option>
+        <option>Não iniciada</option><option>Em andamento</option><option>Concluído</option>
+        <option>Enviado p/ cliente</option><option>Atrasado</option><option>Cancelado</option>
+      </select>
+      <select class="select-filter" id="parc-f-orgao" onchange="filterParcelamentos()">
+        <option value="">Todos os Órgãos</option>
+        <option>PGFN</option><option>ECAC</option><option>SRF</option><option>ESTADO</option><option>MUNICIPAL</option><option>CARF</option>
+      </select>
+      <button class="btn btn-primary" onclick="openModal('parc')">＋ Novo</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Status</th><th>Empresa</th><th>Código</th><th>Tipo</th><th>Parcela</th><th>Órgão</th><th>Valor</th><th>Vencimento</th><th>Login</th><th>Senha</th><th>Obs</th><th></th></tr></thead>
+      <tbody id="parc-tbody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- INSS PF -->
+<div class="page" id="page-inss-pf">
+  <div class="page-title">INSS Pessoa Física</div>
+  <div class="page-sub">Carnês de contribuintes individuais, facultativos e especiais</div>
+  <div class="kpi-grid" id="kpi-inss"></div>
+  <div class="card">
+    <div class="toolbar">
+      <div class="search-box">🔍<input type="text" id="inss-search" placeholder="Pesquisar..." oninput="filterInss()"></div>
+      <select class="select-filter" id="inss-f-cat" onchange="filterInss()">
+        <option value="">Todas as Categorias</option>
+        <option>Contribuinte Individual</option><option>Facultativo</option>
+        <option>Segurado Especial</option><option>Empregado Doméstico</option>
+      </select>
+      <select class="select-filter" id="inss-f-status" onchange="filterInss()">
+        <option value="">Todos os Status</option>
+        <option>Pendente</option><option>Gerado</option><option>Pago</option><option>Em Atraso</option>
+      </select>
+      <button class="btn btn-primary" onclick="openModal('inss')">＋ Novo</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Nome</th><th>NIT</th><th>Cód. GPS</th><th>%</th><th>Categoria</th><th>Salário</th><th>Valor GPS</th><th>Competência</th><th>Vencimento</th><th>Envio</th><th>Status</th><th></th></tr></thead>
+      <tbody id="inss-tbody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- TAREFAS -->
+<div class="page" id="page-tarefas">
+  <div class="page-title">Tarefas Gerais</div>
+  <div class="page-sub">Controle centralizado de todas as tarefas</div>
+  <div class="card">
+    <div class="toolbar">
+      <div class="search-box">🔍<input type="text" id="tar-search" placeholder="Pesquisar..." oninput="filterTarefas()"></div>
+      <select class="select-filter" id="tar-f-setor" onchange="filterTarefas()">
+        <option value="">Todos os Setores</option>
+        <option>Fiscal</option><option>DP</option><option>Contábil</option><option>Legalização</option><option>Administração</option>
+      </select>
+      <select class="select-filter" id="tar-f-prior" onchange="filterTarefas()">
+        <option value="">Todas as Prioridades</option>
+        <option>Alta</option><option>Média</option><option>Baixa</option>
+      </select>
+      <button class="btn btn-primary" onclick="openModal('tarefa')">＋ Nova</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Título</th><th>Setor</th><th>Responsável</th><th>Prioridade</th><th>Prazo</th><th>Status</th><th></th></tr></thead>
+      <tbody id="tar-tbody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- SETORES -->
+<div class="page" id="page-fiscal"><div class="page-title">Setor Fiscal</div><div class="page-sub">Carol — Obrigações e entregas fiscais</div><div id="content-fiscal"></div></div>
+<div class="page" id="page-dp"><div class="page-title">Departamento Pessoal</div><div class="page-sub">Iris — Folha, admissões, demissões e SST</div><div id="content-dp"></div></div>
+<div class="page" id="page-contabil"><div class="page-title">Setor Contábil</div><div class="page-sub">Rayssa — Balanço, DRE, ECF e ECD</div><div id="content-contabil"></div></div>
+<div class="page" id="page-legalizacao"><div class="page-title">Legalização / Cert. Digital</div><div class="page-sub">Deivydi — Abertura, alteração e certificados</div><div id="content-legalizacao"></div></div>
+
+</main>
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- PARCELAMENTO -->
+<div class="modal-overlay" id="modal-parc">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon blue">📋</div>
+      <div class="modal-title" id="modal-parc-title">Novo Parcelamento</div>
+      <button class="modal-close" onclick="closeModal('parc')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full"><label class="form-label">Empresa *</label><input type="text" class="form-control" id="p-empresa" placeholder="Nome da empresa"></div>
+        <div class="form-group"><label class="form-label">Código / Processo</label><input type="text" class="form-control" id="p-codigo"></div>
+        <div class="form-group"><label class="form-label">Tipo *</label>
+          <select class="form-control" id="p-tipo"><option value="">Selecione…</option><option>Simples Nacional</option><option>Previdência</option><option>IRPF</option><option>IRPJ</option><option>CSLL</option><option>PIS/COFINS</option><option>FGTS</option><option>PERT</option><option>REFIS</option><option>Transação</option><option>Outro</option></select></div>
+        <div class="form-group"><label class="form-label">Órgão *</label>
+          <select class="form-control" id="p-orgao"><option value="">Selecione…</option><option>PGFN</option><option>ECAC</option><option>SRF</option><option>ESTADO</option><option>MUNICIPAL</option><option>CARF</option></select></div>
+        <div class="form-group"><label class="form-label">Modalidade</label>
+          <select class="form-control" id="p-modalidade"><option value="">Selecione…</option><option>Simples</option><option>Especial (PERT/REFIS)</option><option>Transação Tributária</option><option>Parcelamento Constitucional</option></select></div>
+        <div class="form-group"><label class="form-label">Instância</label>
+          <select class="form-control" id="p-instancia"><option value="">Selecione…</option><option>1ª Instância</option><option>2ª Instância</option><option>Administrativo</option><option>Judicial</option></select></div>
+        <div class="form-group"><label class="form-label">Parcela atual</label><input type="number" class="form-control" id="p-parcela" placeholder="ex: 16"></div>
+        <div class="form-group"><label class="form-label">Total de parcelas</label><input type="number" class="form-control" id="p-total" placeholder="ex: 60"></div>
+        <div class="form-group"><label class="form-label">Valor (R$)</label><input type="text" class="form-control" id="p-valor" placeholder="0,00"></div>
+        <div class="form-group"><label class="form-label">Vencimento da parcela</label><input type="date" class="form-control" id="p-vencimento"></div>
+        <div class="form-group"><label class="form-label">Login de acesso</label><input type="text" class="form-control" id="p-login" placeholder="CPF, CNPJ ou usuário"></div>
+        <div class="form-group"><label class="form-label">Senha</label><input type="text" class="form-control" id="p-senha" placeholder="Senha ou 'Cert. Digital'"></div>
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-control" id="p-status"><option>Não iniciada</option><option>Em andamento</option><option>Concluído</option><option>Enviado p/ cliente</option><option>Atrasado</option><option>Cancelado</option></select></div>
+        <div class="form-group"><label class="form-label">Competência</label><input type="month" class="form-control" id="p-competencia"></div>
+        <div class="form-group form-full"><label class="form-label">Observação</label><input type="text" class="form-control" id="p-obs" placeholder="Informações adicionais"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('parc')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-parc" onclick="saveParcelamento()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- INSS PF -->
+<div class="modal-overlay" id="modal-inss">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon green">🧾</div>
+      <div class="modal-title" id="modal-inss-title">Novo INSS PF</div>
+      <button class="modal-close" onclick="closeModal('inss')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full"><label class="form-label">Nome completo *</label><input type="text" class="form-control" id="i-nome" placeholder="Nome do contribuinte"></div>
+        <div class="form-group"><label class="form-label">NIT / PIS</label><input type="text" class="form-control" id="i-nit" placeholder="000.00000.00-0"></div>
+        <div class="form-group"><label class="form-label">Código GPS</label><input type="text" class="form-control" id="i-codigo" placeholder="1007, 1473…"></div>
+        <div class="form-group"><label class="form-label">Categoria *</label>
+          <select class="form-control" id="i-categoria"><option>Contribuinte Individual</option><option>Facultativo</option><option>Segurado Especial</option><option>Empregado Doméstico</option></select></div>
+        <div class="form-group"><label class="form-label">Alíquota</label>
+          <select class="form-control" id="i-aliquota"><option>20%</option><option>11%</option><option>5%</option></select></div>
+        <div class="form-group"><label class="form-label">Salário Base (R$)</label><input type="text" class="form-control" id="i-salario" placeholder="0,00"></div>
+        <div class="form-group"><label class="form-label">Valor GPS (R$)</label><input type="text" class="form-control" id="i-valor" placeholder="0,00"></div>
+        <div class="form-group"><label class="form-label">Competência</label><input type="month" class="form-control" id="i-competencia"></div>
+        <div class="form-group"><label class="form-label">Vencimento</label><input type="date" class="form-control" id="i-vencimento"></div>
+        <div class="form-group"><label class="form-label">Envio (WPP / E-mail)</label><input type="text" class="form-control" id="i-envio" placeholder="WPP - Nome…"></div>
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-control" id="i-status"><option>Pendente</option><option>Gerado</option><option>Pago</option><option>Em Atraso</option></select></div>
+        <div class="form-group form-full"><label class="form-label">Observação</label><input type="text" class="form-control" id="i-obs"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('inss')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-inss" onclick="saveInss()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TAREFA -->
+<div class="modal-overlay" id="modal-tarefa">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon orange">✅</div>
+      <div class="modal-title" id="modal-tar-title">Nova Tarefa</div>
+      <button class="modal-close" onclick="closeModal('tarefa')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full"><label class="form-label">Título *</label><input type="text" class="form-control" id="t-titulo" placeholder="Descreva a tarefa"></div>
+        <div class="form-group"><label class="form-label">Setor</label>
+          <select class="form-control" id="t-setor"><option>Fiscal</option><option>DP</option><option>Contábil</option><option>Legalização</option><option>Administração</option></select></div>
+        <div class="form-group"><label class="form-label">Responsável</label>
+          <select class="form-control" id="t-resp"><option>Carol</option><option>Iris</option><option>Rayssa</option><option>Deivydi</option><option>Silvio</option></select></div>
+        <div class="form-group"><label class="form-label">Prioridade</label>
+          <select class="form-control" id="t-prioridade"><option>Alta</option><option>Média</option><option>Baixa</option></select></div>
+        <div class="form-group"><label class="form-label">Prazo</label><input type="date" class="form-control" id="t-prazo"></div>
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-control" id="t-status"><option>Pendente</option><option>Em andamento</option><option>Concluída</option><option>Atrasada</option></select></div>
+        <div class="form-group form-full"><label class="form-label">Descrição</label><input type="text" class="form-control" id="t-desc" placeholder="Detalhes adicionais"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('tarefa')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-tar" onclick="saveTarefa()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ALERTAS -->
+<div class="modal-overlay" id="modal-notif">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header"><div class="modal-icon orange">🔔</div><div class="modal-title">Alertas</div><button class="modal-close" onclick="closeModal('notif')">✕</button></div>
+    <div class="modal-body" id="notif-body"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('notif')">Fechar</button></div>
+  </div>
+</div>
+
+<!-- ═══ SCRIPT ═══ -->
+<script>
+const SUPABASE_URL = 'https://csvdfarfpooxbuiwbnas.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzdmRmYXJmcG9veGJ1aXdobmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTg4NTQsImV4cCI6MjA5NjU5NDg1NH0.P8xzLOm9A0NSnui4Yq9iEFuPty6CMmFV1WXR7PGhHEs';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ─── STATE ───────────────────────────────────────────────
+let parcelamentos = [], inss = [], tarefas = [];
+let currentPage = 'dashboard';
+let editingId = { parc: null, inss: null, tarefa: null };
+
+// ─── AUTH CHECK ──────────────────────────────────────────
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '/'; return; }
+
+  const user = session.user;
+  document.getElementById('user-email').textContent = user.email;
+  document.getElementById('user-name').textContent = user.user_metadata?.nome || user.email.split('@')[0];
+
+  await loadAll();
+  document.getElementById('loading-screen').style.display = 'none';
+
+  const alerts = buildAlerts();
+  if (alerts.length) {
+    toast(`${alerts.filter(a=>a.type==='error').length || alerts.length} alerta(s)`,
+      'Clique no sino 🔔 para ver detalhes',
+      alerts.some(a=>a.type==='error') ? 'error' : 'warning');
+  }
+}
+
+async function logout() {
+  await sb.auth.signOut();
+  window.location.href = '/';
+}
+
+// ─── LOAD DATA ───────────────────────────────────────────
+async function loadAll() {
+  const [p, i, t] = await Promise.all([
+    sb.from('parcelamentos').select('*').order('vencimento', { ascending: true }),
+    sb.from('inss_pf').select('*').order('vencimento', { ascending: true }),
+    sb.from('tarefas').select('*').order('prazo', { ascending: true })
+  ]);
+  parcelamentos = p.data || [];
+  inss = i.data || [];
+  tarefas = t.data || [];
+  renderAll();
+}
+
+// ─── RENDER ALL ──────────────────────────────────────────
+function renderAll() {
+  renderDashboard();
+  renderParcelamentos();
+  renderInss();
+  renderTarefas();
+  renderSetores();
+  updateBadges();
+}
+
+// ─── NAVIGATE ────────────────────────────────────────────
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick')?.includes("'"+page+"'")) n.classList.add('active');
+  });
+  currentPage = page;
+  const titles = { dashboard:'Dashboard', parcelamentos:'Parcelamentos', 'inss-pf':'INSS PF',
+    fiscal:'Fiscal', dp:'Departamento Pessoal', contabil:'Contábil',
+    legalizacao:'Legalização', tarefas:'Tarefas' };
+  document.getElementById('topbar-title').textContent = titles[page] || page;
+}
+
+// ─── ALERTS ──────────────────────────────────────────────
+function buildAlerts() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const list = [];
+  parcelamentos.forEach(p => {
+    if (!p.vencimento) return;
+    const d = new Date(p.vencimento + 'T00:00:00');
+    const diff = Math.round((d - today) / 86400000);
+    if (diff < 0 && !['Concluído','Cancelado'].includes(p.status))
+      list.push({ type:'error', icon:'🚨', title:'Parcelamento ATRASADO', msg:`${p.empresa} — ${p.tipo} — ${Math.abs(diff)}d atraso` });
+    else if (diff <= 2 && diff >= 0 && !['Concluído','Cancelado'].includes(p.status))
+      list.push({ type:'warning', icon:'⚠️', title:`Vence em ${diff}d`, msg:`${p.empresa} — ${p.tipo}` });
+  });
+  inss.forEach(i => {
+    if (!i.vencimento) return;
+    const d = new Date(i.vencimento + 'T00:00:00');
+    const diff = Math.round((d - today) / 86400000);
+    if (diff < 0 && i.status !== 'Pago')
+      list.push({ type:'error', icon:'🚨', title:'INSS PF ATRASADO', msg:`${i.nome} — ${Math.abs(diff)}d atraso` });
+    else if (diff <= 3 && diff >= 0 && i.status !== 'Pago')
+      list.push({ type:'warning', icon:'⚠️', title:`INSS vence em ${diff}d`, msg:i.nome });
+  });
+  tarefas.forEach(t => {
+    if (!t.prazo || t.status === 'Concluída') return;
+    const d = new Date(t.prazo + 'T00:00:00');
+    if (d < today) list.push({ type:'error', icon:'📌', title:'Tarefa ATRASADA', msg:`${t.titulo} — ${t.responsavel}` });
+  });
+  return list;
+}
+
+function updateBadges() {
+  const pPend = parcelamentos.filter(p => ['Não iniciada','Em andamento'].includes(p.status)).length;
+  const iPend = inss.filter(i => ['Pendente','Em Atraso'].includes(i.status)).length;
+  const tPend = tarefas.filter(t => ['Pendente','Em andamento','Atrasada'].includes(t.status)).length;
+  document.getElementById('badge-parc').textContent = pPend;
+  document.getElementById('badge-inss').textContent = iPend;
+  document.getElementById('badge-tar').textContent = tPend;
+  const hasAlert = buildAlerts().length > 0;
+  document.getElementById('notif-dot').style.display = hasAlert ? '' : 'none';
+}
+
+// ─── DASHBOARD ───────────────────────────────────────────
+function renderDashboard() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  document.getElementById('dash-date').textContent =
+    today.toLocaleDateString('pt-BR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  const alerts = buildAlerts();
+  document.getElementById('dash-alerts').innerHTML = alerts.slice(0,3).map(a =>
+    `<div class="alert-banner ${a.type==='error'?'danger':'warning'}">${a.icon} <div><strong>${a.title}</strong> — ${a.msg}</div></div>`
+  ).join('');
+
+  const pPend = parcelamentos.filter(p => ['Não iniciada','Em andamento'].includes(p.status)).length;
+  const pAtr = parcelamentos.filter(p => p.vencimento && new Date(p.vencimento+'T00:00:00') < today && !['Concluído','Cancelado'].includes(p.status)).length;
+  const iPend = inss.filter(i => ['Pendente','Em Atraso'].includes(i.status)).length;
+  const tAtr = tarefas.filter(t => t.prazo && new Date(t.prazo+'T00:00:00') < today && t.status !== 'Concluída').length;
+
+  document.getElementById('kpi-dash').innerHTML = `
+    <div class="kpi-card blue"><div class="kpi-icon">📋</div><div class="kpi-label">Parcelamentos</div><div class="kpi-value">${parcelamentos.length}</div><div class="kpi-sub">${pPend} pendentes</div></div>
+    <div class="kpi-card red"><div class="kpi-icon">⚠️</div><div class="kpi-label">Parcelas Atrasadas</div><div class="kpi-value">${pAtr}</div></div>
+    <div class="kpi-card green"><div class="kpi-icon">🧾</div><div class="kpi-label">INSS PF</div><div class="kpi-value">${inss.length}</div><div class="kpi-sub">${iPend} pendentes</div></div>
+    <div class="kpi-card orange"><div class="kpi-icon">📌</div><div class="kpi-label">Tarefas Atrasadas</div><div class="kpi-value">${tAtr}</div></div>
+    <div class="kpi-card purple"><div class="kpi-icon">✅</div><div class="kpi-label">Total Tarefas</div><div class="kpi-value">${tarefas.length}</div><div class="kpi-sub">${tarefas.filter(t=>t.status==='Concluída').length} concluídas</div></div>
+    <div class="kpi-card teal"><div class="kpi-icon">👥</div><div class="kpi-label">Equipe</div><div class="kpi-value">4</div><div class="kpi-sub">setores ativos</div></div>
+  `;
+
+  // Parcelamentos vencendo em 5 dias
+  const parc5 = parcelamentos.filter(p => {
+    if (!p.vencimento) return false;
+    const diff = Math.round((new Date(p.vencimento+'T00:00:00') - today) / 86400000);
+    return diff <= 5;
+  });
+  document.getElementById('dash-parc-tbody').innerHTML = parc5.length ? parc5.map(p => {
+    const diff = Math.round((new Date(p.vencimento+'T00:00:00') - today) / 86400000);
+    const cls = diff < 0 ? 'vencimento-alert' : diff <= 2 ? 'vencimento-warn' : '';
+    return `<tr><td><strong>${p.empresa}</strong></td><td><span class="chip">${p.tipo||'—'}</span></td>
+      <td><span class="tag tag-${(p.orgao||'').toLowerCase()}">${p.orgao||'—'}</span></td>
+      <td class="font-mono">${p.valor||'—'}</td>
+      <td class="${cls}">${fmtDate(p.vencimento)} ${diff<0?`(${Math.abs(diff)}d atraso)`:diff===0?'(hoje!)':''}</td>
+      <td>${sBadge(p.status)}</td></tr>`;
+  }).join('') : '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:16px">Nenhum vencendo em 5 dias ✅</td></tr>';
+
+  // INSS abertos
+  const inssAberto = inss.filter(i => i.status !== 'Pago').slice(0,6);
+  document.getElementById('dash-inss-tbody').innerHTML = inssAberto.length ? inssAberto.map(i => {
+    const diff = i.vencimento ? Math.round((new Date(i.vencimento+'T00:00:00') - today) / 86400000) : null;
+    const cls = diff !== null && diff < 0 ? 'vencimento-alert' : diff !== null && diff <= 3 ? 'vencimento-warn' : '';
+    return `<tr><td><strong>${i.nome}</strong></td><td><span class="chip">${i.categoria||'—'}</span></td>
+      <td>${i.competencia ? fmtMonth(i.competencia) : '—'}</td>
+      <td class="${cls}">${fmtDate(i.vencimento)}</td><td>${iBadge(i.status)}</td></tr>`;
+  }).join('') : '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:16px">Nenhum aberto ✅</td></tr>';
+
+  // Tarefas pendentes
+  const tarPend = tarefas.filter(t => t.status !== 'Concluída').slice(0,7);
+  document.getElementById('dash-tarefas-list').innerHTML = tarPend.map(t => {
+    const diff = t.prazo ? Math.round((new Date(t.prazo+'T00:00:00') - today) / 86400000) : null;
+    const c = diff !== null && diff < 0 ? 'danger' : diff !== null && diff <= 1 ? 'warning' : 'primary';
+    return `<div style="padding:11px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+      <div style="flex:1"><div style="font-size:13px;font-weight:600">${t.titulo}</div><div style="font-size:11px;color:var(--text3)">${t.setor||''} · ${t.responsavel||''}</div></div>
+      <div style="font-size:11px;color:var(--${c});font-weight:600">${fmtDate(t.prazo)}</div>
+    </div>`;
+  }).join('') || '<div style="padding:20px;text-align:center;color:var(--text3)">Nenhuma tarefa pendente ✅</div>';
+}
+
+// ─── SETORES ─────────────────────────────────────────────
+function renderSetores() {
+  document.getElementById('dash-setores').innerHTML = ['Fiscal','DP','Contábil','Legalização'].map(s => {
+    const t = tarefas.filter(x => x.setor === s);
+    const conc = t.filter(x => x.status === 'Concluída').length;
+    const total = t.length || 1;
+    const pct = Math.round((conc/total)*100);
+    const atr = t.filter(x => x.status === 'Atrasada').length;
+    const resp = { Fiscal:'Carol', DP:'Iris', Contábil:'Rayssa', Legalização:'Deivydi' }[s];
+    return `<div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-size:13px;font-weight:700;flex:1">${s} <span style="font-size:11px;font-weight:400;color:var(--text3)">${resp}</span></span>
+        <span style="font-size:11px;color:var(--text3)">${conc}/${t.length}</span>
+        ${atr ? `<span class="badge badge-red">${atr} atr.</span>` : ''}
+      </div>
+      <div class="prog-bar"><div class="prog-fill ${pct===100?'green':atr?'red':''}" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+
+  // Páginas de setor
+  ['fiscal','dp','contabil','legalizacao'].forEach(s => {
+    const map = { fiscal:'Fiscal', dp:'DP', contabil:'Contábil', legalizacao:'Legalização' };
+    const el = document.getElementById('content-'+s);
+    if (!el) return;
+    const t = tarefas.filter(x => x.setor === map[s]);
+    const today = new Date(); today.setHours(0,0,0,0);
+    el.innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi-card blue"><div class="kpi-label">Total</div><div class="kpi-value">${t.length}</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Concluídas</div><div class="kpi-value">${t.filter(x=>x.status==='Concluída').length}</div></div>
+        <div class="kpi-card orange"><div class="kpi-label">Pendentes</div><div class="kpi-value">${t.filter(x=>x.status==='Pendente').length}</div></div>
+        <div class="kpi-card red"><div class="kpi-label">Atrasadas</div><div class="kpi-value">${t.filter(x=>x.status==='Atrasada').length}</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Tarefas</div>
+          <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openModal('tarefa');setV('t-setor','${map[s]}')">＋ Nova</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Título</th><th>Responsável</th><th>Prioridade</th><th>Prazo</th><th>Status</th><th></th></tr></thead>
+          <tbody>${t.map(x => {
+            const diff = x.prazo ? Math.round((new Date(x.prazo+'T00:00:00') - today)/86400000) : null;
+            const pc = diff!==null&&diff<0&&x.status!=='Concluída'?'vencimento-alert':diff!==null&&diff<=1&&x.status!=='Concluída'?'vencimento-warn':'';
+            const pr = {Alta:'badge-red',Média:'badge-orange',Baixa:'badge-teal'}[x.prioridade]||'badge-gray';
+            return `<tr><td><strong>${x.titulo}</strong>${x.descricao?`<div style="font-size:11px;color:var(--text3)">${x.descricao}</div>`:''}</td>
+              <td>${x.responsavel||'—'}</td>
+              <td><span class="badge ${pr}">${x.prioridade||'—'}</span></td>
+              <td class="${pc}">${fmtDate(x.prazo)}</td>
+              <td>${tBadge(x.status)}</td>
+              <td><div class="td-actions">
+                <button class="icon-btn" onclick='editTarefa("${x.id}")'>✏️</button>
+                <button class="icon-btn del" onclick='deleteItem("tarefa","${x.id}")'>🗑️</button>
+              </div></td></tr>`;
+          }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhuma tarefa</td></tr>'}</tbody>
+        </table></div>
+      </div>`;
+  });
+}
+
+// ─── PARCELAMENTOS ───────────────────────────────────────
+function filterParcelamentos() { renderParcelamentos(); }
+function renderParcelamentos() {
+  const search = (gv('parc-search')||'').toLowerCase();
+  const fS = gv('parc-f-status')||'';
+  const fO = gv('parc-f-orgao')||'';
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  let data = parcelamentos.filter(p => {
+    const m = search ? [p.empresa,p.codigo,p.tipo,p.orgao,p.obs].join(' ').toLowerCase().includes(search) : true;
+    return m && (fS ? p.status===fS : true) && (fO ? p.orgao===fO : true);
+  });
+
+  document.getElementById('parc-tbody').innerHTML = data.length ? data.map(p => {
+    let vCls = '';
+    if (p.vencimento) {
+      const diff = Math.round((new Date(p.vencimento+'T00:00:00') - today)/86400000);
+      if (diff<0 && !['Concluído','Cancelado'].includes(p.status)) vCls='vencimento-alert';
+      else if (diff<=3 && !['Concluído','Cancelado'].includes(p.status)) vCls='vencimento-warn';
+    }
+    return `<tr>
+      <td>${sBadge(p.status)}</td>
+      <td><strong>${p.empresa}</strong></td>
+      <td class="font-mono">${p.codigo||'—'}</td>
+      <td><span class="chip">${p.tipo||'—'}</span></td>
+      <td>${p.parcela||'—'}${p.total_parcelas?'/'+p.total_parcelas:''}</td>
+      <td><span class="tag tag-${(p.orgao||'').toLowerCase()}">${p.orgao||'—'}</span></td>
+      <td class="font-mono">${p.valor||'—'}</td>
+      <td class="${vCls}">${fmtDate(p.vencimento)}</td>
+      <td class="font-mono" style="font-size:11px">${p.login_acesso||'—'}</td>
+      <td class="font-mono" style="font-size:11px">${p.senha||'—'}</td>
+      <td style="font-size:11px;color:var(--text3)">${p.obs||''}</td>
+      <td><div class="td-actions">
+        <button class="icon-btn" onclick='editParcelamento("${p.id}")'>✏️</button>
+        <button class="icon-btn del" onclick='deleteItem("parc","${p.id}")'>🗑️</button>
+      </div></td></tr>`;
+  }).join('') : '<tr><td colspan="12"><div class="empty-state"><div class="es-icon">📭</div><p>Nenhum registro</p></div></td></tr>';
+
+  const conc = parcelamentos.filter(p=>p.status==='Concluído').length;
+  const pend = parcelamentos.filter(p=>['Não iniciada','Em andamento'].includes(p.status)).length;
+  const atr = parcelamentos.filter(p=>p.vencimento&&new Date(p.vencimento+'T00:00:00')<today&&!['Concluído','Cancelado'].includes(p.status)).length;
+  document.getElementById('kpi-parc').innerHTML = `
+    <div class="kpi-card blue"><div class="kpi-label">Total</div><div class="kpi-value">${parcelamentos.length}</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Concluídos</div><div class="kpi-value">${conc}</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">Pendentes</div><div class="kpi-value">${pend}</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Atrasados</div><div class="kpi-value">${atr}</div></div>
+    <div class="kpi-card teal"><div class="kpi-label">Env. Cliente</div><div class="kpi-value">${parcelamentos.filter(p=>p.status==='Enviado p/ cliente').length}</div></div>
+  `;
+}
+
+// ─── INSS ─────────────────────────────────────────────────
+function filterInss() { renderInss(); }
+function renderInss() {
+  const search = (gv('inss-search')||'').toLowerCase();
+  const fC = gv('inss-f-cat')||'';
+  const fS = gv('inss-f-status')||'';
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  let data = inss.filter(i => {
+    const m = search ? [i.nome,i.nit,i.codigo].join(' ').toLowerCase().includes(search) : true;
+    return m && (fC ? i.categoria===fC : true) && (fS ? i.status===fS : true);
+  });
+
+  document.getElementById('inss-tbody').innerHTML = data.length ? data.map(i => {
+    let vCls = '';
+    if (i.vencimento) {
+      const diff = Math.round((new Date(i.vencimento+'T00:00:00') - today)/86400000);
+      if (diff<0&&i.status!=='Pago') vCls='vencimento-alert';
+      else if (diff<=3&&i.status!=='Pago') vCls='vencimento-warn';
+    }
+    return `<tr>
+      <td><strong>${i.nome}</strong></td>
+      <td class="font-mono">${i.nit||'—'}</td>
+      <td class="font-mono">${i.codigo||'—'}</td>
+      <td><span class="chip">${i.aliquota||'—'}</span></td>
+      <td><span class="chip">${i.categoria||'—'}</span></td>
+      <td class="font-mono">R$ ${i.salario||'—'}</td>
+      <td class="font-mono">R$ ${i.valor||'—'}</td>
+      <td>${i.competencia?fmtMonth(i.competencia):'—'}</td>
+      <td class="${vCls}">${fmtDate(i.vencimento)}</td>
+      <td style="font-size:11px">${i.envio||'—'}</td>
+      <td>${iBadge(i.status)}</td>
+      <td><div class="td-actions">
+        <button class="icon-btn" onclick='editInss("${i.id}")'>✏️</button>
+        <button class="icon-btn del" onclick='deleteItem("inss","${i.id}")'>🗑️</button>
+      </div></td></tr>`;
+  }).join('') : '<tr><td colspan="12"><div class="empty-state"><div class="es-icon">📭</div><p>Nenhum registro</p></div></td></tr>';
+
+  document.getElementById('kpi-inss').innerHTML = `
+    <div class="kpi-card blue"><div class="kpi-label">Total</div><div class="kpi-value">${inss.length}</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">Pendentes</div><div class="kpi-value">${inss.filter(i=>i.status==='Pendente').length}</div></div>
+    <div class="kpi-card teal"><div class="kpi-label">Gerados</div><div class="kpi-value">${inss.filter(i=>i.status==='Gerado').length}</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Pagos</div><div class="kpi-value">${inss.filter(i=>i.status==='Pago').length}</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Em Atraso</div><div class="kpi-value">${inss.filter(i=>i.status==='Em Atraso').length}</div></div>
+  `;
+}
+
+// ─── TAREFAS ──────────────────────────────────────────────
+function filterTarefas() { renderTarefas(); }
+function renderTarefas() {
+  const search = (gv('tar-search')||'').toLowerCase();
+  const fS = gv('tar-f-setor')||'';
+  const fP = gv('tar-f-prior')||'';
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  let data = tarefas.filter(t => {
+    const m = search ? [t.titulo,t.descricao,t.responsavel].join(' ').toLowerCase().includes(search) : true;
+    return m && (fS ? t.setor===fS : true) && (fP ? t.prioridade===fP : true);
+  });
+
+  document.getElementById('tar-tbody').innerHTML = data.length ? data.map(t => {
+    const diff = t.prazo ? Math.round((new Date(t.prazo+'T00:00:00') - today)/86400000) : null;
+    const pc = diff!==null&&diff<0&&t.status!=='Concluída'?'vencimento-alert':diff!==null&&diff<=1&&t.status!=='Concluída'?'vencimento-warn':'';
+    const pr = {Alta:'badge-red',Média:'badge-orange',Baixa:'badge-teal'}[t.prioridade]||'badge-gray';
+    return `<tr>
+      <td><strong>${t.titulo}</strong>${t.descricao?`<div style="font-size:11px;color:var(--text3)">${t.descricao}</div>`:''}</td>
+      <td><span class="chip">${t.setor||'—'}</span></td>
+      <td>${t.responsavel||'—'}</td>
+      <td><span class="badge ${pr}">${t.prioridade||'—'}</span></td>
+      <td class="${pc}">${fmtDate(t.prazo)}</td>
+      <td>${tBadge(t.status)}</td>
+      <td><div class="td-actions">
+        <button class="icon-btn" onclick='editTarefa("${t.id}")'>✏️</button>
+        <button class="icon-btn del" onclick='deleteItem("tarefa","${t.id}")'>🗑️</button>
+      </div></td></tr>`;
+  }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="es-icon">📭</div><p>Nenhuma tarefa</p></div></td></tr>';
+}
+
+// ─── SAVE / EDIT ──────────────────────────────────────────
+async function saveParcelamento() {
+  const empresa = gv('p-empresa');
+  if (!empresa) { toast('Atenção','Informe o nome da empresa','warning'); return; }
+  setBusy('btn-save-parc', true);
+  const obj = {
+    empresa, codigo:gv('p-codigo'), tipo:gv('p-tipo'), orgao:gv('p-orgao'),
+    modalidade:gv('p-modalidade'), instancia:gv('p-instancia'),
+    parcela:gv('p-parcela'), total_parcelas:gv('p-total'),
+    valor:gv('p-valor'), vencimento:gv('p-vencimento')||null,
+    login_acesso:gv('p-login'), senha:gv('p-senha'),
+    status:gv('p-status'), competencia:gv('p-competencia')||null, obs:gv('p-obs'),
+    updated_at: new Date().toISOString()
+  };
+  const id = editingId.parc;
+  const { error } = id
+    ? await sb.from('parcelamentos').update(obj).eq('id', id)
+    : await sb.from('parcelamentos').insert(obj);
+  setBusy('btn-save-parc', false);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  closeModal('parc');
+  toast('Salvo!', id ? 'Atualizado com sucesso' : 'Parcelamento cadastrado', 'success');
+  await loadAll();
+}
+
+async function saveInss() {
+  const nome = gv('i-nome');
+  if (!nome) { toast('Atenção','Informe o nome do contribuinte','warning'); return; }
+  setBusy('btn-save-inss', true);
+  const obj = {
+    nome, nit:gv('i-nit'), codigo:gv('i-codigo'), categoria:gv('i-categoria'),
+    aliquota:gv('i-aliquota'), salario:gv('i-salario'), valor:gv('i-valor'),
+    competencia:gv('i-competencia')||null, vencimento:gv('i-vencimento')||null,
+    envio:gv('i-envio'), status:gv('i-status'), obs:gv('i-obs'),
+    updated_at: new Date().toISOString()
+  };
+  const id = editingId.inss;
+  const { error } = id
+    ? await sb.from('inss_pf').update(obj).eq('id', id)
+    : await sb.from('inss_pf').insert(obj);
+  setBusy('btn-save-inss', false);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  closeModal('inss');
+  toast('Salvo!', id ? 'Atualizado' : 'Contribuinte cadastrado', 'success');
+  await loadAll();
+}
+
+async function saveTarefa() {
+  const titulo = gv('t-titulo');
+  if (!titulo) { toast('Atenção','Informe o título','warning'); return; }
+  setBusy('btn-save-tar', true);
+  const obj = {
+    titulo, setor:gv('t-setor'), responsavel:gv('t-resp'),
+    prioridade:gv('t-prioridade'), prazo:gv('t-prazo')||null,
+    status:gv('t-status'), descricao:gv('t-desc'),
+    updated_at: new Date().toISOString()
+  };
+  const id = editingId.tarefa;
+  const { error } = id
+    ? await sb.from('tarefas').update(obj).eq('id', id)
+    : await sb.from('tarefas').insert(obj);
+  setBusy('btn-save-tar', false);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  closeModal('tarefa');
+  toast('Salvo!', id ? 'Tarefa atualizada' : 'Tarefa criada', 'success');
+  await loadAll();
+}
+
+function editParcelamento(id) {
+  const p = parcelamentos.find(x => x.id === id);
+  if (!p) return;
+  editingId.parc = id;
+  document.getElementById('modal-parc-title').textContent = 'Editar Parcelamento';
+  setV('p-empresa',p.empresa); setV('p-codigo',p.codigo); setV('p-tipo',p.tipo);
+  setV('p-orgao',p.orgao); setV('p-modalidade',p.modalidade); setV('p-instancia',p.instancia);
+  setV('p-parcela',p.parcela); setV('p-total',p.total_parcelas); setV('p-valor',p.valor);
+  setV('p-vencimento',p.vencimento); setV('p-login',p.login_acesso); setV('p-senha',p.senha);
+  setV('p-status',p.status); setV('p-competencia',p.competencia); setV('p-obs',p.obs);
+  document.getElementById('modal-parc').classList.add('open');
+}
+
+function editInss(id) {
+  const i = inss.find(x => x.id === id);
+  if (!i) return;
+  editingId.inss = id;
+  document.getElementById('modal-inss-title').textContent = 'Editar INSS PF';
+  setV('i-nome',i.nome); setV('i-nit',i.nit); setV('i-codigo',i.codigo);
+  setV('i-categoria',i.categoria); setV('i-aliquota',i.aliquota); setV('i-salario',i.salario);
+  setV('i-valor',i.valor); setV('i-competencia',i.competencia); setV('i-vencimento',i.vencimento);
+  setV('i-envio',i.envio); setV('i-status',i.status); setV('i-obs',i.obs);
+  document.getElementById('modal-inss').classList.add('open');
+}
+
+function editTarefa(id) {
+  const t = tarefas.find(x => x.id === id);
+  if (!t) return;
+  editingId.tarefa = id;
+  document.getElementById('modal-tar-title').textContent = 'Editar Tarefa';
+  setV('t-titulo',t.titulo); setV('t-setor',t.setor); setV('t-resp',t.responsavel);
+  setV('t-prioridade',t.prioridade); setV('t-prazo',t.prazo);
+  setV('t-status',t.status); setV('t-desc',t.descricao);
+  document.getElementById('modal-tarefa').classList.add('open');
+}
+
+async function deleteItem(type, id) {
+  if (!confirm('Confirma exclusão?')) return;
+  const table = { parc:'parcelamentos', inss:'inss_pf', tarefa:'tarefas' }[type];
+  const { error } = await sb.from(table).delete().eq('id', id);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  toast('Excluído','Registro removido','success');
+  await loadAll();
+}
+
+// ─── MODALS ───────────────────────────────────────────────
+function openModal(type) {
+  editingId[type === 'tarefa' ? 'tarefa' : type === 'inss' ? 'inss' : 'parc'] = null;
+  clearForm(type);
+  const map = { parc:'modal-parc', inss:'modal-inss', tarefa:'modal-tarefa' };
+  document.getElementById(map[type]).classList.add('open');
+  const titles = { parc:'Novo Parcelamento', inss:'Novo INSS PF', tarefa:'Nova Tarefa' };
+  const tEl = { parc:'modal-parc-title', inss:'modal-inss-title', tarefa:'modal-tar-title' };
+  document.getElementById(tEl[type]).textContent = titles[type];
+}
+function closeModal(type) {
+  const map = { parc:'modal-parc', inss:'modal-inss', tarefa:'modal-tarefa', notif:'modal-notif' };
+  document.getElementById(map[type])?.classList.remove('open');
+}
+function openContextModal() {
+  if (currentPage === 'parcelamentos') openModal('parc');
+  else if (currentPage === 'inss-pf') openModal('inss');
+  else openModal('tarefa');
+}
+function clearForm(type) {
+  if (type==='parc') ['p-empresa','p-codigo','p-tipo','p-orgao','p-modalidade','p-instancia','p-parcela','p-total','p-valor','p-vencimento','p-login','p-senha','p-competencia','p-obs'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  if (type==='inss') ['i-nome','i-nit','i-codigo','i-salario','i-valor','i-competencia','i-vencimento','i-envio','i-obs'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  if (type==='tarefa') ['t-titulo','t-prazo','t-desc'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+}
+
+function openNotif() {
+  const alerts = buildAlerts();
+  document.getElementById('notif-body').innerHTML = alerts.length ?
+    alerts.map(a => `<div class="alert-banner ${a.type==='error'?'danger':'warning'}" style="margin-bottom:8px">${a.icon} <div><strong>${a.title}</strong><div style="font-size:12px;margin-top:2px">${a.msg}</div></div></div>`).join('') :
+    '<div style="text-align:center;padding:24px;color:var(--text3)">✅ Nenhum alerta!</div>';
+  document.getElementById('modal-notif').classList.add('open');
+}
+
+// ─── HELPERS ──────────────────────────────────────────────
+const sBadge = s => { const m={'Concluído':'badge-green','Em andamento':'badge-blue','Não iniciada':'badge-gray','Enviado p/ cliente':'badge-teal','Atrasado':'badge-red','Cancelado':'badge-gray'}; return `<span class="badge ${m[s]||'badge-gray'}">${s||'—'}</span>`; };
+const iBadge = s => { const m={'Pago':'badge-green','Gerado':'badge-blue','Pendente':'badge-orange','Em Atraso':'badge-red'}; return `<span class="badge ${m[s]||'badge-gray'}">${s||'—'}</span>`; };
+const tBadge = s => { const m={'Concluída':'badge-green','Em andamento':'badge-blue','Pendente':'badge-orange','Atrasada':'badge-red'}; return `<span class="badge ${m[s]||'badge-gray'}">${s||'—'}</span>`; };
+const fmtDate = d => { if(!d)return'—'; const[y,m,dd]=d.split('T')[0].split('-'); return `${dd}/${m}/${y}`; };
+const fmtMonth = d => { if(!d)return'—'; const[y,m]=d.split('-'); return ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(m)-1]+'/'+y; };
+const gv = id => document.getElementById(id)?.value || '';
+const setV = (id,val) => { const e=document.getElementById(id); if(e) e.value=val||''; };
+const setBusy = (id, busy) => { const e=document.getElementById(id); if(e){e.disabled=busy;e.textContent=busy?'Salvando...':'💾 Salvar';} };
+
+function toast(title, msg, type='info') {
+  const icons = {success:'✅',warning:'⚠️',error:'❌',info:'ℹ️'};
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span class="toast-icon">${icons[type]}</span><div class="toast-content"><div class="toast-title">${title}</div><div class="toast-msg">${msg}</div></div><button class="toast-close" onclick="this.parentElement.remove()">✕</button>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>el.remove(),4500);
+}
+
+// Fechar modal clicando no overlay
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); });
+});
+
+// ─── START ────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

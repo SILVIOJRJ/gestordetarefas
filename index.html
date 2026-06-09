@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nascente Contábil · Login</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(135deg, #e0f2fe 0%, #f0fdf4 50%, #eff6ff 100%);
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  }
+  .login-card {
+    background: #fff; border-radius: 20px; padding: 44px 40px;
+    width: 420px; max-width: calc(100vw - 32px);
+    box-shadow: 0 8px 40px rgba(0,0,0,.10);
+  }
+  .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+  .logo-icon {
+    width: 48px; height: 48px; background: #3b82f6; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 24px; font-weight: 800;
+  }
+  .logo-text { font-size: 18px; font-weight: 800; color: #1e293b; }
+  .logo-sub { font-size: 12px; color: #94a3b8; }
+  h1 { font-size: 22px; font-weight: 800; color: #1e293b; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #64748b; margin-bottom: 28px; }
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 5px; }
+  input {
+    width: 100%; padding: 11px 14px; border: 1.5px solid #e2e8f0;
+    border-radius: 10px; font-size: 14px; color: #1e293b; outline: none;
+    transition: border .15s;
+  }
+  input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+  .btn-login {
+    width: 100%; padding: 13px; background: #3b82f6; color: #fff;
+    border: none; border-radius: 10px; font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: background .15s; margin-top: 8px;
+  }
+  .btn-login:hover { background: #2563eb; }
+  .btn-login:disabled { background: #93c5fd; cursor: not-allowed; }
+  .error-msg {
+    background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626;
+    border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-top: 14px; display: none;
+  }
+  .footer { text-align: center; margin-top: 24px; font-size: 12px; color: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="logo">
+    <div class="logo-icon">N</div>
+    <div>
+      <div class="logo-text">Nascente Contábil</div>
+      <div class="logo-sub">Gestor de Tarefas</div>
+    </div>
+  </div>
+  <h1>Bem-vindo! 👋</h1>
+  <div class="subtitle">Faça login para acessar o sistema</div>
+  <div class="form-group">
+    <label>E-mail</label>
+    <input type="email" id="email" placeholder="seu@email.com" autocomplete="email">
+  </div>
+  <div class="form-group">
+    <label>Senha</label>
+    <input type="password" id="senha" placeholder="••••••••" autocomplete="current-password">
+  </div>
+  <button class="btn-login" id="btn-login" onclick="login()">Entrar</button>
+  <div class="error-msg" id="error-msg"></div>
+  <div class="footer">Nascente Contábil © 2026</div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://csvdfarfpooxbuiwbnas.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzdmRmYXJmcG9veGJ1aXdobmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTg4NTQsImV4cCI6MjA5NjU5NDg1NH0.P8xzLOm9A0NSnui4Yq9iEFuPty6CMmFV1WXR7PGhHEs';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Se já está logado, redireciona
+supabase.auth.getSession().then(({ data }) => {
+  if (data.session) window.location.href = '/app.html';
+});
+
+document.getElementById('senha').addEventListener('keydown', e => {
+  if (e.key === 'Enter') login();
+});
+
+async function login() {
+  const email = document.getElementById('email').value.trim();
+  const senha = document.getElementById('senha').value;
+  const btn = document.getElementById('btn-login');
+  const err = document.getElementById('error-msg');
+  err.style.display = 'none';
+
+  if (!email || !senha) { showError('Preencha e-mail e senha.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Entrando...';
+
+  const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+
+  if (error) {
+    showError('E-mail ou senha incorretos.');
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+  } else {
+    window.location.href = '/app.html';
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+</script>
+</body>
+</html>
