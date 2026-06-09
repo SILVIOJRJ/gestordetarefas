@@ -76,10 +76,10 @@
 <script>
 const SUPABASE_URL = 'https://csvdfarfpooxbuiwbnas.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzdmRmYXJmcG9veGJ1aXdobmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTg4NTQsImV4cCI6MjA5NjU5NDg1NH0.P8xzLOm9A0NSnui4Yq9iEFuPty6CMmFV1WXR7PGhHEs';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Se já está logado, redireciona
-supabase.auth.getSession().then(({ data }) => {
+sb.auth.getSession().then(({ data }) => {
   if (data.session) window.location.href = '/app.html';
 });
 
@@ -99,7 +99,7 @@ async function login() {
   btn.disabled = true;
   btn.textContent = 'Entrando...';
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+  const { error } = await sb.auth.signInWithPassword({ email, password: senha });
 
   if (error) {
     showError('E-mail ou senha incorretos.');
