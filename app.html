@@ -211,10 +211,7 @@
     <div class="nav-item" onclick="navigate('parcelamentos')"><span class="nav-icon">📋</span> Parcelamentos <span class="nav-badge warn" id="badge-parc">0</span></div>
     <div class="nav-item" onclick="navigate('inss-pf')"><span class="nav-icon">🧾</span> INSS PF <span class="nav-badge" id="badge-inss">0</span></div>
     <div class="nav-section-title">Departamentos</div>
-    <div class="nav-item" onclick="navigate('fiscal')"><span class="nav-icon">💼</span> Fiscal</div>
-    <div class="nav-item" onclick="navigate('dp')"><span class="nav-icon">👥</span> Depto. Pessoal</div>
-    <div class="nav-item" onclick="navigate('contabil')"><span class="nav-icon">📊</span> Contábil</div>
-    <div class="nav-item" onclick="navigate('legalizacao')"><span class="nav-icon">🔏</span> Legalização</div>
+    <div id="sidebar-departamentos"></div>
     <div class="nav-section-title">Geral</div>
     <div class="nav-item" onclick="navigate('tarefas')"><span class="nav-icon">✅</span> Tarefas <span class="nav-badge" id="badge-tar">0</span></div>
     <div class="nav-item" onclick="navigate('clientes')"><span class="nav-icon">👤</span> Clientes</div>
@@ -359,11 +356,12 @@
   </div>
 </div>
 
-<!-- SETORES FIXOS -->
-<div class="page" id="page-fiscal"><div class="page-title">Setor Fiscal</div><div class="page-sub">Carol — Obrigações e entregas fiscais</div><div id="content-fiscal"></div></div>
-<div class="page" id="page-dp"><div class="page-title">Departamento Pessoal</div><div class="page-sub">Iris — Folha, admissões, demissões e SST</div><div id="content-dp"></div></div>
-<div class="page" id="page-contabil"><div class="page-title">Setor Contábil</div><div class="page-sub">Rayssa — Balanço, DRE, ECF e ECD</div><div id="content-contabil"></div></div>
-<div class="page" id="page-legalizacao"><div class="page-title">Legalização / Cert. Digital</div><div class="page-sub">Deivydi — Abertura, alteração e certificados</div><div id="content-legalizacao"></div></div>
+<!-- PÁGINA DINÂMICA DE SETOR -->
+<div class="page" id="page-setor">
+  <div class="page-title" id="setor-page-title"></div>
+  <div class="page-sub" id="setor-page-sub"></div>
+  <div id="content-setor"></div>
+</div>
 
 <!-- CLIENTES -->
 <div class="page" id="page-clientes">
@@ -775,19 +773,48 @@ function renderAll() {
 }
 
 // NAVIGATE
-function navigate(page) {
+let currentSetorName = null;
+
+function navigate(page, setorNome) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + page).classList.add('active');
+
+  // Setor dinâmico
+  if (page === 'setor' && setorNome) {
+    currentSetorName = setorNome;
+    document.getElementById('page-setor').classList.add('active');
+    renderSetorPage(setorNome);
+    document.querySelectorAll('#sidebar-departamentos .nav-item').forEach(n => {
+      if (n.dataset.setor === setorNome) n.classList.add('active');
+    });
+    document.getElementById('topbar-title').textContent = setorNome;
+    currentPage = 'setor';
+    return;
+  }
+
+  const el = document.getElementById('page-' + page);
+  if (el) el.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.getAttribute('onclick')?.includes("'"+page+"'")) n.classList.add('active');
   });
   currentPage = page;
   const titles = { dashboard:'Dashboard', parcelamentos:'Parcelamentos', 'inss-pf':'INSS PF',
-    fiscal:'Fiscal', dp:'Departamento Pessoal', contabil:'Contábil',
-    legalizacao:'Legalização', tarefas:'Tarefas', clientes:'Clientes', configuracoes:'Configurações' };
+    tarefas:'Tarefas', clientes:'Clientes', configuracoes:'Configurações' };
   document.getElementById('topbar-title').textContent = titles[page] || page;
   if (page === 'dashboard') { buildCalendar(); if (calSelected) { selectCalDay(calSelected.y, calSelected.m, calSelected.d); } else { renderAgendaDefault(); } }
+}
+
+function renderSidebarSetores() {
+  const icons = ['💼','👥','📊','🔏','🗂️','📁','📌','🏢'];
+  const lista = setores.length
+    ? setores.filter(s => s.ativo !== false)
+    : [{nome:'Fiscal'},{nome:'DP'},{nome:'Contábil'},{nome:'Legalização'}];
+
+  document.getElementById('sidebar-departamentos').innerHTML = lista.map((s, i) =>
+    `<div class="nav-item" data-setor="${s.nome}" onclick="navigate('setor','${s.nome.replace(/'/g,"\\'")}')">
+      <span class="nav-icon">${icons[i % icons.length]}</span> ${s.nome}
+    </div>`
+  ).join('');
 }
 
 // TABS (Configurações)
@@ -953,42 +980,51 @@ function renderSetores() {
     </div>`;
   }).join('');
 
-  ['fiscal','dp','contabil','legalizacao'].forEach(s => {
-    const map = { fiscal:'Fiscal', dp:'DP', contabil:'Contábil', legalizacao:'Legalização' };
-    const el = document.getElementById('content-'+s);
-    if (!el) return;
-    const t = accTarefas.filter(x => x.setor === map[s]);
-    const today = new Date(); today.setHours(0,0,0,0);
-    el.innerHTML = `
-      <div class="kpi-grid">
-        <div class="kpi-card blue"><div class="kpi-label">Total</div><div class="kpi-value">${t.length}</div></div>
-        <div class="kpi-card green"><div class="kpi-label">Concluídas</div><div class="kpi-value">${t.filter(x=>x.status==='Concluída').length}</div></div>
-        <div class="kpi-card orange"><div class="kpi-label">Pendentes</div><div class="kpi-value">${t.filter(x=>x.status==='Pendente').length}</div></div>
-        <div class="kpi-card red"><div class="kpi-label">Atrasadas</div><div class="kpi-value">${t.filter(x=>x.status==='Atrasada').length}</div></div>
+  // Re-renderiza página de setor se estiver ativa
+  if (currentPage === 'setor' && currentSetorName) renderSetorPage(currentSetorName);
+  renderSidebarSetores();
+}
+
+function renderSetorPage(sNome) {
+  const accTarefas = filterByAccess(tarefas);
+  const t = accTarefas.filter(x => x.setor === sNome);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const funcs = funcionarios.filter(f => {
+    const s = setores.find(x => x.id === f.setor_id);
+    return s && s.nome === sNome;
+  }).map(f => f.nome).join(', ') || '—';
+
+  document.getElementById('setor-page-title').textContent = sNome;
+  document.getElementById('setor-page-sub').textContent = funcs;
+  document.getElementById('content-setor').innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi-card blue"><div class="kpi-label">Total</div><div class="kpi-value">${t.length}</div></div>
+      <div class="kpi-card green"><div class="kpi-label">Concluídas</div><div class="kpi-value">${t.filter(x=>x.status==='Concluída').length}</div></div>
+      <div class="kpi-card orange"><div class="kpi-label">Pendentes</div><div class="kpi-value">${t.filter(x=>x.status==='Pendente').length}</div></div>
+      <div class="kpi-card red"><div class="kpi-label">Atrasadas</div><div class="kpi-value">${t.filter(x=>x.status==='Atrasada').length}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Tarefas de ${sNome}</div>
+        <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openModal('tarefa');setTimeout(()=>setV('t-setor','${sNome.replace(/'/g,"\\'")}'),50)">＋ Nova</button>
       </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">Tarefas</div>
-          <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openModal('tarefa');setTimeout(()=>setV('t-setor','${map[s]}'),50)">＋ Nova</button>
-        </div>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Título</th><th>Responsável</th><th>Prioridade</th><th>Prazo</th><th>Status</th><th></th></tr></thead>
-          <tbody>${t.map(x => {
-            const diff = x.prazo ? Math.round((new Date(x.prazo+'T00:00:00') - today)/86400000) : null;
-            const pc = diff!==null&&diff<0&&x.status!=='Concluída'?'vencimento-alert':diff!==null&&diff<=1&&x.status!=='Concluída'?'vencimento-warn':'';
-            const pr = {Alta:'badge-red',Média:'badge-orange',Baixa:'badge-teal'}[x.prioridade]||'badge-gray';
-            return `<tr><td><strong>${x.titulo}</strong>${x.descricao?`<div style="font-size:11px;color:var(--text3)">${x.descricao}</div>`:''}</td>
-              <td>${x.responsavel||'—'}</td>
-              <td><span class="badge ${pr}">${x.prioridade||'—'}</span></td>
-              <td class="${pc}">${fmtDate(x.prazo)}</td>
-              <td>${tBadge(x.status)}</td>
-              <td><div class="td-actions">
-                <button class="icon-btn" onclick='editTarefa("${x.id}")'>✏️</button>
-                <button class="icon-btn del" onclick='deleteItem("tarefa","${x.id}")'>🗑️</button>
-              </div></td></tr>`;
-          }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhuma tarefa</td></tr>'}</tbody>
-        </table></div>
-      </div>`;
-  });
+      <div class="table-wrap"><table>
+        <thead><tr><th>Título</th><th>Responsável</th><th>Prioridade</th><th>Prazo</th><th>Status</th><th></th></tr></thead>
+        <tbody>${t.map(x => {
+          const diff = x.prazo ? Math.round((new Date(x.prazo+'T00:00:00') - today)/86400000) : null;
+          const pc = diff!==null&&diff<0&&x.status!=='Concluída'?'vencimento-alert':diff!==null&&diff<=1&&x.status!=='Concluída'?'vencimento-warn':'';
+          const pr = {Alta:'badge-red',Média:'badge-orange',Baixa:'badge-teal'}[x.prioridade]||'badge-gray';
+          return `<tr><td><strong>${x.titulo}</strong>${x.descricao?`<div style="font-size:11px;color:var(--text3)">${x.descricao}</div>`:''}</td>
+            <td>${x.responsavel||'—'}</td>
+            <td><span class="badge ${pr}">${x.prioridade||'—'}</span></td>
+            <td class="${pc}">${fmtDate(x.prazo)}</td>
+            <td>${tBadge(x.status)}</td>
+            <td><div class="td-actions">
+              <button class="icon-btn" onclick='editTarefa("${x.id}")'>✏️</button>
+              <button class="icon-btn del" onclick='deleteItem("tarefa","${x.id}")'>🗑️</button>
+            </div></td></tr>`;
+        }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhuma tarefa</td></tr>'}</tbody>
+      </table></div>
+    </div>`;
 }
 
 // PARCELAMENTOS
@@ -1607,6 +1643,7 @@ function openContextModal() {
   else if (currentPage === 'inss-pf') openModal('inss');
   else if (currentPage === 'clientes') openModal('cliente');
   else if (currentPage === 'configuracoes') openModal('setor');
+  else if (currentPage === 'setor') { openModal('tarefa'); setTimeout(()=>setV('t-setor', currentSetorName),50); }
   else openModal('tarefa');
 }
 
