@@ -769,6 +769,9 @@ function renderAll() {
   renderConfig();
   populateSetorFilter();
   updateBadges();
+  buildCalendar();
+  if (calSelected) selectCalDay(calSelected.y, calSelected.m, calSelected.d);
+  else renderAgendaDefault();
 }
 
 // NAVIGATE
@@ -867,28 +870,32 @@ function renderDashboard() {
   document.getElementById('dash-competencia').textContent =
     'Competência: ' + mesNomes[today.getMonth()] + '/' + today.getFullYear();
 
+  const accParc = filterByAccess(parcelamentos);
+  const accInss = filterByAccess(inss);
+  const accTar = filterByAccess(tarefas);
+
   const alerts = buildAlerts();
   document.getElementById('dash-alerts').innerHTML = alerts.slice(0,5).map(a => {
     const cls = a.type==='error'?'danger':a.type==='info'?'info':'warning';
     return `<div class="alert-banner ${cls}">${a.icon} <div><strong>${a.title}</strong> — ${a.msg}</div></div>`;
   }).join('');
 
-  const pPend = parcelamentos.filter(p => ['Não iniciada','Em andamento'].includes(p.status)).length;
-  const pAtr = parcelamentos.filter(p => p.vencimento && new Date(p.vencimento+'T00:00:00') < today && !['Concluído','Cancelado'].includes(p.status)).length;
-  const iPend = inss.filter(i => ['Pendente','Em Atraso'].includes(i.status)).length;
-  const tAtr = tarefas.filter(t => t.prazo && new Date(t.prazo+'T00:00:00') < today && t.status !== 'Concluída').length;
+  const pPend = accParc.filter(p => ['Não iniciada','Em andamento'].includes(p.status)).length;
+  const pAtr = accParc.filter(p => p.vencimento && new Date(p.vencimento+'T00:00:00') < today && !['Concluído','Cancelado'].includes(p.status)).length;
+  const iPend = accInss.filter(i => ['Pendente','Em Atraso'].includes(i.status)).length;
+  const tAtr = accTar.filter(t => t.prazo && new Date(t.prazo+'T00:00:00') < today && t.status !== 'Concluída').length;
   const cliAtivos = clientes.filter(c => c.ativo !== false).length;
 
   document.getElementById('kpi-dash').innerHTML = `
-    <div class="kpi-card blue"><div class="kpi-icon">📋</div><div class="kpi-label">Parcelamentos</div><div class="kpi-value">${parcelamentos.length}</div><div class="kpi-sub">${pPend} pendentes</div></div>
+    <div class="kpi-card blue"><div class="kpi-icon">📋</div><div class="kpi-label">Parcelamentos</div><div class="kpi-value">${accParc.length}</div><div class="kpi-sub">${pPend} pendentes</div></div>
     <div class="kpi-card red"><div class="kpi-icon">⚠️</div><div class="kpi-label">Parcelas Atrasadas</div><div class="kpi-value">${pAtr}</div></div>
-    <div class="kpi-card green"><div class="kpi-icon">🧾</div><div class="kpi-label">INSS PF</div><div class="kpi-value">${inss.length}</div><div class="kpi-sub">${iPend} pendentes</div></div>
+    <div class="kpi-card green"><div class="kpi-icon">🧾</div><div class="kpi-label">INSS PF</div><div class="kpi-value">${accInss.length}</div><div class="kpi-sub">${iPend} pendentes</div></div>
     <div class="kpi-card orange"><div class="kpi-icon">📌</div><div class="kpi-label">Tarefas Atrasadas</div><div class="kpi-value">${tAtr}</div></div>
-    <div class="kpi-card purple"><div class="kpi-icon">✅</div><div class="kpi-label">Total Tarefas</div><div class="kpi-value">${tarefas.length}</div><div class="kpi-sub">${tarefas.filter(t=>t.status==='Concluída').length} concluídas</div></div>
+    <div class="kpi-card purple"><div class="kpi-icon">✅</div><div class="kpi-label">Total Tarefas</div><div class="kpi-value">${accTar.length}</div><div class="kpi-sub">${accTar.filter(t=>t.status==='Concluída').length} concluídas</div></div>
     <div class="kpi-card teal"><div class="kpi-icon">👤</div><div class="kpi-label">Clientes</div><div class="kpi-value">${cliAtivos}</div><div class="kpi-sub">ativos</div></div>
   `;
 
-  const parc5 = parcelamentos.filter(p => {
+  const parc5 = accParc.filter(p => {
     if (!p.vencimento) return false;
     const diff = Math.round((new Date(p.vencimento+'T00:00:00') - today) / 86400000);
     return diff <= 5;
@@ -903,7 +910,7 @@ function renderDashboard() {
       <td>${sBadge(p.status)}</td></tr>`;
   }).join('') : '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:16px">Nenhum vencendo em 5 dias ✅</td></tr>';
 
-  const inssAberto = inss.filter(i => i.status !== 'Pago').slice(0,6);
+  const inssAberto = accInss.filter(i => i.status !== 'Pago').slice(0,6);
   document.getElementById('dash-inss-tbody').innerHTML = inssAberto.length ? inssAberto.map(i => {
     const diff = i.vencimento ? Math.round((new Date(i.vencimento+'T00:00:00') - today) / 86400000) : null;
     const cls = diff !== null && diff < 0 ? 'vencimento-alert' : diff !== null && diff <= 3 ? 'vencimento-warn' : '';
@@ -912,7 +919,7 @@ function renderDashboard() {
       <td class="${cls}">${fmtDate(i.vencimento)}</td><td>${iBadge(i.status)}</td></tr>`;
   }).join('') : '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:16px">Nenhum aberto ✅</td></tr>';
 
-  const tarPend = tarefas.filter(t => t.status !== 'Concluída').slice(0,7);
+  const tarPend = accTar.filter(t => t.status !== 'Concluída').slice(0,7);
   document.getElementById('dash-tarefas-list').innerHTML = tarPend.map(t => {
     const diff = t.prazo ? Math.round((new Date(t.prazo+'T00:00:00') - today) / 86400000) : null;
     const c = diff !== null && diff < 0 ? 'danger' : diff !== null && diff <= 1 ? 'warning' : 'primary';
@@ -929,8 +936,9 @@ function renderSetores() {
     ? setores.filter(s => s.ativo !== false).map(s => s.nome)
     : ['Fiscal','DP','Contábil','Legalização'];
 
+  const accTarefas = filterByAccess(tarefas);
   document.getElementById('dash-setores').innerHTML = setoresList.map(sNome => {
-    const t = tarefas.filter(x => x.setor === sNome);
+    const t = accTarefas.filter(x => x.setor === sNome);
     const conc = t.filter(x => x.status === 'Concluída').length;
     const total = t.length || 1;
     const pct = Math.round((conc/total)*100);
@@ -949,7 +957,7 @@ function renderSetores() {
     const map = { fiscal:'Fiscal', dp:'DP', contabil:'Contábil', legalizacao:'Legalização' };
     const el = document.getElementById('content-'+s);
     if (!el) return;
-    const t = tarefas.filter(x => x.setor === map[s]);
+    const t = accTarefas.filter(x => x.setor === map[s]);
     const today = new Date(); today.setHours(0,0,0,0);
     el.innerHTML = `
       <div class="kpi-grid">
@@ -1257,6 +1265,10 @@ function onSetorChangeTarefa() {
       respSel.appendChild(o);
     });
   }
+  // Atualiza default de visibilidade apenas se nenhum estiver marcado ainda
+  if (setor && !editingId.tarefa && getVisibilidade('t-visibilidade').length === 0) {
+    renderVisibilidadeCheckboxes('t-visibilidade', null, setor);
+  }
 }
 
 function populateParcSelects() {
@@ -1360,6 +1372,7 @@ async function saveTarefa() {
     cliente_id:gv('t-cliente')||null,
     documento_enviado:document.getElementById('t-doc-enviado').checked,
     data_envio:gv('t-data-envio')||null,
+    setores_visibilidade: getVisibilidade('t-visibilidade'),
     updated_at: new Date().toISOString()
   };
   const id = editingId.tarefa;
@@ -1420,6 +1433,8 @@ async function saveFuncionario() {
   setBusy('btn-save-func', true);
   const obj = {
     nome, setor_id:gv('f-setor')||null, cargo:gv('f-cargo'), email:gv('f-email'),
+    user_id: gv('f-user-id') || null,
+    is_admin: document.getElementById('f-is-admin').checked,
     ativo:document.getElementById('f-ativo').checked,
     updated_at: new Date().toISOString()
   };
@@ -1450,6 +1465,7 @@ function editParcelamento(id) {
   document.getElementById('p-enviado-cliente').checked = !!p.enviado_cliente;
   setV('p-data-envio-parcela',p.data_envio_parcela);
   document.getElementById('p-envio-wrap').style.display = p.enviado_cliente ? '' : 'none';
+  renderVisibilidadeCheckboxes('p-visibilidade', p.setores_visibilidade, null);
   document.getElementById('modal-parc').classList.add('open');
 }
 
@@ -1462,6 +1478,7 @@ function editInss(id) {
   setV('i-categoria',i.categoria); setV('i-aliquota',i.aliquota); setV('i-salario',i.salario);
   setV('i-valor',i.valor); setV('i-competencia',i.competencia); setV('i-vencimento',i.vencimento);
   setV('i-envio',i.envio); setV('i-status',i.status); setV('i-obs',i.obs);
+  renderVisibilidadeCheckboxes('i-visibilidade', i.setores_visibilidade, null);
   document.getElementById('modal-inss').classList.add('open');
 }
 
@@ -1479,6 +1496,7 @@ function editTarefa(id) {
   document.getElementById('t-doc-enviado').checked = !!t.documento_enviado;
   setV('t-data-envio',t.data_envio);
   document.getElementById('t-envio-wrap').style.display = t.documento_enviado ? '' : 'none';
+  renderVisibilidadeCheckboxes('t-visibilidade', t.setores_visibilidade, t.setor);
   document.getElementById('modal-tarefa').classList.add('open');
 }
 
@@ -1511,6 +1529,8 @@ function editFuncionario(id) {
   populateFuncSelects();
   document.getElementById('modal-func-title').textContent = 'Editar Funcionário';
   setV('f-nome',f.nome); setV('f-setor',f.setor_id||''); setV('f-cargo',f.cargo); setV('f-email',f.email);
+  setV('f-user-id', f.user_id||'');
+  document.getElementById('f-is-admin').checked = f.is_admin === true;
   document.getElementById('f-ativo').checked = f.ativo !== false;
   document.getElementById('modal-funcionario').classList.add('open');
 }
@@ -1535,11 +1555,13 @@ function openModal(type) {
     document.getElementById('p-enviado-cliente').checked = false;
     document.getElementById('p-envio-wrap').style.display = 'none';
     populateParcSelects();
+    renderVisibilidadeCheckboxes('p-visibilidade', null, userSetor);
     document.getElementById('modal-parc-title').textContent = 'Novo Parcelamento';
     document.getElementById('modal-parc').classList.add('open');
   } else if (type === 'inss') {
     clearFormPadr(['i-nome','i-nit','i-codigo','i-salario','i-valor','i-vencimento','i-envio','i-obs']);
     setV('i-competencia', currentMonthStr());
+    renderVisibilidadeCheckboxes('i-visibilidade', null, userSetor);
     document.getElementById('modal-inss-title').textContent = 'Novo INSS PF';
     document.getElementById('modal-inss').classList.add('open');
   } else if (type === 'tarefa') {
@@ -1548,6 +1570,7 @@ function openModal(type) {
     document.getElementById('t-doc-enviado').checked = false;
     document.getElementById('t-envio-wrap').style.display = 'none';
     populateTarefaSelects('');
+    renderVisibilidadeCheckboxes('t-visibilidade', null, userSetor);
     document.getElementById('modal-tar-title').textContent = 'Nova Tarefa';
     document.getElementById('modal-tarefa').classList.add('open');
   } else if (type === 'cliente') {
@@ -1562,7 +1585,8 @@ function openModal(type) {
     document.getElementById('modal-setor-title').textContent = 'Novo Setor';
     document.getElementById('modal-setor').classList.add('open');
   } else if (type === 'funcionario') {
-    clearFormPadr(['f-nome','f-cargo','f-email']);
+    clearFormPadr(['f-nome','f-cargo','f-email','f-user-id']);
+    document.getElementById('f-is-admin').checked = false;
     document.getElementById('f-ativo').checked = true;
     populateFuncSelects();
     document.getElementById('modal-func-title').textContent = 'Novo Funcionário';
