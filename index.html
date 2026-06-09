@@ -42,8 +42,18 @@
   }
   .btn-login:hover { background: #2563eb; }
   .btn-login:disabled { background: #93c5fd; cursor: not-allowed; }
+  .btn-link {
+    background: none; border: none; color: #3b82f6; font-size: 13px;
+    cursor: pointer; text-decoration: underline; padding: 0; margin-top: 12px;
+    display: block; text-align: center; width: 100%;
+  }
+  .btn-link:hover { color: #2563eb; }
   .error-msg {
     background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626;
+    border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-top: 14px; display: none;
+  }
+  .success-msg {
+    background: #f0fdf4; border: 1px solid #86efac; color: #16a34a;
     border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-top: 14px; display: none;
   }
   .footer { text-align: center; margin-top: 24px; font-size: 12px; color: #94a3b8; }
@@ -58,18 +68,52 @@
       <div class="logo-sub">Gestor de Tarefas</div>
     </div>
   </div>
-  <h1>Bem-vindo! 👋</h1>
-  <div class="subtitle">Faça login para acessar o sistema</div>
-  <div class="form-group">
-    <label>E-mail</label>
-    <input type="email" id="email" placeholder="seu@email.com" autocomplete="email">
+
+  <!-- Tela de login -->
+  <div id="tela-login">
+    <h1>Bem-vindo! 👋</h1>
+    <div class="subtitle">Faça login para acessar o sistema</div>
+    <div class="form-group">
+      <label>E-mail</label>
+      <input type="email" id="email" placeholder="seu@email.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>Senha</label>
+      <input type="password" id="senha" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-login" id="btn-login" onclick="login()">Entrar</button>
+    <button class="btn-link" onclick="mostrarRecuperacao()">Esqueci minha senha</button>
   </div>
-  <div class="form-group">
-    <label>Senha</label>
-    <input type="password" id="senha" placeholder="••••••••" autocomplete="current-password">
+
+  <!-- Tela de recuperação de senha -->
+  <div id="tela-recuperacao" style="display:none">
+    <h1>Recuperar senha</h1>
+    <div class="subtitle">Digite seu e-mail para receber o link de redefinição</div>
+    <div class="form-group">
+      <label>E-mail</label>
+      <input type="email" id="email-rec" placeholder="seu@email.com">
+    </div>
+    <button class="btn-login" id="btn-rec" onclick="enviarRecuperacao()">Enviar link</button>
+    <button class="btn-link" onclick="mostrarLogin()">Voltar ao login</button>
   </div>
-  <button class="btn-login" id="btn-login" onclick="login()">Entrar</button>
+
+  <!-- Tela de nova senha (após clicar no link do email) -->
+  <div id="tela-nova-senha" style="display:none">
+    <h1>Nova senha</h1>
+    <div class="subtitle">Digite e confirme sua nova senha</div>
+    <div class="form-group">
+      <label>Nova senha</label>
+      <input type="password" id="nova-senha" placeholder="••••••••">
+    </div>
+    <div class="form-group">
+      <label>Confirmar senha</label>
+      <input type="password" id="confirmar-senha" placeholder="••••••••">
+    </div>
+    <button class="btn-login" id="btn-nova" onclick="salvarNovaSenha()">Salvar nova senha</button>
+  </div>
+
   <div class="error-msg" id="error-msg"></div>
+  <div class="success-msg" id="success-msg"></div>
   <div class="footer">Nascente Contábil © 2026</div>
 </div>
 
@@ -78,9 +122,28 @@ const SUPABASE_URL = 'https://csvdfarfpooxbuiwbnas.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzdmRmYXJmcG9veGJ1aXdobmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTg4NTQsImV4cCI6MjA5NjU5NDg1NH0.P8xzLOm9A0NSnui4Yq9iEFuPty6CMmFV1WXR7PGhHEs';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Se já está logado, redireciona
-sb.auth.getSession().then(({ data }) => {
-  if (data.session) window.location.href = '/app.html';
+// Detecta se veio de um link de recuperação de senha
+const hash = window.location.hash;
+if (hash.includes('type=recovery') || (hash.includes('access_token') && hash.includes('type=recovery'))) {
+  document.getElementById('tela-login').style.display = 'none';
+  document.getElementById('tela-nova-senha').style.display = 'block';
+} else {
+  // Se já está logado, redireciona
+  sb.auth.getSession().then(({ data }) => {
+    if (data.session) window.location.href = '/app.html';
+  });
+}
+
+// Também escuta eventos de auth para capturar o token de recovery
+sb.auth.onAuthStateChange((event, session) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    document.getElementById('tela-login').style.display = 'none';
+    document.getElementById('tela-recuperacao').style.display = 'none';
+    document.getElementById('tela-nova-senha').style.display = 'block';
+  }
+  if (event === 'SIGNED_IN' && !window.location.hash.includes('type=recovery')) {
+    window.location.href = '/app.html';
+  }
 });
 
 document.getElementById('senha').addEventListener('keydown', e => {
@@ -91,8 +154,7 @@ async function login() {
   const email = document.getElementById('email').value.trim();
   const senha = document.getElementById('senha').value;
   const btn = document.getElementById('btn-login');
-  const err = document.getElementById('error-msg');
-  err.style.display = 'none';
+  hideMessages();
 
   if (!email || !senha) { showError('Preencha e-mail e senha.'); return; }
 
@@ -110,10 +172,84 @@ async function login() {
   }
 }
 
+function mostrarRecuperacao() {
+  document.getElementById('tela-login').style.display = 'none';
+  document.getElementById('tela-recuperacao').style.display = 'block';
+  hideMessages();
+}
+
+function mostrarLogin() {
+  document.getElementById('tela-recuperacao').style.display = 'none';
+  document.getElementById('tela-login').style.display = 'block';
+  hideMessages();
+}
+
+async function enviarRecuperacao() {
+  const email = document.getElementById('email-rec').value.trim();
+  const btn = document.getElementById('btn-rec');
+  hideMessages();
+
+  if (!email) { showError('Digite seu e-mail.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://gestordetarefas-psi.vercel.app/'
+  });
+
+  if (error) {
+    showError('Erro ao enviar. Verifique o e-mail digitado.');
+  } else {
+    showSuccess('Link enviado! Verifique sua caixa de entrada.');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Enviar link';
+}
+
+async function salvarNovaSenha() {
+  const nova = document.getElementById('nova-senha').value;
+  const confirmar = document.getElementById('confirmar-senha').value;
+  const btn = document.getElementById('btn-nova');
+  hideMessages();
+
+  if (!nova || !confirmar) { showError('Preencha os dois campos.'); return; }
+  if (nova !== confirmar) { showError('As senhas não coincidem.'); return; }
+  if (nova.length < 6) { showError('A senha deve ter pelo menos 6 caracteres.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+
+  const { error } = await sb.auth.updateUser({ password: nova });
+
+  if (error) {
+    showError('Erro ao salvar. Solicite um novo link de recuperação.');
+    btn.disabled = false;
+    btn.textContent = 'Salvar nova senha';
+  } else {
+    showSuccess('Senha alterada com sucesso! Redirecionando...');
+    setTimeout(() => window.location.href = '/app.html', 2000);
+  }
+}
+
 function showError(msg) {
   const el = document.getElementById('error-msg');
   el.textContent = msg;
   el.style.display = 'block';
+  document.getElementById('success-msg').style.display = 'none';
+}
+
+function showSuccess(msg) {
+  const el = document.getElementById('success-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  document.getElementById('error-msg').style.display = 'none';
+}
+
+function hideMessages() {
+  document.getElementById('error-msg').style.display = 'none';
+  document.getElementById('success-msg').style.display = 'none';
 }
 </script>
 </body>
