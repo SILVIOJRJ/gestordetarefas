@@ -1413,8 +1413,7 @@ async function saveSetor() {
   setBusy('btn-save-setor', true);
   const obj = {
     nome, descricao:gv('s-descricao'),
-    ativo:document.getElementById('s-ativo').checked,
-    updated_at: new Date().toISOString()
+    ativo:document.getElementById('s-ativo').checked
   };
   const id = editingId.setor;
   const { error } = id
@@ -1435,8 +1434,7 @@ async function saveFuncionario() {
     nome, setor_id:gv('f-setor')||null, cargo:gv('f-cargo'), email:gv('f-email'),
     user_id: gv('f-user-id') || null,
     is_admin: document.getElementById('f-is-admin').checked,
-    ativo:document.getElementById('f-ativo').checked,
-    updated_at: new Date().toISOString()
+    ativo:document.getElementById('f-ativo').checked
   };
   const id = editingId.funcionario;
   const { error } = id
