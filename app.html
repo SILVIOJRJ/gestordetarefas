@@ -690,6 +690,7 @@
           <select class="form-control" id="c-regime"><option value="">—</option><option>Simples Nacional</option><option>Lucro Presumido</option><option>Lucro Real</option><option>MEI</option><option>CAEPF/CEI</option><option>Sem Empregados</option><option>Produtor Rural</option><option>Condomínio</option></select></div>
         <div class="form-group"><label class="form-label">Condição</label>
           <select class="form-control" id="c-condicao"><option value="">—</option><option>Normal</option><option>Inativo</option><option>Doméstico</option><option>Ponto</option><option>Fator R</option><option>CPRB</option><option>Sem Movimento</option></select></div>
+        <div class="form-group"><label class="form-label">Responsável</label><select class="form-control" id="c-responsavel"><option value="">Sem responsável</option></select></div>
         <div class="form-group form-full"><label class="form-label">Observações</label><input type="text" class="form-control" id="c-obs" placeholder="Informações adicionais"></div>
         <div class="form-group form-full">
           <label class="form-label">Setores contratados</label>
@@ -839,8 +840,13 @@
       <div class="form-grid">
         <div class="form-group form-full"><label class="form-label">Status</label>
           <select class="form-control" id="oc-status"><option>Pendente</option><option>Concluído</option><option>N.A</option><option>Enviado</option></select></div>
-        <div class="form-group form-full"><label class="form-label">Valor</label><input type="text" class="form-control" id="oc-valor" placeholder="0,00" onblur="fmtNumField(this)"></div>
-        <div class="form-group form-full"><label class="form-label">Observação</label><input type="text" class="form-control" id="oc-obs"></div>
+        <div class="form-group form-full"><label class="form-label">Valor (R$)</label><input type="text" class="form-control" id="oc-valor" placeholder="0,00" onblur="fmtNumField(this)"></div>
+        <div class="form-group form-full"><label class="form-label">Observação</label><textarea class="form-control" id="oc-obs" rows="2" placeholder="Observações..."></textarea></div>
+        <div class="form-group form-full">
+          <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="oc-officeboy"> 📦 Enviar para Office Boy (entrega presencial)
+          </label>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1956,6 +1962,7 @@ function populateParcSelects() {
 
 function populateClienteSelects() {
   const respSel = document.getElementById('c-responsavel');
+  if (!respSel) return;
   respSel.innerHTML = '<option value="">Sem responsável</option>';
   funcionarios.filter(f => f.ativo !== false).forEach(f => {
     const o = document.createElement('option'); o.value = f.id; o.textContent = f.nome;
@@ -2070,9 +2077,10 @@ async function saveCliente() {
   const obj = {
     nome, cnpj_cpf:gv('c-cnpj'), email:gv('c-email'), telefone:gv('c-telefone'),
     whatsapp:gv('c-whatsapp'), regime_tributario:gv('c-regime')||null, condicao:gv('c-condicao')||null,
-    obs:gv('c-obs'),
+    obs:gv('c-obs'), responsavel_id: gv('c-responsavel')||null,
     setores_contratados: getSetoresContratados(),
-    ativo:document.getElementById('c-ativo').checked
+    ativo:document.getElementById('c-ativo').checked,
+    criado_por: currentFuncionario?.nome || userEmail
   };
   const id = editingId.cliente;
   const { error } = id
@@ -2186,7 +2194,7 @@ function editCliente(id) {
   setV('c-nome',c.nome); setV('c-cnpj',c.cnpj_cpf); setV('c-email',c.email);
   setV('c-telefone',c.telefone); setV('c-whatsapp',c.whatsapp);
   setV('c-regime',c.regime_tributario||''); setV('c-condicao',c.condicao||'');
-  setV('c-obs',c.obs);
+  setV('c-obs',c.obs); setV('c-responsavel',c.responsavel_id||'');
   document.getElementById('c-ativo').checked = c.ativo !== false;
   document.getElementById('modal-cliente').classList.add('open');
 }
@@ -2845,7 +2853,8 @@ async function seedObrigacoesTemplates() {
 // ═══════════════════════════════════════════════════════════
 // CONTROLE MENSAL
 // ═══════════════════════════════════════════════════════════
-let cmData = []; // obrigacoes_clientes da competência/setor atual
+let cmData = [];
+let cmObsData = [];
 
 function initControleMensal() {
   const compEl = document.getElementById('cm-competencia');
@@ -2871,9 +2880,26 @@ async function loadControleMensal() {
   const wrap = document.getElementById('cm-table-wrap');
   if (setor === 'Legalização') { renderControleMensal(); return; }
   wrap.innerHTML = '<div style="text-align:center;padding:24px"><div class="spinner"></div></div>';
-  const { data } = await sb.from('obrigacoes_clientes').select('*').eq('competencia', comp);
-  cmData = data || [];
+  const [ocRes, obsRes] = await Promise.all([
+    sb.from('obrigacoes_clientes').select('*').eq('competencia', comp),
+    sb.from('cm_obs').select('*').eq('competencia', comp).catch(() => ({ data: [] }))
+  ]);
+  cmData = ocRes.data || [];
+  cmObsData = obsRes.data || [];
   renderControleMensal();
+}
+
+async function saveCmObs(clienteId, competencia, texto) {
+  const existing = cmObsData.find(o => o.cliente_id === clienteId && o.competencia === competencia);
+  if (existing) {
+    if (existing.obs === texto) return;
+    await sb.from('cm_obs').update({ obs: texto }).eq('id', existing.id).catch(() => {});
+    existing.obs = texto;
+  } else {
+    if (!texto) return;
+    const { data } = await sb.from('cm_obs').insert({ cliente_id: clienteId, competencia, obs: texto }).select().single().catch(() => ({ data: null }));
+    if (data) cmObsData.push(data);
+  }
 }
 
 // Obrigações cujo vencimento cai no mês SEGUINTE à competência
@@ -2955,36 +2981,46 @@ function renderControleMensal() {
     return;
   }
 
+  // Nomes que compõem o TOTAL DCTF WEB MIT
+  const DCTF_NOMES = new Set(['PIS','COFINS','IRPJ','CSLL']);
+  const temDctf = tpls.some(t => DCTF_NOMES.has(t.nome));
+
   const today = new Date(); today.setHours(0,0,0,0);
-  const head = `<tr><th>Regime</th><th>Empresa</th><th>Condição</th><th>Whats</th>${tpls.map(tpl => {
+  const head = `<tr><th>Regime</th><th>Empresa</th><th>Condição</th>${tpls.map(tpl => {
     const d = cmVencDateFromTpl(tpl, comp);
     const vStr = d ? d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '';
     const diff = d ? Math.round((d - today)/86400000) : null;
     const hdrStyle = diff !== null && diff < 0 ? 'color:var(--danger)' : diff !== null && diff <= 3 ? 'color:var(--warning)' : '';
     return `<th style="${hdrStyle}" title="${tpl.descricao||tpl.nome}">${tpl.nome}${vStr?`<br><span style="font-size:10px;font-weight:400">${vStr}</span>`:''}</th>`;
-  }).join('')}<th>Obs</th></tr>`;
+  }).join('')}${temDctf?'<th style="background:#eff6ff;color:#1d4ed8" title="Soma PIS+COFINS+IRPJ+CSLL">Total DCTF Web MIT</th>':''}<th style="min-width:140px">Obs</th></tr>`;
 
   const body = cli.map(c => {
+    let dctfTotal = 0;
     const cells = tpls.map(tpl => {
       const match = cmData.find(o => o.cliente_id === c.id && o.template_id === tpl.id && o.competencia === comp);
       const st = match ? match.status : 'Pendente';
       const bg = cmCellClassFromTpl(tpl, comp, st);
-      const val = match?.valor ? `<div style="font-size:10px;color:var(--text3);margin-top:1px">${match.valor}</div>` : '';
+      const valNum = match?.valor != null ? parseFloat(match.valor) : 0;
+      if (DCTF_NOMES.has(tpl.nome) && valNum) dctfTotal += valNum;
+      const valDisp = valNum ? `<div style="font-size:10px;color:var(--text3);margin-top:1px">R$ ${fmtBR(valNum)}</div>` : '';
       return `<td style="cursor:pointer;${bg}" onclick='openObrigCli("${c.id}","${tpl.id}","${tpl.nome.replace(/'/g,'')}")'>
-        <span class="badge ${cmStatusColor(st)}">${st}</span>${val}</td>`;
+        <span class="badge ${cmStatusColor(st)}">${st}</span>${valDisp}</td>`;
     }).join('');
+    const dctfCell = temDctf ? `<td style="background:#eff6ff;font-size:11px;font-weight:600;color:#1d4ed8;text-align:right">${dctfTotal>0?'R$ '+fmtBR(dctfTotal):'—'}</td>` : '';
+    const obsReg = cmObsData.find(o => o.cliente_id === c.id && o.competencia === comp);
+    const obsVal = (obsReg?.obs||'').replace(/"/g,'&quot;');
     return `<tr>
       <td>${regimeBadge(c.regime_tributario)}</td>
       <td><strong>${c.nome}</strong></td>
       <td style="font-size:11px">${c.condicao||'—'}</td>
-      <td style="font-size:11px">${c.whatsapp||'—'}</td>
-      ${cells}
-      <td style="font-size:11px;color:var(--text3)">—</td>
+      ${cells}${dctfCell}
+      <td><input type="text" class="form-control" style="font-size:11px;padding:4px 6px;min-width:120px" value="${obsVal}"
+        placeholder="Observação..." onblur='saveCmObs("${c.id}","${comp}",this.value)'></td>
     </tr>`;
   }).join('');
 
   wrap.innerHTML = `<table><thead>${head}</thead><tbody>${body||
-    `<tr><td colspan="${tpls.length+5}" style="text-align:center;padding:20px;color:var(--text3)">Sem clientes no setor ${setor}</td></tr>`
+    `<tr><td colspan="${tpls.length+(temDctf?5:4)}" style="text-align:center;padding:20px;color:var(--text3)">Sem clientes no setor ${setor}</td></tr>`
   }</tbody></table>`;
 }
 
@@ -3004,17 +3040,23 @@ function openObrigCli(clienteId, templateId, colName) {
   document.getElementById('oc-title').textContent = colName;
   document.getElementById('oc-sub').textContent = `${cli?cli.nome:''} · ${fmtMonth(comp)}`;
   setV('oc-status', reg ? reg.status : 'Pendente');
-  setV('oc-valor', reg ? reg.valor : '');
+  const valorDb = reg?.valor;
+  setV('oc-valor', valorDb != null ? fmtBR(parseFloat(valorDb)) : '');
   setV('oc-obs', reg ? reg.observacao : '');
+  const obEl = document.getElementById('oc-officeboy');
+  if (obEl) obEl.checked = false;
   document.getElementById('modal-obrigcli').classList.add('open');
 }
 
 async function saveObrigCliente() {
   if (!ocCtx) return;
   setBusy('btn-save-oc', true);
+  const valorRaw = gv('oc-valor');
+  const valorNum = valorRaw ? parseNum(valorRaw) : null;
+  const officeboy = document.getElementById('oc-officeboy')?.checked;
   const obj = {
     cliente_id: ocCtx.cliente_id, template_id: ocCtx.template_id, competencia: ocCtx.competencia,
-    status: gv('oc-status'), valor: gv('oc-valor')||null, observacao: gv('oc-obs')||null,
+    status: gv('oc-status'), valor: valorNum, observacao: gv('oc-obs')||null,
     concluido_por: currentFuncionario?.nome || userEmail,
     data_conclusao: gv('oc-status') === 'Concluído' ? new Date().toISOString().split('T')[0] : null
   };
@@ -3023,10 +3065,24 @@ async function saveObrigCliente() {
     : await sb.from('obrigacoes_clientes').insert(obj);
   setBusy('btn-save-oc', false);
   if (error) { toast('Erro', error.message, 'error'); return; }
+  // Office Boy: cria entrega se marcado
+  if (officeboy) {
+    const cli = clientes.find(c => c.id === ocCtx.cliente_id);
+    const tpl = obrigacoesTemplates.find(t => t.id === ocCtx.template_id);
+    const entObj = {
+      tipo: 'obrigacao', referencia_id: ocCtx.template_id,
+      referencia_nome: `${tpl?.nome||'Obrigação'} — ${fmtMonth(ocCtx.competencia)}`,
+      cliente_nome: cli?.nome || '', status: 'Pendente',
+      criado_por: currentFuncionario?.nome || userEmail
+    };
+    await sb.from('entregas').insert(entObj);
+    const { data: enData } = await sb.from('entregas').select('*').order('criado_em', { ascending: false });
+    entregas = enData || [];
+    toast('Office Boy', 'Pendência de entrega criada automaticamente', 'info');
+  }
   closeModal('obrigcli');
   toast('Salvo!','Obrigação atualizada','success');
   await loadControleMensal();
-  // Sincroniza automaticamente com a Planilha Gerencial
   await syncGerencialFromCM(ocCtx.cliente_id, ocCtx.competencia);
 }
 
