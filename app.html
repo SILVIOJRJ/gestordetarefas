@@ -630,6 +630,10 @@
           <select class="form-control" id="c-responsavel"><option value="">Sem responsável</option></select></div>
         <div class="form-group form-full"><label class="form-label">Observações</label><input type="text" class="form-control" id="c-obs" placeholder="Informações adicionais"></div>
         <div class="form-group form-full">
+          <label class="form-label">Setores contratados</label>
+          <div class="checkbox-grid" id="c-setores-contratados"></div>
+        </div>
+        <div class="form-group form-full">
           <label class="form-label" style="display:flex;align-items:center;gap:8px">
             <input type="checkbox" id="c-ativo" checked> Ativo
           </label>
@@ -1716,8 +1720,8 @@ async function saveCliente() {
     nome, cnpj_cpf:gv('c-cnpj'), email:gv('c-email'), telefone:gv('c-telefone'),
     whatsapp:gv('c-whatsapp'), regime_tributario:gv('c-regime')||null, condicao:gv('c-condicao')||null,
     responsavel_id:gv('c-responsavel')||null, obs:gv('c-obs'),
-    ativo:document.getElementById('c-ativo').checked,
-    updated_at: new Date().toISOString()
+    setores_contratados: getSetoresContratados(),
+    ativo:document.getElementById('c-ativo').checked
   };
   const id = editingId.cliente;
   const { error } = id
@@ -1826,6 +1830,7 @@ function editCliente(id) {
   if (!c) return;
   editingId.cliente = id;
   populateClienteSelects();
+  renderSetoresContratadosCheckboxes(c.setores_contratados || []);
   document.getElementById('modal-cli-title').textContent = 'Editar Cliente';
   setV('c-nome',c.nome); setV('c-cnpj',c.cnpj_cpf); setV('c-email',c.email);
   setV('c-telefone',c.telefone); setV('c-whatsapp',c.whatsapp);
@@ -1833,6 +1838,26 @@ function editCliente(id) {
   setV('c-responsavel',c.responsavel_id||''); setV('c-obs',c.obs);
   document.getElementById('c-ativo').checked = c.ativo !== false;
   document.getElementById('modal-cliente').classList.add('open');
+}
+
+function renderSetoresContratadosCheckboxes(marcados) {
+  const lista = setores.length
+    ? setores.filter(s => s.ativo !== false).map(s => s.nome)
+    : ['Fiscal','DP','Contábil','Legalização','Administração'];
+  const el = document.getElementById('c-setores-contratados');
+  if (!el) return;
+  el.innerHTML = lista.map(s =>
+    `<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:2px 0">
+      <input type="checkbox" value="${s}" ${(marcados||[]).includes(s)?'checked':''}>
+      ${s}
+    </label>`
+  ).join('');
+}
+
+function getSetoresContratados() {
+  const el = document.getElementById('c-setores-contratados');
+  if (!el) return [];
+  return Array.from(el.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
 }
 
 function editSetor(id) {
@@ -1901,6 +1926,7 @@ function openModal(type) {
     setV('c-regime',''); setV('c-condicao','');
     document.getElementById('c-ativo').checked = true;
     populateClienteSelects();
+    renderSetoresContratadosCheckboxes([]);
     document.getElementById('modal-cli-title').textContent = 'Novo Cliente';
     document.getElementById('modal-cliente').classList.add('open');
   } else if (type === 'setor') {
