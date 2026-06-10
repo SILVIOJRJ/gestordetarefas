@@ -2880,6 +2880,10 @@ async function loadControleMensal() {
   const wrap = document.getElementById('cm-table-wrap');
   if (setor === 'Legalização') { renderControleMensal(); return; }
   wrap.innerHTML = '<div style="text-align:center;padding:24px"><div class="spinner"></div></div>';
+
+  // Auto-seed templates faltando para Fiscal
+  if (setor.toLowerCase() === 'fiscal') await ensureFiscalTemplates();
+
   const ocRes = await sb.from('obrigacoes_clientes').select('*').eq('competencia', comp);
   cmData = ocRes.data || [];
   try {
@@ -2887,6 +2891,37 @@ async function loadControleMensal() {
     cmObsData = obsRes.data || [];
   } catch(e) { cmObsData = []; }
   renderControleMensal();
+}
+
+async function ensureFiscalTemplates() {
+  const FISCAL_PADRAO = [
+    {nome:'DAS',    dia_vencimento:20, descricao:'Simples Nacional',                   ordem:1},
+    {nome:'PIS',    dia_vencimento:25, descricao:'Lucro Presumido/Real via DCTFWeb',   ordem:2},
+    {nome:'COFINS', dia_vencimento:25, descricao:'Lucro Presumido/Real via DCTFWeb',   ordem:3},
+    {nome:'CSLL',   dia_vencimento:30, descricao:'Trimestral (Lucro Presumido)',       ordem:4},
+    {nome:'IRPJ',   dia_vencimento:30, descricao:'Trimestral (Lucro Presumido)',       ordem:5},
+    {nome:'ISS',    dia_vencimento:15, descricao:'Imposto Sobre Servicos — Municipal', ordem:6},
+    {nome:'ICMS',   dia_vencimento:20, descricao:'Imposto Circulacao — Estadual',      ordem:7},
+  ];
+  // Descobre o nome exato do setor Fiscal no banco (pode ser "Fiscal" ou "FISCAL")
+  const setorNome = obrigacoesTemplates.find(t => t.setor_nome?.toLowerCase() === 'fiscal')?.setor_nome
+    || setores.find(s => s.nome?.toLowerCase() === 'fiscal')?.nome
+    || 'Fiscal';
+
+  const existentes = new Set(
+    obrigacoesTemplates
+      .filter(t => t.setor_nome?.toLowerCase() === 'fiscal')
+      .map(t => t.nome.toUpperCase())
+  );
+  const faltando = FISCAL_PADRAO.filter(t => !existentes.has(t.nome.toUpperCase()));
+  if (faltando.length === 0) return;
+
+  const rows = faltando.map(t => ({ ...t, setor_nome: setorNome, ativo: true }));
+  const { error } = await sb.from('obrigacoes_templates').insert(rows);
+  if (!error) {
+    await loadAll();
+    toast('Templates', `${faltando.length} template(s) Fiscal adicionados automaticamente`, 'info');
+  }
 }
 
 async function saveCmObs(clienteId, competencia, texto) {
