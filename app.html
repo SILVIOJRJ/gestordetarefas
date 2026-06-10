@@ -2967,8 +2967,18 @@ function renderControleMensal() {
   // Filtra clientes por setores_contratados
   cli = cli.filter(c => !c.setores_contratados || c.setores_contratados.length === 0 || c.setores_contratados.includes(setor));
 
-  // Colunas dinâmicas a partir dos templates do banco
-  const tpls = getCMCols(setor);
+  // Ordem fixa de colunas por setor (sobrescreve ordem do banco)
+  const CM_ORDEM_FISCAL = ['DAS','PIS','COFINS','CSLL','IRPJ','ISS','ICMS'];
+  const CM_ORDEM = { 'Fiscal': CM_ORDEM_FISCAL, 'FISCAL': CM_ORDEM_FISCAL };
+
+  let tpls = getCMCols(setor);
+  if (CM_ORDEM[setor]) {
+    const ordemDesejada = CM_ORDEM[setor];
+    // Filtra só os templates da lista e ordena conforme a ordem desejada
+    tpls = ordemDesejada
+      .map(nome => tpls.find(t => t.nome.toUpperCase() === nome.toUpperCase()))
+      .filter(Boolean);
+  }
 
   if (tpls.length === 0) {
     const canSeed = isAdmin || norm(userSetor) === norm(setor);
@@ -2985,44 +2995,63 @@ function renderControleMensal() {
 
   // Nomes que compõem o TOTAL DCTF WEB MIT
   const DCTF_NOMES = new Set(['PIS','COFINS','IRPJ','CSLL']);
-  const temDctf = tpls.some(t => DCTF_NOMES.has(t.nome));
+  const temDctf = tpls.some(t => DCTF_NOMES.has(t.nome.toUpperCase()));
+  // Índice onde inserir a coluna TOTAL DCTF (após ISS, antes de ICMS)
+  const issIdx = tpls.findIndex(t => t.nome.toUpperCase() === 'ISS');
+  const dctfInsertAfter = issIdx >= 0 ? issIdx : tpls.length - 1;
 
   const today = new Date(); today.setHours(0,0,0,0);
-  const head = `<tr><th>Regime</th><th>Empresa</th><th>Condição</th>${tpls.map(tpl => {
+  const headCols = tpls.map((tpl, i) => {
     const d = cmVencDateFromTpl(tpl, comp);
     const vStr = d ? d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '';
     const diff = d ? Math.round((d - today)/86400000) : null;
     const hdrStyle = diff !== null && diff < 0 ? 'color:var(--danger)' : diff !== null && diff <= 3 ? 'color:var(--warning)' : '';
-    return `<th style="${hdrStyle}" title="${tpl.descricao||tpl.nome}">${tpl.nome}${vStr?`<br><span style="font-size:10px;font-weight:400">${vStr}</span>`:''}</th>`;
-  }).join('')}${temDctf?'<th style="background:#eff6ff;color:#1d4ed8" title="Soma PIS+COFINS+IRPJ+CSLL">Total DCTF Web MIT</th>':''}<th style="min-width:140px">Obs</th></tr>`;
+    const col = `<th style="${hdrStyle}" title="${tpl.descricao||tpl.nome}">${tpl.nome}${vStr?`<br><span style="font-size:10px;font-weight:400">${vStr}</span>`:''}</th>`;
+    // Injeta coluna TOTAL DCTF após ISS
+    const extra = (temDctf && i === dctfInsertAfter)
+      ? `<th style="background:#eff6ff;color:#1d4ed8;white-space:nowrap" title="Soma PIS+COFINS+IRPJ+CSLL">Total DCTF<br><span style="font-size:10px;font-weight:400">Web MIT</span></th>`
+      : '';
+    return col + extra;
+  }).join('');
+  const head = `<tr><th>Regime</th><th>Empresa</th><th>Condição</th>${headCols}<th style="min-width:140px">Obs</th></tr>`;
 
   const body = cli.map(c => {
     let dctfTotal = 0;
-    const cells = tpls.map(tpl => {
+    // Pré-calcula totais DCTF
+    tpls.forEach(tpl => {
+      const match = cmData.find(o => o.cliente_id === c.id && o.template_id === tpl.id && o.competencia === comp);
+      const valNum = match?.valor != null ? parseFloat(match.valor) : 0;
+      if (DCTF_NOMES.has(tpl.nome.toUpperCase()) && valNum) dctfTotal += valNum;
+    });
+    const cells = tpls.map((tpl, i) => {
       const match = cmData.find(o => o.cliente_id === c.id && o.template_id === tpl.id && o.competencia === comp);
       const st = match ? match.status : 'Pendente';
       const bg = cmCellClassFromTpl(tpl, comp, st);
       const valNum = match?.valor != null ? parseFloat(match.valor) : 0;
-      if (DCTF_NOMES.has(tpl.nome) && valNum) dctfTotal += valNum;
       const valDisp = valNum ? `<div style="font-size:10px;color:var(--text3);margin-top:1px">R$ ${fmtBR(valNum)}</div>` : '';
-      return `<td style="cursor:pointer;${bg}" onclick='openObrigCli("${c.id}","${tpl.id}","${tpl.nome.replace(/'/g,'')}")'>
+      const cell = `<td style="cursor:pointer;${bg}" onclick='openObrigCli("${c.id}","${tpl.id}","${tpl.nome.replace(/'/g,'')}")'>
         <span class="badge ${cmStatusColor(st)}">${st}</span>${valDisp}</td>`;
+      // Injeta célula TOTAL DCTF após ISS
+      const dctfCell = (temDctf && i === dctfInsertAfter)
+        ? `<td style="background:#eff6ff;font-size:11px;font-weight:600;color:#1d4ed8;text-align:right">${dctfTotal>0?'R$ '+fmtBR(dctfTotal):'—'}</td>`
+        : '';
+      return cell + dctfCell;
     }).join('');
-    const dctfCell = temDctf ? `<td style="background:#eff6ff;font-size:11px;font-weight:600;color:#1d4ed8;text-align:right">${dctfTotal>0?'R$ '+fmtBR(dctfTotal):'—'}</td>` : '';
     const obsReg = cmObsData.find(o => o.cliente_id === c.id && o.competencia === comp);
     const obsVal = (obsReg?.obs||'').replace(/"/g,'&quot;');
     return `<tr>
       <td>${regimeBadge(c.regime_tributario)}</td>
       <td><strong>${c.nome}</strong></td>
       <td style="font-size:11px">${c.condicao||'—'}</td>
-      ${cells}${dctfCell}
+      ${cells}
       <td><input type="text" class="form-control" style="font-size:11px;padding:4px 6px;min-width:120px" value="${obsVal}"
         placeholder="Observação..." onblur='saveCmObs("${c.id}","${comp}",this.value)'></td>
     </tr>`;
   }).join('');
 
+  const totalCols = tpls.length + (temDctf ? 1 : 0) + 4; // regime, empresa, condicao, obs
   wrap.innerHTML = `<table><thead>${head}</thead><tbody>${body||
-    `<tr><td colspan="${tpls.length+(temDctf?5:4)}" style="text-align:center;padding:20px;color:var(--text3)">Sem clientes no setor ${setor}</td></tr>`
+    `<tr><td colspan="${totalCols}" style="text-align:center;padding:20px;color:var(--text3)">Sem clientes no setor ${setor}</td></tr>`
   }</tbody></table>`;
 }
 
