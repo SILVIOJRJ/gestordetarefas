@@ -812,7 +812,7 @@
       <div class="form-grid">
         <div class="form-group form-full"><label class="form-label">Status</label>
           <select class="form-control" id="oc-status"><option>Pendente</option><option>Concluído</option><option>N.A</option><option>Enviado</option></select></div>
-        <div class="form-group form-full"><label class="form-label">Valor</label><input type="text" class="form-control" id="oc-valor" placeholder="0,00"></div>
+        <div class="form-group form-full"><label class="form-label">Valor</label><input type="text" class="form-control" id="oc-valor" placeholder="0,00" onblur="fmtNumField(this)"></div>
         <div class="form-group form-full"><label class="form-label">Observação</label><input type="text" class="form-control" id="oc-obs"></div>
       </div>
     </div>
@@ -833,16 +833,16 @@
     </div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="form-group"><label class="form-label">FGTS</label><input type="text" class="form-control" id="gm-fgts" placeholder="0,00"></div>
-        <div class="form-group"><label class="form-label">INSS</label><input type="text" class="form-control" id="gm-inss" placeholder="0,00"></div>
-        <div class="form-group"><label class="form-label">DAS</label><input type="text" class="form-control" id="gm-das" placeholder="0,00"></div>
-        <div class="form-group"><label class="form-label">IRPJ</label><input type="text" class="form-control" id="gm-irpj" placeholder="0,00"></div>
-        <div class="form-group"><label class="form-label">CSLL</label><input type="text" class="form-control" id="gm-csll" placeholder="0,00"></div>
-        <div class="form-group"><label class="form-label">PIS/COFINS (total)</label><input type="text" class="form-control" id="gm-pis" placeholder="0,00"></div>
-        <div class="form-group"><label class="form-label">Receita Serviços</label><input type="text" class="form-control" id="gm-recserv" placeholder="0,00"></div>
-        <div class="form-group"><label class="form-label">Receita Vendas</label><input type="text" class="form-control" id="gm-recvend" placeholder="0,00"></div>
-        <div class="form-group"><label class="form-label">Despesas Total</label><input type="text" class="form-control" id="gm-despesas" placeholder="0,00"></div>
-        <div class="form-group"><label class="form-label">Caixa Atual</label><input type="text" class="form-control" id="gm-caixa" placeholder="0,00"></div>
+        <div class="form-group"><label class="form-label">FGTS</label><input type="text" class="form-control" id="gm-fgts" placeholder="0,00" onblur="fmtNumField(this)"></div>
+        <div class="form-group"><label class="form-label">INSS</label><input type="text" class="form-control" id="gm-inss" placeholder="0,00" onblur="fmtNumField(this)"></div>
+        <div class="form-group"><label class="form-label">DAS</label><input type="text" class="form-control" id="gm-das" placeholder="0,00" onblur="fmtNumField(this)"></div>
+        <div class="form-group"><label class="form-label">IRPJ</label><input type="text" class="form-control" id="gm-irpj" placeholder="0,00" onblur="fmtNumField(this)"></div>
+        <div class="form-group"><label class="form-label">CSLL</label><input type="text" class="form-control" id="gm-csll" placeholder="0,00" onblur="fmtNumField(this)"></div>
+        <div class="form-group"><label class="form-label">PIS/COFINS (total)</label><input type="text" class="form-control" id="gm-pis" placeholder="0,00" onblur="fmtNumField(this)"></div>
+        <div class="form-group"><label class="form-label">Receita Serviços</label><input type="text" class="form-control" id="gm-recserv" placeholder="0,00" onblur="fmtNumField(this)"></div>
+        <div class="form-group"><label class="form-label">Receita Vendas</label><input type="text" class="form-control" id="gm-recvend" placeholder="0,00" onblur="fmtNumField(this)"></div>
+        <div class="form-group"><label class="form-label">Despesas Total</label><input type="text" class="form-control" id="gm-despesas" placeholder="0,00" onblur="fmtNumField(this)"></div>
+        <div class="form-group"><label class="form-label">Caixa Atual</label><input type="text" class="form-control" id="gm-caixa" placeholder="0,00" onblur="fmtNumField(this)"></div>
         <div class="form-group form-full"><label class="form-label">Observação</label><input type="text" class="form-control" id="gm-obs"></div>
       </div>
     </div>
@@ -2710,6 +2710,8 @@ async function saveObrigCliente() {
   closeModal('obrigcli');
   toast('Salvo!','Obrigação atualizada','success');
   await loadControleMensal();
+  // Sincroniza automaticamente com a Planilha Gerencial
+  await syncGerencialFromCM(ocCtx.cliente_id, ocCtx.competencia);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2919,6 +2921,69 @@ function toggleSidebar() {
 function closeSidebar() {
   document.querySelector('.sidebar').classList.remove('open');
   document.getElementById('sidebar-overlay').classList.remove('open');
+}
+
+// ═══════════════════════════════════════════════════════════
+// FORMATAÇÃO NUMÉRICA (aceita vírgula brasileira)
+// ═══════════════════════════════════════════════════════════
+function fmtNumField(el) {
+  const n = parseNum(el.value);
+  el.value = n ? fmtBR(n) : '';
+}
+
+// ═══════════════════════════════════════════════════════════
+// SYNC CONTROLE MENSAL → GERENCIAL
+// ═══════════════════════════════════════════════════════════
+// Mapa de nome de coluna CM → campo em gerencial_mensal
+const CM_GER_MAP = {
+  'DAS':'das', 'FGTS':'fgts', 'INSS':'inss',
+  'CSLL':'csll', 'IRPJ':'irpj'
+  // PIS e COFINS somados em pis_cofins abaixo
+};
+
+async function syncGerencialFromCM(clienteId, competencia) {
+  // cmData já foi recarregado pelo loadControleMensal antes desta chamada
+  const ocs = cmData.filter(oc => oc.cliente_id === clienteId && oc.valor);
+  if (ocs.length === 0) return;
+
+  let fields = {}, pis = 0, cofins = 0;
+  ocs.forEach(oc => {
+    const tpl = obrigacoesTemplates.find(t => t.id === oc.template_id);
+    if (!tpl) return;
+    const nome = tpl.nome;
+    const val = parseNum(oc.valor);
+    if (!val) return;
+    const key = CM_GER_MAP[nome];
+    if (key) fields[key] = fmtBR((parseNum(fields[key]||'0')) + val);
+    if (nome === 'PIS') pis += val;
+    if (nome === 'COFINS') cofins += val;
+  });
+  if (pis > 0 || cofins > 0) fields.pis_cofins = fmtBR(pis + cofins);
+  if (Object.keys(fields).length === 0) return;
+
+  // Busca registro existente para preservar campos manuais
+  const { data: existing } = await sb.from('gerencial_mensal')
+    .select('*').eq('cliente_id', clienteId).eq('competencia', competencia).maybeSingle();
+
+  const obj = {
+    cliente_id: clienteId, competencia,
+    ...fields,
+    // Preserva campos que só são preenchidos manualmente
+    receita_servicos: existing?.receita_servicos || null,
+    receita_vendas:   existing?.receita_vendas   || null,
+    despesas_total:   existing?.despesas_total   || null,
+    caixa_atual:      existing?.caixa_atual      || null,
+    obs:              existing?.obs              || null,
+    atualizado_por:   currentFuncionario?.nome || userEmail,
+    updated_at:       new Date().toISOString()
+  };
+
+  const { error } = await sb.from('gerencial_mensal').upsert(obj, { onConflict: 'cliente_id,competencia' });
+  if (!error) {
+    // Atualiza gerData local se estiver carregado
+    const idx = gerData.findIndex(g => g.cliente_id === clienteId && g.competencia === competencia);
+    if (idx >= 0) Object.assign(gerData[idx], obj); else gerData.push(obj);
+  }
 }
 
 init();
