@@ -186,7 +186,29 @@
   .cal-dot.purple { background: var(--purple); }
   .checkbox-grid{display:flex;flex-wrap:wrap;gap:8px}
   .checkbox-grid label{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--text2);padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;text-transform:none;letter-spacing:0}
-  @media(max-width:900px){.dashboard-grid{grid-template-columns:1fr}.sidebar{display:none}.main{margin-left:0}}
+  .mob-menu-btn{display:none;width:36px;height:36px;border-radius:50%;background:var(--bg);border:1px solid var(--border);cursor:pointer;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:98}
+  .ob-card{margin-bottom:12px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);padding:16px}
+  .ob-card-title{font-size:14px;font-weight:700;margin-bottom:4px}
+  .ob-card-sub{font-size:12px;color:var(--text3);margin-bottom:8px}
+  .ob-card-btn{padding:10px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:700;border:none;cursor:pointer;margin-top:8px;display:inline-flex;align-items:center;gap:6px}
+  .ob-card-btn.entrega{background:var(--success);color:#fff}
+  .ob-card-btn.entregue{background:var(--success-light);color:#059669;border:1px solid #86efac}
+  @media(max-width:900px){
+    .dashboard-grid{grid-template-columns:1fr}
+    .sidebar{transform:translateX(-100%);transition:transform .25s;z-index:100}
+    .sidebar.open{transform:translateX(0)}
+    .sidebar-overlay.open{display:block}
+    .main{margin-left:0}
+    .topbar{left:0}
+    .mob-menu-btn{display:flex !important}
+    table{font-size:12px}
+    th,td{padding:7px 8px}
+    .ob-card{padding:14px}
+    .ob-card-title{font-size:15px}
+    .ob-card-btn{width:100%;justify-content:center;padding:13px;font-size:14px}
+    .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  }
 </style>
 </head>
 <body>
@@ -215,6 +237,7 @@
     <div class="nav-section-title">Controle</div>
     <div class="nav-item" data-nav="controle-mensal" onclick="navigate('controle-mensal')"><span class="nav-icon">📅</span> Controle Mensal</div>
     <div class="nav-item" data-nav="gerencial" onclick="navigate('gerencial')"><span class="nav-icon">📊</span> Gerencial</div>
+    <div class="nav-item" data-nav="officeboy" onclick="navigate('officeboy')"><span class="nav-icon">🚚</span> Office Boy <span class="nav-badge warn" id="badge-ob" style="display:none">0</span></div>
     <div class="nav-section-title">Geral</div>
     <div class="nav-item" onclick="navigate('tarefas')"><span class="nav-icon">✅</span> Tarefas <span class="nav-badge" id="badge-tar">0</span></div>
     <div class="nav-item" onclick="navigate('clientes')"><span class="nav-icon">👤</span> Clientes</div>
@@ -227,8 +250,10 @@
   </div>
 </nav>
 
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 <header class="topbar">
-  <div>
+  <button class="mob-menu-btn" onclick="toggleSidebar()" title="Menu">☰</button>
+  <div style="flex:1">
     <div class="topbar-title" id="topbar-title">Dashboard</div>
   </div>
   <div class="topbar-actions">
@@ -414,6 +439,22 @@
       <div class="search-box" style="flex:1">🔍<input type="text" id="ger-search" placeholder="Filtrar empresa..." oninput="renderGerencial()"></div>
     </div>
     <div class="table-wrap" id="ger-table-wrap"><div class="empty-state"><div class="es-icon">📊</div><p>Selecione a competência</p></div></div>
+  </div>
+</div>
+
+<!-- OFFICE BOY -->
+<div class="page" id="page-officeboy">
+  <div class="page-title">Office Boy</div>
+  <div class="page-sub">Entregas e documentos para protocolo presencial</div>
+  <div class="ob-tabs tabs">
+    <button class="tab-btn active" onclick="switchObTab('pendentes')">🕐 Pendentes</button>
+    <button class="tab-btn" onclick="switchObTab('concluidas')">✅ Concluídas</button>
+  </div>
+  <div id="ob-tab-pendentes" class="tab-panel active">
+    <div id="ob-cards-pendentes"></div>
+  </div>
+  <div id="ob-tab-concluidas" class="tab-panel">
+    <div id="ob-cards-concluidas"></div>
   </div>
 </div>
 
@@ -859,6 +900,29 @@
   </div>
 </div>
 
+<!-- MODAL CONFIRMAÇÃO ENTREGA -->
+<div class="modal-overlay" id="modal-entrega">
+  <div class="modal" style="width:400px">
+    <div class="modal-header">
+      <div class="modal-icon" style="background:#ecfdf5">🚚</div>
+      <div><div class="modal-title" id="ent-titulo">Confirmar Entrega</div><div style="font-size:11px;color:var(--text3)" id="ent-sub"></div></div>
+      <button class="modal-close" onclick="closeModal('entrega')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full"><label class="form-label">Data da Entrega *</label><input type="date" class="form-control" id="ent-data"></div>
+        <div class="form-group form-full"><label class="form-label">Entregue para (nome de quem recebeu) *</label><input type="text" class="form-control" id="ent-para" placeholder="Nome do recebedor"></div>
+        <div class="form-group form-full"><label class="form-label">Entregue por</label><input type="text" class="form-control" id="ent-por" placeholder="Nome do office boy"></div>
+        <div class="form-group form-full"><label class="form-label">Observação</label><input type="text" class="form-control" id="ent-obs"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('entrega')">Cancelar</button>
+      <button class="btn btn-success" id="btn-confirmar-entrega" onclick="confirmarEntrega()">✅ Confirmar Entrega</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://ruuoxvqhpnajghiqafml.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1dW94dnFocG5hamdoaXFhZm1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMjYxMjcsImV4cCI6MjA5NjYwMjEyN30.nHfSPTUdA9N02m0N7rgAlOsQLaTIIPhbVKWQLg3sQAc';
@@ -867,6 +931,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // STATE
 let parcelamentos = [], inss = [], tarefas = [], setores = [], funcionarios = [], clientes = [];
 let processos = [], gerencial = [], obrigacoesTemplates = [], obrigacoesClientes = [];
+let entregas = [];
 let userEmail = '';
 let currentPage = 'dashboard';
 let editingId = { parc: null, inss: null, tarefa: null, cliente: null, setor: null, funcionario: null, processo: null, obrigtemplate: null };
@@ -985,7 +1050,7 @@ function applyRoleUI() {
 
 // LOAD
 async function loadAll() {
-  const [p, i, t, s, f, c, pr, ot] = await Promise.all([
+  const [p, i, t, s, f, c, pr, ot, en] = await Promise.all([
     sb.from('parcelamentos').select('*').order('vencimento', { ascending: true }),
     sb.from('inss_pf').select('*').order('vencimento', { ascending: true }),
     sb.from('tarefas').select('*').order('prazo', { ascending: true }),
@@ -993,7 +1058,8 @@ async function loadAll() {
     sb.from('funcionarios').select('*').order('nome', { ascending: true }),
     sb.from('clientes').select('*').order('nome', { ascending: true }),
     sb.from('processos_legalizacao').select('*').order('created_at', { ascending: false }),
-    sb.from('obrigacoes_templates').select('*').order('setor_nome,ordem')
+    sb.from('obrigacoes_templates').select('*').order('setor_nome,ordem'),
+    sb.from('entregas').select('*').order('criado_em', { ascending: false })
   ]);
   parcelamentos = p.data || [];
   inss = i.data || [];
@@ -1003,6 +1069,7 @@ async function loadAll() {
   clientes = c.data || [];
   processos = pr.data || [];
   obrigacoesTemplates = ot.data || [];
+  entregas = en.data || [];
   renderAll();
 }
 
@@ -1016,6 +1083,7 @@ function renderAll() {
   renderConfig();
   renderObrigacoesTemplates();
   renderProcessos();
+  renderEntregas();
   populateSetorFilter();
   updateBadges();
   buildCalendar();
@@ -1051,12 +1119,15 @@ function navigate(page, setorNome) {
   currentPage = page;
   const titles = { dashboard:'Dashboard', parcelamentos:'Parcelamentos', 'inss-pf':'INSS PF',
     tarefas:'Tarefas', clientes:'Clientes', configuracoes:'Configurações',
-    'controle-mensal':'Controle Mensal', gerencial:'Gerencial', legalizacao:'Legalização' };
+    'controle-mensal':'Controle Mensal', gerencial:'Gerencial', legalizacao:'Legalização',
+    officeboy:'Office Boy' };
   document.getElementById('topbar-title').textContent = titles[page] || page;
+  closeSidebar();
   if (page === 'dashboard') { buildCalendar(); if (calSelected) { selectCalDay(calSelected.y, calSelected.m, calSelected.d); } else { renderAgendaDefault(); } }
   if (page === 'controle-mensal') initControleMensal();
   if (page === 'gerencial') initGerencial();
   if (page === 'legalizacao') { switchLegTab('processos'); renderProcessos(); renderLegTarefas(); }
+  if (page === 'officeboy') renderEntregas();
 }
 
 function renderSidebarSetores() {
@@ -1159,6 +1230,9 @@ function updateBadges() {
   document.getElementById('badge-tar').textContent = tPend;
   const hasAlert = buildAlerts().length > 0;
   document.getElementById('notif-dot').style.display = hasAlert ? '' : 'none';
+  const obPend = entregas.filter(e => e.status === 'Pendente').length;
+  const obBadge = document.getElementById('badge-ob');
+  if (obBadge) { obBadge.textContent = obPend; obBadge.style.display = obPend > 0 ? '' : 'none'; }
 }
 
 // DASHBOARD
@@ -1338,6 +1412,7 @@ function renderParcelamentos() {
       <td><div class="td-actions">
         <button class="icon-btn" onclick='editParcelamento("${p.id}")'>✏️</button>
         <button class="icon-btn" onclick='openAnexos("parcelamento","${p.id}","${p.empresa.replace(/'/g,"\\'")}") ' title="Anexos">📎</button>
+        <button class="icon-btn" onclick='criarEntrega("parcelamento","${p.id}","${p.empresa.replace(/'/g,"\\'")}","${(clientes.find(c=>c.id===p.cliente_id)?.nome||'').replace(/'/g,"\\'")}") ' title="Office boy">🚚</button>
         <button class="icon-btn del" onclick='deleteItem("parc","${p.id}")'>🗑️</button>
       </div></td></tr>`;
   }).join('') : '<tr><td colspan="12"><div class="empty-state"><div class="es-icon">📭</div><p>Nenhum registro</p></div></td></tr>';
@@ -1437,6 +1512,7 @@ function renderTarefas() {
       <td><div class="td-actions">
         <button class="icon-btn" onclick='editTarefa("${t.id}")'>✏️</button>
         <button class="icon-btn" onclick='openAnexos("tarefa","${t.id}","${t.titulo.replace(/'/g,"\\'")}") ' title="Anexos">📎</button>
+        <button class="icon-btn" onclick='criarEntrega("tarefa","${t.id}","${t.titulo.replace(/'/g,"\\'")}","${(clientes.find(c=>c.id===t.cliente_id)?.nome||'').replace(/'/g,"\\'")}") ' title="Office boy">🚚</button>
         <button class="icon-btn del" onclick='deleteItem("tarefa","${t.id}")'>🗑️</button>
       </div></td></tr>`;
   }).join('') : '<tr><td colspan="11"><div class="empty-state"><div class="es-icon">📭</div><p>Nenhuma tarefa</p></div></td></tr>';
@@ -1965,7 +2041,8 @@ function closeModal(type) {
     notif:'modal-notif', cliente:'modal-cliente', setor:'modal-setor',
     funcionario:'modal-funcionario', anexos:'modal-anexos',
     processo:'modal-processo', obrigtemplate:'modal-obrigtemplate',
-    obrigcli:'modal-obrigcli', gerencial:'modal-gerencial' };
+    obrigcli:'modal-obrigcli', gerencial:'modal-gerencial',
+    entrega:'modal-entrega' };
   document.getElementById(map[type])?.classList.remove('open');
 }
 
@@ -2738,6 +2815,112 @@ async function saveGerencial() {
   closeModal('gerencial');
   toast('Salvo!','Valores atualizados','success');
   await loadGerencial();
+}
+
+// ═══════════════════════════════════════════════════════════
+// OFFICE BOY
+// ═══════════════════════════════════════════════════════════
+let entCtx = null;
+
+function switchObTab(tab) {
+  document.querySelectorAll('.ob-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#ob-tab-pendentes, #ob-tab-concluidas').forEach(p => p.classList.remove('active'));
+  document.getElementById('ob-tab-'+tab).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function renderEntregas() {
+  const pEl = document.getElementById('ob-cards-pendentes');
+  const cEl = document.getElementById('ob-cards-concluidas');
+  if (!pEl || !cEl) return;
+  const pend = entregas.filter(e => e.status === 'Pendente');
+  const conc = entregas.filter(e => e.status === 'Entregue');
+  pEl.innerHTML = pend.length ? pend.map(e => obCard(e)).join('')
+    : '<div class="empty-state"><div class="es-icon">📦</div><p>Nenhuma entrega pendente</p></div>';
+  cEl.innerHTML = conc.length ? conc.map(e => obCard(e)).join('')
+    : '<div class="empty-state"><div class="es-icon">✅</div><p>Nenhuma entrega concluída</p></div>';
+}
+
+function obCard(e) {
+  const entregue = e.status === 'Entregue';
+  const dataStr = e.criado_em ? new Date(e.criado_em).toLocaleDateString('pt-BR') : '—';
+  return `<div class="ob-card">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+      <div style="flex:1">
+        <div class="ob-card-title">${e.referencia_nome||'—'}</div>
+        <div class="ob-card-sub">${e.cliente_nome ? e.cliente_nome+' · ' : ''}Solicitado em ${dataStr}</div>
+        ${entregue ? `<div style="font-size:12px;color:var(--text3);margin-top:4px">
+          📅 ${e.data_entrega?fmtDate(e.data_entrega):'—'} &nbsp;|&nbsp;
+          👤 Recebido por: <strong>${e.entregue_para||'—'}</strong>
+          ${e.entregue_por ? ` &nbsp;|&nbsp; Por: <strong>${e.entregue_por}</strong>` : ''}
+        </div>` : ''}
+      </div>
+      <span class="badge ${entregue?'badge-green':'badge-orange'}">${entregue?'Entregue':'Pendente'}</span>
+    </div>
+    ${!entregue ? `<button class="ob-card-btn entrega" onclick='abrirConfirmarEntrega("${e.id}")'>🚚 Registrar Entrega</button>` : ''}
+  </div>`;
+}
+
+async function criarEntrega(tipo, referenciaId, referenciaNome, clienteNome) {
+  if (!confirm(`Criar pendência de entrega presencial para:\n"${referenciaNome}"?`)) return;
+  const obj = {
+    tipo, referencia_id: referenciaId, referencia_nome: referenciaNome,
+    cliente_nome: clienteNome, status: 'Pendente',
+    criado_por: currentFuncionario?.nome || userEmail
+  };
+  const { error } = await sb.from('entregas').insert(obj);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  toast('Criado!', 'Pendência de entrega gerada para o office boy', 'success');
+  const { data } = await sb.from('entregas').select('*').order('criado_em', { ascending: false });
+  entregas = data || [];
+  renderEntregas();
+  updateBadges();
+}
+
+function abrirConfirmarEntrega(id) {
+  const e = entregas.find(x => x.id === id);
+  if (!e) return;
+  entCtx = id;
+  document.getElementById('ent-titulo').textContent = e.referencia_nome || 'Confirmar Entrega';
+  document.getElementById('ent-sub').textContent = e.cliente_nome || '';
+  document.getElementById('ent-data').value = new Date().toISOString().split('T')[0];
+  document.getElementById('ent-para').value = '';
+  document.getElementById('ent-por').value = currentFuncionario?.nome || '';
+  document.getElementById('ent-obs').value = '';
+  document.getElementById('modal-entrega').classList.add('open');
+}
+
+async function confirmarEntrega() {
+  if (!entCtx) return;
+  const para = gv('ent-para');
+  const data = gv('ent-data');
+  if (!para || !data) { toast('Atenção', 'Informe a data e quem recebeu', 'warning'); return; }
+  setBusy('btn-confirmar-entrega', true);
+  const obj = {
+    status: 'Entregue', data_entrega: data,
+    entregue_para: para,
+    entregue_por: gv('ent-por') || currentFuncionario?.nome || userEmail,
+    obs: gv('ent-obs') || null
+  };
+  const { error } = await sb.from('entregas').update(obj).eq('id', entCtx);
+  setBusy('btn-confirmar-entrega', false);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  closeModal('entrega');
+  toast('Entrega confirmada!', `Recebido por ${para}`, 'success');
+  const { data: enData } = await sb.from('entregas').select('*').order('criado_em', { ascending: false });
+  entregas = enData || [];
+  renderEntregas();
+  updateBadges();
+}
+
+// MOBILE SIDEBAR
+function toggleSidebar() {
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
 }
 
 init();
