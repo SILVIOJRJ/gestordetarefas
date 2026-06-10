@@ -396,9 +396,7 @@
       <div class="form-group" style="gap:2px"><label class="form-label" style="font-size:10px">Competência</label>
         <input type="month" class="select-filter" id="cm-competencia" onchange="loadControleMensal()"></div>
       <div class="form-group" style="gap:2px"><label class="form-label" style="font-size:10px">Setor</label>
-        <select class="select-filter" id="cm-setor" onchange="loadControleMensal()">
-          <option>DP</option><option>Fiscal</option><option>Contábil</option><option>Legalização</option>
-        </select></div>
+        <select class="select-filter" id="cm-setor" onchange="loadControleMensal()"></select></div>
       <div class="search-box" style="flex:1">🔍<input type="text" id="cm-search" placeholder="Filtrar empresa..." oninput="renderControleMensal()"></div>
     </div>
     <div class="table-wrap" id="cm-table-wrap"><div class="empty-state"><div class="es-icon">📅</div><p>Selecione competência e setor</p></div></div>
@@ -801,7 +799,7 @@
         <div class="form-group"><label class="form-label">DAS</label><input type="text" class="form-control" id="gm-das" placeholder="0,00"></div>
         <div class="form-group"><label class="form-label">IRPJ</label><input type="text" class="form-control" id="gm-irpj" placeholder="0,00"></div>
         <div class="form-group"><label class="form-label">CSLL</label><input type="text" class="form-control" id="gm-csll" placeholder="0,00"></div>
-        <div class="form-group"><label class="form-label">PIS/COFINS</label><input type="text" class="form-control" id="gm-pis" placeholder="0,00"></div>
+        <div class="form-group"><label class="form-label">PIS/COFINS (total)</label><input type="text" class="form-control" id="gm-pis" placeholder="0,00"></div>
         <div class="form-group"><label class="form-label">Receita Serviços</label><input type="text" class="form-control" id="gm-recserv" placeholder="0,00"></div>
         <div class="form-group"><label class="form-label">Receita Vendas</label><input type="text" class="form-control" id="gm-recvend" placeholder="0,00"></div>
         <div class="form-group"><label class="form-label">Despesas Total</label><input type="text" class="form-control" id="gm-despesas" placeholder="0,00"></div>
@@ -2438,13 +2436,34 @@ async function saveObrigTemplate() {
 async function seedObrigacoesTemplates() {
   if (obrigacoesTemplates.length && !confirm('Já existem templates. Adicionar os padrões mesmo assim?')) return;
   const padrao = {
-    DP: ['Folha de Pagamento','FGTS','eSocial','DCTFWeb','Admissão/Demissão'],
-    Fiscal: ['DAS','DCTF Federal','Estadual','Municipal','DCTF'],
-    'Contábil': ['Balancete','DRE','ECF','ECD']
+    DP: [
+      {nome:'Folha de Pagamento', dia_vencimento:5},
+      {nome:'FGTS', dia_vencimento:7},
+      {nome:'eSocial', dia_vencimento:7},
+      {nome:'DCTFWeb', dia_vencimento:15},
+      {nome:'Rescisão', dia_vencimento:10},
+      {nome:'Férias', dia_vencimento:2}
+    ],
+    Fiscal: [
+      {nome:'DAS', dia_vencimento:20},
+      {nome:'PIS', dia_vencimento:25},
+      {nome:'COFINS', dia_vencimento:25},
+      {nome:'CSLL', dia_vencimento:30},
+      {nome:'IRPJ', dia_vencimento:30},
+      {nome:'DCTF', dia_vencimento:15},
+      {nome:'Estadual', dia_vencimento:20},
+      {nome:'Municipal', dia_vencimento:20}
+    ],
+    'Contábil': [
+      {nome:'Balanço', dia_vencimento:28},
+      {nome:'DRE', dia_vencimento:28},
+      {nome:'ECF', dia_vencimento:31},
+      {nome:'ECD', dia_vencimento:30}
+    ]
   };
   const rows = [];
-  Object.entries(padrao).forEach(([setor, nomes]) => {
-    nomes.forEach((nome, i) => rows.push({ setor_nome: setor, nome, ordem: i+1, ativo: true }));
+  Object.entries(padrao).forEach(([setor, items]) => {
+    items.forEach((item, i) => rows.push({ setor_nome: setor, nome: item.nome, dia_vencimento: item.dia_vencimento, ordem: i+1, ativo: true }));
   });
   const { error } = await sb.from('obrigacoes_templates').insert(rows);
   if (error) { toast('Erro', error.message, 'error'); return; }
@@ -2460,10 +2479,16 @@ let cmData = []; // obrigacoes_clientes da competência/setor atual
 function initControleMensal() {
   const compEl = document.getElementById('cm-competencia');
   if (!compEl.value) compEl.value = currentMonthStr();
+  // Popula setores a partir do banco
+  const sel = document.getElementById('cm-setor');
+  const lista = setoresList();
+  if (sel.options.length !== lista.length) {
+    sel.innerHTML = lista.map(n => `<option value="${n}">${n}</option>`).join('');
+  }
   // Define setor padrão = setor do usuário
   if (userSetor) {
-    const opt = [...document.getElementById('cm-setor').options].find(o => o.value.toLowerCase() === userSetor.toLowerCase());
-    if (opt) document.getElementById('cm-setor').value = opt.value;
+    const opt = [...sel.options].find(o => o.value.toLowerCase() === userSetor.toLowerCase());
+    if (opt) sel.value = opt.value;
   }
   loadControleMensal();
 }
@@ -2482,9 +2507,45 @@ async function loadControleMensal() {
 
 const CM_COLS = {
   DP: ['Folha','FGTS','eSocial','DCTFWeb','Rescisão','Férias'],
-  Fiscal: ['DAS','DCTF','Estadual','Municipal'],
+  Fiscal: ['DAS','PIS','COFINS','CSLL','IRPJ','DCTF','Estadual','Municipal'],
   'Contábil': ['Balanço','DRE','ECF','ECD']
 };
+// Dia padrão de vencimento por obrigação (no mês da competência ou mês seguinte)
+const CM_VENC = {
+  'Folha':5,'FGTS':7,'eSocial':7,'DCTFWeb':15,'Rescisão':10,'Férias':2,
+  'DAS':20,'PIS':25,'COFINS':25,'CSLL':30,'IRPJ':30,'DCTF':15,'Estadual':20,'Municipal':20,
+  'Balanço':28,'DRE':28,'ECF':31,'ECD':30
+};
+// Obrigações pagas no mês SEGUINTE à competência
+const CM_MES_SEGUINTE = new Set(['FGTS','eSocial','DCTFWeb','PIS','COFINS','CSLL','IRPJ','DCTF']);
+
+function cmVencDate(colName, competencia) {
+  const day = CM_VENC[colName];
+  if (!day || !competencia) return null;
+  const [y, m] = competencia.split('-').map(Number);
+  const isSeguinte = CM_MES_SEGUINTE.has(colName);
+  const ano = isSeguinte ? (m === 12 ? y + 1 : y) : y;
+  const mesFinal = isSeguinte ? (m === 12 ? 0 : m) : m - 1;
+  const d = new Date(ano, mesFinal, day);
+  return d;
+}
+
+function cmVencStr(colName, competencia) {
+  const d = cmVencDate(colName, competencia);
+  if (!d) return '';
+  return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+}
+
+function cmCellClass(colName, competencia, status) {
+  if (!status || status === 'Concluído' || status === 'N.A' || status === 'Enviado') return '';
+  const d = cmVencDate(colName, competencia);
+  if (!d) return '';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.round((d - today) / 86400000);
+  if (diff < 0) return 'background:#fef2f2'; // atrasado
+  if (diff <= 3) return 'background:#fffbeb'; // próximo
+  return '';
+}
 
 function cmStatusColor(st) {
   return {'Concluído':'badge-green','Pendente':'badge-orange','Atrasado':'badge-red','N.A':'badge-gray','Enviado':'badge-teal'}[st] || 'badge-orange';
@@ -2510,22 +2571,32 @@ function renderControleMensal() {
     return;
   }
 
+  // Filtra clientes por setores_contratados
+  cli = cli.filter(c => !c.setores_contratados || c.setores_contratados.length === 0 || c.setores_contratados.includes(setor));
+
   const cols = CM_COLS[setor] || [];
-  const head = `<tr><th>Regime</th><th>Empresa</th><th>Condição</th><th>Whats</th>${cols.map(c=>`<th>${c}</th>`).join('')}<th>Obs</th></tr>`;
+  const head = `<tr><th>Regime</th><th>Empresa</th><th>Condição</th><th>Whats</th>${cols.map(c => {
+    const vStr = cmVencStr(c, comp);
+    const d = cmVencDate(c, comp);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const diff = d ? Math.round((d - today) / 86400000) : null;
+    const hdrStyle = diff !== null && diff < 0 ? 'color:var(--danger)' : diff !== null && diff <= 3 ? 'color:var(--warning)' : '';
+    return `<th style="${hdrStyle}">${c}${vStr?`<br><span style="font-size:10px;font-weight:400">${vStr}</span>`:''}</th>`;
+  }).join('')}<th>Obs</th></tr>`;
   const body = cli.map(c => {
     const cells = cols.map(colName => {
-      // template id por nome+setor
       const tpl = obrigacoesTemplates.find(t => t.setor_nome === setor && t.nome.toLowerCase().includes(colName.toLowerCase()));
       const match = tpl ? cmData.find(o => o.cliente_id === c.id && o.template_id === tpl.id && o.competencia === comp) : null;
       const st = match ? match.status : 'Pendente';
-      return `<td style="cursor:pointer" onclick='openObrigCli("${c.id}","${tpl?tpl.id:''}","${colName.replace(/'/g,"")}")'>
+      const bg = cmCellClass(colName, comp, st);
+      return `<td style="cursor:pointer;${bg}" onclick='openObrigCli("${c.id}","${tpl?tpl.id:''}","${colName.replace(/'/g,"")}")'>
         <span class="badge ${cmStatusColor(st)}">${st}</span></td>`;
     }).join('');
     return `<tr><td>${regimeBadge(c.regime_tributario)}</td><td><strong>${c.nome}</strong></td>
       <td style="font-size:11px">${c.condicao||'—'}</td><td style="font-size:11px">${c.whatsapp||'—'}</td>
       ${cells}<td style="font-size:11px;color:var(--text3)">—</td></tr>`;
   }).join('');
-  wrap.innerHTML = `<table><thead>${head}</thead><tbody>${body||`<tr><td colspan="${cols.length+5}" style="text-align:center;padding:20px;color:var(--text3)">Sem clientes ativos</td></tr>`}</tbody></table>`;
+  wrap.innerHTML = `<table><thead>${head}</thead><tbody>${body||`<tr><td colspan="${cols.length+5}" style="text-align:center;padding:20px;color:var(--text3)">Sem clientes${setor?' no setor '+setor:' ativos'}</td></tr>`}</tbody></table>`;
 }
 
 function openObrigCli(clienteId, templateId, colName) {
@@ -2597,13 +2668,12 @@ function renderGerencial() {
   let cli = clientes.filter(c => c.ativo !== false);
   if (search) cli = cli.filter(c => (c.nome||'').toLowerCase().includes(search));
 
-  const tot = { fgts:0, inss:0, das:0, irpjcsll:0, pis:0, recserv:0, recvend:0, desp:0, caixa:0 };
+  const tot = { fgts:0, inss:0, das:0, irpj:0, csll:0, pis:0, recserv:0, recvend:0, desp:0, caixa:0 };
   const body = cli.map(c => {
     const g = gerData.find(x => x.cliente_id === c.id && x.competencia === comp);
-    const irpjcsll = g ? (parseNum(g.irpj)+parseNum(g.csll)) : 0;
     if (g) {
       tot.fgts += parseNum(g.fgts); tot.inss += parseNum(g.inss); tot.das += parseNum(g.das);
-      tot.irpjcsll += irpjcsll; tot.pis += parseNum(g.pis_cofins);
+      tot.irpj += parseNum(g.irpj); tot.csll += parseNum(g.csll); tot.pis += parseNum(g.pis_cofins);
       tot.recserv += parseNum(g.receita_servicos); tot.recvend += parseNum(g.receita_vendas);
       tot.desp += parseNum(g.despesas_total); tot.caixa += parseNum(g.caixa_atual);
     }
@@ -2613,8 +2683,8 @@ function renderGerencial() {
       <td><strong>${c.nome}</strong></td>
       <td style="font-size:11px">${c.condicao||'—'}</td>
       ${cell(g?.fgts)}${cell(g?.inss)}${cell(g?.das)}
-      <td class="font-mono">${g&&irpjcsll?fmtBR(irpjcsll):'—'}</td>
-      ${cell(g?.pis_cofins)}${cell(g?.receita_servicos)}${cell(g?.receita_vendas)}
+      ${cell(g?.irpj)}${cell(g?.csll)}${cell(g?.pis_cofins)}
+      ${cell(g?.receita_servicos)}${cell(g?.receita_vendas)}
       ${cell(g?.despesas_total)}${cell(g?.caixa_atual)}
       <td style="font-size:11px;color:var(--text3)">${g?.obs||'—'}</td>
       <td style="font-size:11px;color:var(--text3)">${g?.atualizado_por||'—'}</td>
@@ -2624,16 +2694,17 @@ function renderGerencial() {
   const footer = `<tr style="background:var(--surface2);font-weight:700">
     <td colspan="3">TOTAIS</td>
     <td class="font-mono">${fmtBR(tot.fgts)}</td><td class="font-mono">${fmtBR(tot.inss)}</td>
-    <td class="font-mono">${fmtBR(tot.das)}</td><td class="font-mono">${fmtBR(tot.irpjcsll)}</td>
-    <td class="font-mono">${fmtBR(tot.pis)}</td><td class="font-mono">${fmtBR(tot.recserv)}</td>
-    <td class="font-mono">${fmtBR(tot.recvend)}</td><td class="font-mono">${fmtBR(tot.desp)}</td>
-    <td class="font-mono">${fmtBR(tot.caixa)}</td><td></td><td></td></tr>`;
+    <td class="font-mono">${fmtBR(tot.das)}</td><td class="font-mono">${fmtBR(tot.irpj)}</td>
+    <td class="font-mono">${fmtBR(tot.csll)}</td><td class="font-mono">${fmtBR(tot.pis)}</td>
+    <td class="font-mono">${fmtBR(tot.recserv)}</td><td class="font-mono">${fmtBR(tot.recvend)}</td>
+    <td class="font-mono">${fmtBR(tot.desp)}</td><td class="font-mono">${fmtBR(tot.caixa)}</td>
+    <td></td><td></td></tr>`;
 
   wrap.innerHTML = `<table><thead><tr>
     <th>Regime</th><th>Empresa</th><th>Condição</th><th>FGTS</th><th>INSS</th><th>DAS</th>
-    <th>IRPJ/CSLL</th><th>PIS/COFINS</th><th>Rec. Serviços</th><th>Rec. Vendas</th>
+    <th>IRPJ</th><th>CSLL</th><th>PIS/COFINS</th><th>Rec. Serviços</th><th>Rec. Vendas</th>
     <th>Despesas</th><th>Caixa</th><th>Obs</th><th>Atualizado por</th></tr></thead>
-    <tbody>${body||'<tr><td colspan=14 style="text-align:center;padding:20px;color:var(--text3)">Sem clientes</td></tr>'}${cli.length?footer:''}</tbody></table>`;
+    <tbody>${body||'<tr><td colspan=15 style="text-align:center;padding:20px;color:var(--text3)">Sem clientes</td></tr>'}${cli.length?footer:''}</tbody></table>`;
 }
 
 function openGerencial(clienteId) {
