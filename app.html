@@ -375,6 +375,12 @@
         <option value="">Todas as Prioridades</option>
         <option>Alta</option><option>Média</option><option>Baixa</option>
       </select>
+      <select class="select-filter" id="tar-f-prazo" onchange="filterTarefas()">
+        <option value="">Todos os prazos</option>
+        <option value="curto">Curto prazo (≤30d)</option>
+        <option value="longo">Longo prazo (>30d)</option>
+        <option value="sem">Sem prazo</option>
+      </select>
       <button class="btn btn-primary" onclick="openModal('tarefa')">＋ Nova</button>
     </div>
     <div class="table-wrap">
@@ -573,6 +579,23 @@
   </div>
 </div>
 
+<!-- MODAL CRONOGRAMA PARCELAMENTO -->
+<div class="modal-overlay" id="modal-parc-cronograma">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <div class="modal-icon blue">📅</div>
+      <div class="modal-title" id="cronograma-title">Cronograma de Parcelas</div>
+      <button class="modal-close" onclick="closeModal('parc-cronograma')">✕</button>
+    </div>
+    <div class="modal-body" style="max-height:520px;overflow-y:auto">
+      <div id="cronograma-body"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('parc-cronograma')">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL INSS PF -->
 <div class="modal-overlay" id="modal-inss">
   <div class="modal">
@@ -767,6 +790,8 @@
         <div class="form-group"><label class="form-label">Previsão</label><input type="date" class="form-control" id="pr-previsao"></div>
         <div class="form-group"><label class="form-label">Responsável</label><input type="text" class="form-control" id="pr-responsavel"></div>
         <div class="form-group" id="pr-renov-wrap" style="display:none"><label class="form-label">Data de Renovação *</label><input type="date" class="form-control" id="pr-renovacao"></div>
+        <div class="form-group"><label class="form-label">Lembrar antes (dias)</label><input type="number" class="form-control" id="pr-lembrar" placeholder="30" min="1" max="365"></div>
+        <div class="form-group" id="pr-retorno-wrap"><label class="form-label" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="pr-retorno"> Retorno confirmado</label></div>
         <div class="form-group form-full"><label class="form-label">Observação</label><input type="text" class="form-control" id="pr-obs"></div>
       </div>
     </div>
@@ -1171,14 +1196,13 @@ function switchCfgTab(tab) {
 
 function initConfiguracoes() {
   const verTudo = isAdmin || !currentFuncionario;
-  // Não-admin: mostra só aba Obrigações do seu setor
+  // Nao-admin: mostra so aba Obrigacoes do seu setor
   const setBtnVisible = (id, vis) => { const el = document.getElementById(id); if (el) el.style.display = vis ? '' : 'none'; };
   setBtnVisible('cfgtab-btn-setores', verTudo);
   setBtnVisible('cfgtab-btn-funcionarios', verTudo);
   // Título e filtro de setor para não-admin
   const titleEl = document.getElementById('cfg-obrig-title');
   if (titleEl) titleEl.textContent = verTudo ? 'Templates de Obrigações' : `Obrigações — ${userSetor||'Meu Setor'}`;
-  // Botão Pré-popular para não-admin: chama seedSetorObrigacoes do seu setor
   const actionsEl = document.getElementById('cfg-obrig-actions');
   if (actionsEl && !verTudo && userSetor) {
     actionsEl.innerHTML = `
@@ -1252,8 +1276,22 @@ function buildAlerts() {
     if (p.data_renovacao) {
       const d = new Date(p.data_renovacao + 'T00:00:00');
       const diff = Math.round((d - today) / 86400000);
-      if (diff >= 0 && diff <= 30) list.push({ type:'warning', icon:'🔄', title:`Renovação em ${diff}d`, msg:`${nome} — ${p.tipo}` });
-      else if (diff < 0) list.push({ type:'error', icon:'🔄', title:'Renovação VENCIDA', msg:`${nome} — ${p.tipo} — ${Math.abs(diff)}d` });
+      const lembrarAntes = p.lembrar_antes_dias || 30;
+      if (diff >= 0 && diff <= lembrarAntes) list.push({ type:'warning', icon:'🔄', title:`Renovação em ${diff}d`, msg:`${nome} — ${p.tipo} — Lembrete ${lembrarAntes}d antes` });
+      else if (diff < 0) list.push({ type:'error', icon:'🔄', title:'Renovação VENCIDA', msg:`${nome} — ${p.tipo} — ${Math.abs(diff)}d — Verifique a situação!` });
+      // Follow-up: após vencimento, cobrar retorno
+      if (diff < 0 && diff >= -7 && !p.retorno_confirmado) {
+        list.push({ type:'info', icon:'📞', title:'Follow-up necessário', msg:`${nome} — ${p.tipo} — Confirme a renovação/situação atual` });
+      }
+    }
+  });
+
+  // Verificar templates faltando por setor
+  const setoresAtivos = setoresList().filter(s => s !== 'Legalização');
+  setoresAtivos.forEach(s => {
+    const temTemplates = obrigacoesTemplates.some(t => t.setor_nome === s && t.ativo !== false);
+    if (!temTemplates) {
+      list.push({ type:'warning', icon:'📋', title:`Templates faltando — ${s}`, msg:`Crie os templates em Configurações → Obrigações` });
     }
   });
 
@@ -1480,8 +1518,7 @@ async function seedSetorObrigacoes(sNome) {
   if (error) { toast('Erro', error.message, 'error'); return; }
   toast('Pronto!', `${rows.length} obrigações adicionadas em ${sNome}`, 'success');
   await loadAll();
-  renderSetorPage(sNome);
-  switchSetorTab('obrig');
+  if (currentPage === 'setor') { renderSetorPage(sNome); switchSetorTab('obrig'); }
 }
 
 // PARCELAMENTOS
@@ -1519,6 +1556,7 @@ function renderParcelamentos() {
       <td style="font-size:11px;color:var(--text3)">${p.obs||''}</td>
       <td><div class="td-actions">
         <button class="icon-btn" onclick='editParcelamento("${p.id}")'>✏️</button>
+        <button class="icon-btn" onclick='openCronogramaParc("${p.id}")' title="Cronograma mensal">📅</button>
         <button class="icon-btn" onclick='openAnexos("parcelamento","${p.id}","${p.empresa.replace(/'/g,"\\'")}") ' title="Anexos">📎</button>
         <button class="icon-btn" onclick='criarEntrega("parcelamento","${p.id}","${p.empresa.replace(/'/g,"\\'")}","${(clientes.find(c=>c.id===p.cliente_id)?.nome||'').replace(/'/g,"\\'")}") ' title="Office boy">🚚</button>
         <button class="icon-btn del" onclick='deleteItem("parc","${p.id}")'>🗑️</button>
@@ -1536,6 +1574,125 @@ function renderParcelamentos() {
     <div class="kpi-card red"><div class="kpi-label">Atrasados</div><div class="kpi-value">${atr}</div></div>
     <div class="kpi-card teal"><div class="kpi-label">Env. Cliente</div><div class="kpi-value">${accP.filter(p=>p.status==='Enviado p/ cliente').length}</div></div>
   `;
+}
+
+// CRONOGRAMA DE PARCELAMENTOS
+let parcCronoData = {}; // cache de historico por parcelamento_id
+
+async function openCronogramaParc(parcId) {
+  const p = parcelamentos.find(x => x.id === parcId);
+  if (!p) return;
+  document.getElementById('cronograma-title').textContent = `Cronograma — ${p.empresa}`;
+  document.getElementById('cronograma-body').innerHTML = '<div style="text-align:center;padding:20px"><div class="spinner"></div></div>';
+  document.getElementById('modal-parc-cronograma').classList.add('open');
+
+  // Carrega historico do Supabase
+  let historico = [];
+  try {
+    const { data } = await sb.from('parcelas_historico').select('*').eq('parcelamento_id', parcId);
+    historico = data || [];
+  } catch(e) { historico = []; }
+  parcCronoData[parcId] = historico;
+  renderCronograma(p, historico);
+}
+
+function renderCronograma(p, historico) {
+  const parcAtual = parseInt(p.parcela) || 1;
+  const totalParc = parseInt(p.total_parcelas) || parcAtual;
+  const vencBase = p.vencimento ? new Date(p.vencimento + 'T00:00:00') : null;
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  if (!vencBase || !totalParc) {
+    document.getElementById('cronograma-body').innerHTML = '<div class="empty-state"><p>Cadastre parcela atual, total e vencimento para ver o cronograma.</p></div>';
+    return;
+  }
+
+  const rows = [];
+  for (let n = 1; n <= totalParc; n++) {
+    const mesesOffset = n - parcAtual;
+    const d = new Date(vencBase);
+    d.setMonth(d.getMonth() + mesesOffset);
+    const vencStr = d.toISOString().split('T')[0];
+    const compStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const hist = historico.find(h => h.numero_parcela === n);
+    const isPast = d < today;
+    const isCurrent = n === parcAtual;
+    const isFuture = d > today;
+
+    let statusBadge, acoes = '';
+    if (hist) {
+      const sc = hist.pago ? 'badge-green' : 'badge-orange';
+      const sp = hist.pago ? 'Pago' : 'Pendente';
+      const ec = hist.enviado_cliente ? '✅ Enviado' : '❌ Não enviado';
+      statusBadge = `<span class="badge ${sc}">${sp}</span> <span style="font-size:11px">${ec}</span>`;
+      acoes = `<button class="btn btn-ghost" style="font-size:11px;padding:3px 8px" onclick='editCronogramaItem("${p.id}",${n},"${vencStr}")'>✏️ Editar</button>`;
+    } else if (isPast || isCurrent) {
+      statusBadge = `<span class="badge badge-orange">Pendente</span>`;
+      acoes = `<button class="btn btn-primary" style="font-size:11px;padding:3px 8px" onclick='confirmarParcela("${p.id}",${n},"${vencStr}")'>✓ Confirmar</button>`;
+    } else {
+      statusBadge = `<span class="badge badge-gray">Futuro</span>`;
+    }
+
+    const rowCls = isCurrent ? 'background:#eff6ff' : isPast && !hist?.pago ? 'background:#fef2f2' : '';
+    rows.push(`<tr style="${rowCls}">
+      <td><strong>${n}</strong>${isCurrent?'<span class="badge badge-blue" style="margin-left:4px;font-size:10px">Atual</span>':''}</td>
+      <td>${compStr.replace('-','/')}</td>
+      <td>${fmtDate(vencStr)}</td>
+      <td>${statusBadge}</td>
+      <td>${acoes}</td>
+    </tr>`);
+  }
+
+  const totalPago = historico.filter(h=>h.pago).length;
+  const totalEnviado = historico.filter(h=>h.enviado_cliente).length;
+  document.getElementById('cronograma-body').innerHTML = `
+    <div style="display:flex;gap:12px;margin-bottom:12px;font-size:12px;color:var(--text3)">
+      <span>Total: <strong>${totalParc}</strong></span>
+      <span>Pagas: <strong style="color:var(--success)">${totalPago}</strong></span>
+      <span>Enviadas: <strong style="color:var(--primary)">${totalEnviado}</strong></span>
+      <span>Restantes: <strong>${totalParc - totalPago}</strong></span>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Competência</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>
+      <tbody>${rows.join('')}</tbody>
+    </table></div>`;
+}
+
+async function confirmarParcela(parcId, numero, vencimento) {
+  const p = parcelamentos.find(x => x.id === parcId);
+  const obj = { parcelamento_id: parcId, numero_parcela: numero, vencimento, pago: true, enviado_cliente: false, confirmado_por: currentFuncionario?.nome || userEmail };
+  let ok = false;
+  try {
+    const { error } = await sb.from('parcelas_historico').insert(obj);
+    if (error) throw error;
+    ok = true;
+  } catch(e) {
+    toast('Atenção', 'Tabela parcelas_historico não encontrada. Execute o SQL de migração.', 'warning');
+    return;
+  }
+  if (ok) {
+    const { data } = await sb.from('parcelas_historico').select('*').eq('parcelamento_id', parcId);
+    parcCronoData[parcId] = data || [];
+    toast('Salvo!', `Parcela ${numero} confirmada`, 'success');
+    renderCronograma(p, parcCronoData[parcId]);
+  }
+}
+
+async function editCronogramaItem(parcId, numero, vencimento) {
+  const hist = (parcCronoData[parcId]||[]).find(h => h.numero_parcela === numero);
+  if (!hist) return;
+  const pago = confirm('Marcar como PAGO? (Cancelar = desmarcar)');
+  const enviado = confirm('Enviado ao cliente?');
+  try {
+    await sb.from('parcelas_historico').update({ pago, enviado_cliente: enviado }).eq('id', hist.id);
+    const { data } = await sb.from('parcelas_historico').select('*').eq('parcelamento_id', parcId);
+    parcCronoData[parcId] = data || [];
+    const p = parcelamentos.find(x => x.id === parcId);
+    renderCronograma(p, parcCronoData[parcId]);
+    toast('Salvo!', 'Parcela atualizada', 'success');
+  } catch(e) {
+    toast('Erro', e.message, 'error');
+  }
 }
 
 // INSS
@@ -1593,21 +1750,33 @@ function renderTarefas() {
   const search = (gv('tar-search')||'').toLowerCase();
   const fS = gv('tar-f-setor')||'';
   const fP = gv('tar-f-prior')||'';
+  const fPrazo = gv('tar-f-prazo')||'';
   const today = new Date(); today.setHours(0,0,0,0);
 
   let data = filterByAccess(tarefas).filter(t => {
     const m = search ? [t.titulo,t.descricao,t.responsavel].join(' ').toLowerCase().includes(search) : true;
-    return m && (fS ? t.setor===fS : true) && (fP ? t.prioridade===fP : true);
+    if (!m) return false;
+    if (fS && t.setor !== fS) return false;
+    if (fP && t.prioridade !== fP) return false;
+    if (fPrazo && t.status !== 'Concluída') {
+      const diff = t.prazo ? Math.round((new Date(t.prazo+'T00:00:00') - today)/86400000) : null;
+      if (fPrazo === 'curto' && (diff === null || diff > 30)) return false;
+      if (fPrazo === 'longo' && (diff === null || diff <= 30)) return false;
+      if (fPrazo === 'sem' && diff !== null) return false;
+    }
+    return true;
   });
 
   document.getElementById('tar-tbody').innerHTML = data.length ? data.map(t => {
     const diff = t.prazo ? Math.round((new Date(t.prazo+'T00:00:00') - today)/86400000) : null;
+    const isLongo = diff !== null && diff > 30 && t.status !== 'Concluída';
     const pc = diff!==null&&diff<0&&t.status!=='Concluída'?'vencimento-alert':diff!==null&&diff<=1&&t.status!=='Concluída'?'vencimento-warn':'';
     const pr = {Alta:'badge-red',Média:'badge-orange',Baixa:'badge-teal'}[t.prioridade]||'badge-gray';
     const cli = clientes.find(c => c.id === t.cliente_id);
     const docIcon = t.documento_enviado ? '✅' : (t.cliente_id ? '📤' : '—');
-    return `<tr>
-      <td><strong>${t.titulo}</strong>${t.descricao?`<div style="font-size:11px;color:var(--text3)">${t.descricao}</div>`:''}</td>
+    const rowStyle = isLongo ? 'opacity:0.65' : '';
+    return `<tr style="${rowStyle}">
+      <td><strong>${t.titulo}</strong>${isLongo?'<span class="badge badge-gray" style="margin-left:4px;font-size:10px">longo prazo</span>':''}${t.descricao?`<div style="font-size:11px;color:var(--text3)">${t.descricao}</div>`:''}</td>
       <td><span class="chip">${t.setor||'—'}</span></td>
       <td>${t.responsavel||'—'}</td>
       <td style="font-size:12px">${cli?cli.nome:'—'}</td>
@@ -2128,6 +2297,8 @@ function openModal(type) {
     populateProcessoSelects();
     setV('pr-tipo','Abertura de Empresa'); setV('pr-status','Em andamento');
     setV('pr-abertura', new Date().toISOString().split('T')[0]);
+    setV('pr-lembrar', '30');
+    document.getElementById('pr-retorno').checked = false;
     document.getElementById('pr-renov-wrap').style.display = 'none';
     document.getElementById('modal-proc-title').textContent = 'Novo Processo';
     document.getElementById('modal-processo').classList.add('open');
@@ -2497,6 +2668,8 @@ function editProcesso(id) {
   setV('pr-cliente', p.cliente_id||''); setV('pr-tipo', p.tipo); setV('pr-status', p.status);
   setV('pr-desc', p.descricao); setV('pr-abertura', p.data_abertura); setV('pr-previsao', p.data_previsao);
   setV('pr-responsavel', p.responsavel); setV('pr-renovacao', p.data_renovacao); setV('pr-obs', p.obs);
+  setV('pr-lembrar', p.lembrar_antes_dias || 30);
+  document.getElementById('pr-retorno').checked = !!p.retorno_confirmado;
   toggleProcRenov();
   document.getElementById('modal-processo').classList.add('open');
 }
@@ -2515,6 +2688,8 @@ async function saveProcesso() {
     data_renovacao: gv('pr-renovacao')||null,
     data_conclusao: status === 'Concluído' ? (new Date().toISOString().split('T')[0]) : null,
     responsavel: gv('pr-responsavel'), obs: gv('pr-obs'),
+    lembrar_antes_dias: parseInt(gv('pr-lembrar'))||30,
+    retorno_confirmado: document.getElementById('pr-retorno').checked,
     updated_at: new Date().toISOString()
   };
   const id = editingId.processo;
@@ -2741,6 +2916,7 @@ function cmStatusColor(st) {
 }
 
 function renderControleMensal() {
+  const norm = s => (s||'').toLowerCase();
   const setor = gv('cm-setor');
   const comp = gv('cm-competencia');
   const wrap = document.getElementById('cm-table-wrap');
@@ -2767,9 +2943,14 @@ function renderControleMensal() {
   const tpls = getCMCols(setor);
 
   if (tpls.length === 0) {
+    const canSeed = isAdmin || norm(userSetor) === norm(setor);
+    const seedBtn = canSeed
+      ? `<button class="btn btn-primary" style="margin-top:12px" onclick="seedSetorObrigacoes('${setor.replace(/'/g,"\\'")}').then(()=>loadControleMensal())">↻ Pré-popular obrigações de ${setor}</button>`
+      : '';
     wrap.innerHTML = `<div class="empty-state"><div class="es-icon">📋</div>
       <p>Nenhuma obrigação cadastrada para o setor <strong>${setor}</strong>.</p>
-      <p style="margin-top:8px;font-size:12px">Acesse o setor na sidebar → aba <strong>Obrigações do Setor</strong> → "Pré-popular" ou crie manualmente.</p>
+      <p style="margin-top:8px;font-size:12px">Crie os templates em <a href="#" onclick="navigate('configuracoes');setTimeout(()=>switchCfgTab('obrigacoes'),100);return false">Configurações → Obrigações</a> ou use o botão abaixo.</p>
+      ${seedBtn}
     </div>`;
     return;
   }
