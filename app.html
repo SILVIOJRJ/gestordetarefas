@@ -2880,26 +2880,28 @@ async function loadControleMensal() {
   const wrap = document.getElementById('cm-table-wrap');
   if (setor === 'Legalização') { renderControleMensal(); return; }
   wrap.innerHTML = '<div style="text-align:center;padding:24px"><div class="spinner"></div></div>';
-  const [ocRes, obsRes] = await Promise.all([
-    sb.from('obrigacoes_clientes').select('*').eq('competencia', comp),
-    sb.from('cm_obs').select('*').eq('competencia', comp).catch(() => ({ data: [] }))
-  ]);
+  const ocRes = await sb.from('obrigacoes_clientes').select('*').eq('competencia', comp);
   cmData = ocRes.data || [];
-  cmObsData = obsRes.data || [];
+  try {
+    const obsRes = await sb.from('cm_obs').select('*').eq('competencia', comp);
+    cmObsData = obsRes.data || [];
+  } catch(e) { cmObsData = []; }
   renderControleMensal();
 }
 
 async function saveCmObs(clienteId, competencia, texto) {
   const existing = cmObsData.find(o => o.cliente_id === clienteId && o.competencia === competencia);
+  try {
   if (existing) {
     if (existing.obs === texto) return;
-    await sb.from('cm_obs').update({ obs: texto }).eq('id', existing.id).catch(() => {});
+    await sb.from('cm_obs').update({ obs: texto }).eq('id', existing.id);
     existing.obs = texto;
   } else {
     if (!texto) return;
-    const { data } = await sb.from('cm_obs').insert({ cliente_id: clienteId, competencia, obs: texto }).select().single().catch(() => ({ data: null }));
+    const { data } = await sb.from('cm_obs').insert({ cliente_id: clienteId, competencia, obs: texto }).select().single();
     if (data) cmObsData.push(data);
   }
+  } catch(e) { /* tabela cm_obs pode não existir ainda */ }
 }
 
 // Obrigações cujo vencimento cai no mês SEGUINTE à competência
