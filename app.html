@@ -1342,36 +1342,105 @@ function renderSetorPage(sNome) {
 
   document.getElementById('setor-page-title').textContent = sNome;
   document.getElementById('setor-page-sub').textContent = funcs;
+
+  const tpls = obrigacoesTemplates.filter(o => o.setor_nome === sNome);
+  const sNomeEsc = sNome.replace(/'/g,"\\'");
+
   document.getElementById('content-setor').innerHTML = `
     <div class="kpi-grid">
-      <div class="kpi-card blue"><div class="kpi-label">Total</div><div class="kpi-value">${t.length}</div></div>
+      <div class="kpi-card blue"><div class="kpi-label">Total Tarefas</div><div class="kpi-value">${t.length}</div></div>
       <div class="kpi-card green"><div class="kpi-label">Concluídas</div><div class="kpi-value">${t.filter(x=>x.status==='Concluída').length}</div></div>
       <div class="kpi-card orange"><div class="kpi-label">Pendentes</div><div class="kpi-value">${t.filter(x=>x.status==='Pendente').length}</div></div>
       <div class="kpi-card red"><div class="kpi-label">Atrasadas</div><div class="kpi-value">${t.filter(x=>x.status==='Atrasada').length}</div></div>
     </div>
-    <div class="card">
-      <div class="card-header"><div class="card-title">Tarefas de ${sNome}</div>
-        <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openModal('tarefa');setTimeout(()=>setV('t-setor','${sNome.replace(/'/g,"\\'")}'),50)">＋ Nova</button>
+    <div class="tabs" style="margin-bottom:16px">
+      <button class="tab-btn active" id="stab-btn-tarefas" onclick="switchSetorTab('tarefas')">✅ Tarefas</button>
+      <button class="tab-btn" id="stab-btn-obrig" onclick="switchSetorTab('obrig')">📋 Obrigações do Setor</button>
+    </div>
+    <div id="stab-tarefas">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Tarefas de ${sNome}</div>
+          <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openModal('tarefa');setTimeout(()=>setV('t-setor','${sNomeEsc}'),50)">＋ Nova</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Título</th><th>Responsável</th><th>Prioridade</th><th>Prazo</th><th>Status</th><th></th></tr></thead>
+          <tbody>${t.map(x => {
+            const diff = x.prazo ? Math.round((new Date(x.prazo+'T00:00:00') - today)/86400000) : null;
+            const pc = diff!==null&&diff<0&&x.status!=='Concluída'?'vencimento-alert':diff!==null&&diff<=1&&x.status!=='Concluída'?'vencimento-warn':'';
+            const pr = {Alta:'badge-red',Média:'badge-orange',Baixa:'badge-teal'}[x.prioridade]||'badge-gray';
+            return `<tr><td><strong>${x.titulo}</strong>${x.descricao?`<div style="font-size:11px;color:var(--text3)">${x.descricao}</div>`:''}</td>
+              <td>${x.responsavel||'—'}</td>
+              <td><span class="badge ${pr}">${x.prioridade||'—'}</span></td>
+              <td class="${pc}">${fmtDate(x.prazo)}</td>
+              <td>${tBadge(x.status)}</td>
+              <td><div class="td-actions">
+                <button class="icon-btn" onclick='editTarefa("${x.id}")'>✏️</button>
+                <button class="icon-btn" onclick='openAnexos("tarefa","${x.id}","${x.titulo.replace(/'/g,"\\'")}") ' title="Anexos">📎</button>
+                <button class="icon-btn del" onclick='deleteItem("tarefa","${x.id}")'>🗑️</button>
+              </div></td></tr>`;
+          }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhuma tarefa</td></tr>'}</tbody>
+        </table></div>
       </div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Título</th><th>Responsável</th><th>Prioridade</th><th>Prazo</th><th>Status</th><th></th></tr></thead>
-        <tbody>${t.map(x => {
-          const diff = x.prazo ? Math.round((new Date(x.prazo+'T00:00:00') - today)/86400000) : null;
-          const pc = diff!==null&&diff<0&&x.status!=='Concluída'?'vencimento-alert':diff!==null&&diff<=1&&x.status!=='Concluída'?'vencimento-warn':'';
-          const pr = {Alta:'badge-red',Média:'badge-orange',Baixa:'badge-teal'}[x.prioridade]||'badge-gray';
-          return `<tr><td><strong>${x.titulo}</strong>${x.descricao?`<div style="font-size:11px;color:var(--text3)">${x.descricao}</div>`:''}</td>
-            <td>${x.responsavel||'—'}</td>
-            <td><span class="badge ${pr}">${x.prioridade||'—'}</span></td>
-            <td class="${pc}">${fmtDate(x.prazo)}</td>
-            <td>${tBadge(x.status)}</td>
+    </div>
+    <div id="stab-obrig" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Obrigações — ${sNome}</div>
+          <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px" onclick="seedSetorObrigacoes('${sNomeEsc}')">↻ Pré-popular</button>
+          <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openObrigTemplateForSetor('${sNomeEsc}')">＋ Nova Obrigação</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Nome</th><th>Descrição</th><th>Dia Venc.</th><th>Ordem</th><th>Status</th><th></th></tr></thead>
+          <tbody>${tpls.length ? tpls.sort((a,b)=>(a.ordem||99)-(b.ordem||99)).map(o => `<tr>
+            <td><strong>${o.nome}</strong></td>
+            <td style="font-size:12px;color:var(--text3)">${o.descricao||'—'}</td>
+            <td>${o.dia_vencimento ? `dia ${o.dia_vencimento}` : '—'}</td>
+            <td>${o.ordem||'—'}</td>
+            <td>${o.ativo!==false?'<span class="badge badge-green">Ativa</span>':'<span class="badge badge-gray">Inativa</span>'}</td>
             <td><div class="td-actions">
-              <button class="icon-btn" onclick='editTarefa("${x.id}")'>✏️</button>
-              <button class="icon-btn" onclick='openAnexos("tarefa","${x.id}","${x.titulo.replace(/'/g,"\\'")}") ' title="Anexos">📎</button>
-              <button class="icon-btn del" onclick='deleteItem("tarefa","${x.id}")'>🗑️</button>
-            </div></td></tr>`;
-        }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhuma tarefa</td></tr>'}</tbody>
-      </table></div>
+              <button class="icon-btn" onclick='editObrigTemplate("${o.id}")'>✏️</button>
+              <button class="icon-btn del" onclick='deleteItem("obrigtemplate","${o.id}")'>🗑️</button>
+            </div></td></tr>`).join('')
+            : '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhuma obrigação cadastrada — use "Pré-popular" ou crie manualmente</td></tr>'}
+          </tbody>
+        </table></div>
+      </div>
     </div>`;
+}
+
+function switchSetorTab(tab) {
+  document.getElementById('stab-tarefas').style.display = tab === 'tarefas' ? '' : 'none';
+  document.getElementById('stab-obrig').style.display   = tab === 'obrig'   ? '' : 'none';
+  document.getElementById('stab-btn-tarefas').classList.toggle('active', tab === 'tarefas');
+  document.getElementById('stab-btn-obrig').classList.toggle('active',   tab === 'obrig');
+}
+
+function openObrigTemplateForSetor(sNome) {
+  editingId.obrigtemplate = null;
+  populateObrigSetorSelect();
+  document.getElementById('modal-obrig-title').textContent = 'Nova Obrigação';
+  setV('ob-setor', sNome); setV('ob-nome',''); setV('ob-desc','');
+  setV('ob-dia',''); setV('ob-ordem','');
+  document.getElementById('ob-ativo').checked = true;
+  document.getElementById('modal-obrigtemplate').classList.add('open');
+}
+
+async function seedSetorObrigacoes(sNome) {
+  const existentes = obrigacoesTemplates.filter(o => o.setor_nome === sNome);
+  if (existentes.length && !confirm(`Já existem ${existentes.length} obrigação(ões) em ${sNome}. Adicionar os padrões mesmo assim?`)) return;
+  const padrao = {
+    DP: [{nome:'Folha de Pagamento',dia_vencimento:5},{nome:'FGTS',dia_vencimento:7},{nome:'eSocial',dia_vencimento:7},{nome:'DCTFWeb',dia_vencimento:15},{nome:'Rescisão',dia_vencimento:10},{nome:'Férias',dia_vencimento:2}],
+    Fiscal: [{nome:'DAS',dia_vencimento:20},{nome:'PIS',dia_vencimento:25},{nome:'COFINS',dia_vencimento:25},{nome:'CSLL',dia_vencimento:30},{nome:'IRPJ',dia_vencimento:30},{nome:'DCTF',dia_vencimento:15},{nome:'Estadual',dia_vencimento:20},{nome:'Municipal',dia_vencimento:20}],
+    'Contábil': [{nome:'Balanço',dia_vencimento:28},{nome:'DRE',dia_vencimento:28},{nome:'ECF',dia_vencimento:31},{nome:'ECD',dia_vencimento:30}]
+  };
+  const rows = (padrao[sNome] || []).map((item, i) => ({ setor_nome: sNome, nome: item.nome, dia_vencimento: item.dia_vencimento, ordem: i+1, ativo: true }));
+  if (!rows.length) { toast('Atenção', `Sem padrões definidos para "${sNome}" — crie manualmente`, 'warning'); return; }
+  const { error } = await sb.from('obrigacoes_templates').insert(rows);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  toast('Pronto!', `${rows.length} obrigações adicionadas em ${sNome}`, 'success');
+  await loadAll();
+  renderSetorPage(sNome);
+  switchSetorTab('obrig');
 }
 
 // PARCELAMENTOS
@@ -2506,6 +2575,11 @@ async function saveObrigTemplate() {
   closeModal('obrigtemplate');
   toast('Salvo!', id ? 'Template atualizado' : 'Template criado', 'success');
   await loadAll();
+  // Se estiver na página de setor, re-renderiza e abre aba de obrigações
+  if (currentPage === 'setor' && currentSetorName) {
+    renderSetorPage(currentSetorName);
+    switchSetorTab('obrig');
+  }
 }
 
 async function seedObrigacoesTemplates() {
