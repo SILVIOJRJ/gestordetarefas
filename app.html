@@ -212,10 +212,13 @@
     <div class="nav-item" onclick="navigate('inss-pf')"><span class="nav-icon">🧾</span> INSS PF <span class="nav-badge" id="badge-inss">0</span></div>
     <div class="nav-section-title">Departamentos</div>
     <div id="sidebar-departamentos"></div>
+    <div class="nav-section-title">Controle</div>
+    <div class="nav-item" data-nav="controle-mensal" onclick="navigate('controle-mensal')"><span class="nav-icon">📅</span> Controle Mensal</div>
+    <div class="nav-item" data-nav="gerencial" onclick="navigate('gerencial')"><span class="nav-icon">📊</span> Gerencial</div>
     <div class="nav-section-title">Geral</div>
     <div class="nav-item" onclick="navigate('tarefas')"><span class="nav-icon">✅</span> Tarefas <span class="nav-badge" id="badge-tar">0</span></div>
     <div class="nav-item" onclick="navigate('clientes')"><span class="nav-icon">👤</span> Clientes</div>
-    <div class="nav-item" onclick="navigate('configuracoes')"><span class="nav-icon">⚙️</span> Configurações</div>
+    <div class="nav-item" data-nav="configuracoes" onclick="navigate('configuracoes')"><span class="nav-icon">⚙️</span> Configurações</div>
   </div>
   <div class="sidebar-footer">
     <strong id="user-name">Carregando...</strong>
@@ -378,9 +381,73 @@
       <button class="btn btn-primary" onclick="openModal('cliente')">＋ Novo Cliente</button>
     </div>
     <div class="table-wrap">
-      <table><thead><tr><th>Nome</th><th>CNPJ/CPF</th><th>Email</th><th>Telefone</th><th>Responsável</th><th>Status</th><th></th></tr></thead>
+      <table><thead><tr><th>Nome</th><th>Regime</th><th>Condição</th><th>CNPJ/CPF</th><th>WhatsApp</th><th>Responsável</th><th>Status</th><th></th></tr></thead>
       <tbody id="cli-tbody"></tbody></table>
     </div>
+  </div>
+</div>
+
+<!-- CONTROLE MENSAL -->
+<div class="page" id="page-controle-mensal">
+  <div class="page-title">Controle Mensal</div>
+  <div class="page-sub">Acompanhamento de obrigações por competência e setor</div>
+  <div class="card">
+    <div class="toolbar">
+      <div class="form-group" style="gap:2px"><label class="form-label" style="font-size:10px">Competência</label>
+        <input type="month" class="select-filter" id="cm-competencia" onchange="loadControleMensal()"></div>
+      <div class="form-group" style="gap:2px"><label class="form-label" style="font-size:10px">Setor</label>
+        <select class="select-filter" id="cm-setor" onchange="loadControleMensal()">
+          <option>DP</option><option>Fiscal</option><option>Contábil</option><option>Legalização</option>
+        </select></div>
+      <div class="search-box" style="flex:1">🔍<input type="text" id="cm-search" placeholder="Filtrar empresa..." oninput="renderControleMensal()"></div>
+    </div>
+    <div class="table-wrap" id="cm-table-wrap"><div class="empty-state"><div class="es-icon">📅</div><p>Selecione competência e setor</p></div></div>
+  </div>
+</div>
+
+<!-- GERENCIAL -->
+<div class="page" id="page-gerencial">
+  <div class="page-title">Planilha Gerencial</div>
+  <div class="page-sub">Valores financeiros por cliente e competência</div>
+  <div class="card">
+    <div class="toolbar">
+      <div class="form-group" style="gap:2px"><label class="form-label" style="font-size:10px">Competência</label>
+        <input type="month" class="select-filter" id="ger-competencia" onchange="loadGerencial()"></div>
+      <div class="search-box" style="flex:1">🔍<input type="text" id="ger-search" placeholder="Filtrar empresa..." oninput="renderGerencial()"></div>
+    </div>
+    <div class="table-wrap" id="ger-table-wrap"><div class="empty-state"><div class="es-icon">📊</div><p>Selecione a competência</p></div></div>
+  </div>
+</div>
+
+<!-- LEGALIZAÇÃO -->
+<div class="page" id="page-legalizacao">
+  <div class="page-title">Legalização</div>
+  <div class="page-sub">Processos de legalização e tarefas do setor</div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchLegTab('processos')">📑 Processos</button>
+    <button class="tab-btn" onclick="switchLegTab('tarefas')">✅ Tarefas do Setor</button>
+  </div>
+  <div class="tab-panel active" id="legtab-processos">
+    <div class="card">
+      <div class="toolbar">
+        <div class="search-box">🔍<input type="text" id="proc-search" placeholder="Pesquisar..." oninput="renderProcessos()"></div>
+        <select class="select-filter" id="proc-f-status" onchange="renderProcessos()">
+          <option value="">Todos os Status</option>
+          <option>Em andamento</option><option>Aguardando cliente</option><option>Aguardando órgão</option><option>Concluído</option>
+        </select>
+        <select class="select-filter" id="proc-f-tipo" onchange="renderProcessos()">
+          <option value="">Todos os Tipos</option>
+          <option>Abertura de Empresa</option><option>Alteração</option><option>Encerramento</option><option>Alvará</option><option>Licença</option><option>Certificado Digital</option><option>Regularização</option><option>Outro</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModal('processo')">＋ Novo Processo</button>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Cliente</th><th>Tipo</th><th>Descrição</th><th>Status</th><th>Abertura</th><th>Previsão</th><th>Renovação</th><th>Responsável</th><th></th></tr></thead>
+        <tbody id="proc-tbody"></tbody></table></div>
+    </div>
+  </div>
+  <div class="tab-panel" id="legtab-tarefas">
+    <div id="leg-content-setor"></div>
   </div>
 </div>
 
@@ -391,6 +458,7 @@
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('setores')">🏢 Setores</button>
     <button class="tab-btn" onclick="switchTab('funcionarios')">👷 Funcionários</button>
+    <button class="tab-btn" onclick="switchTab('obrigacoes')">📋 Obrigações</button>
   </div>
   <div class="tab-panel active" id="tab-setores">
     <div class="card">
@@ -402,6 +470,15 @@
     <div class="card">
       <div class="card-header"><div class="card-title">Funcionários</div><button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openModal('funcionario')">＋ Novo Funcionário</button></div>
       <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Setor</th><th>Cargo</th><th>Email</th><th>Status</th><th></th></tr></thead><tbody id="funcs-tbody"></tbody></table></div>
+    </div>
+  </div>
+  <div class="tab-panel" id="tab-obrigacoes">
+    <div class="card">
+      <div class="card-header"><div class="card-title">Templates de Obrigações</div>
+        <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px" onclick="seedObrigacoesTemplates()">↻ Pré-popular padrão</button>
+        <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openModal('obrigtemplate')">＋ Novo Template</button>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Setor</th><th>Nome</th><th>Descrição</th><th>Dia Venc.</th><th>Ordem</th><th>Status</th><th></th></tr></thead><tbody id="obrig-tbody"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -544,6 +621,11 @@
         <div class="form-group"><label class="form-label">CNPJ / CPF</label><input type="text" class="form-control" id="c-cnpj" placeholder="00.000.000/0000-00"></div>
         <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-control" id="c-email" placeholder="email@cliente.com"></div>
         <div class="form-group"><label class="form-label">Telefone</label><input type="text" class="form-control" id="c-telefone" placeholder="(00) 00000-0000"></div>
+        <div class="form-group"><label class="form-label">WhatsApp</label><input type="text" class="form-control" id="c-whatsapp" placeholder="(00) 00000-0000"></div>
+        <div class="form-group"><label class="form-label">Regime Tributário</label>
+          <select class="form-control" id="c-regime"><option value="">—</option><option>Simples Nacional</option><option>Lucro Presumido</option><option>Lucro Real</option><option>MEI</option><option>CAEPF/CEI</option><option>Sem Empregados</option><option>Produtor Rural</option><option>Condomínio</option></select></div>
+        <div class="form-group"><label class="form-label">Condição</label>
+          <select class="form-control" id="c-condicao"><option value="">—</option><option>Normal</option><option>Inativo</option><option>Doméstico</option><option>Ponto</option><option>Fator R</option><option>CPRB</option><option>Sem Movimento</option></select></div>
         <div class="form-group form-full"><label class="form-label">Responsável (Funcionário)</label>
           <select class="form-control" id="c-responsavel"><option value="">Sem responsável</option></select></div>
         <div class="form-group form-full"><label class="form-label">Observações</label><input type="text" class="form-control" id="c-obs" placeholder="Informações adicionais"></div>
@@ -622,6 +704,114 @@
   </div>
 </div>
 
+<!-- MODAL PROCESSO -->
+<div class="modal-overlay" id="modal-processo">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon purple">📑</div>
+      <div class="modal-title" id="modal-proc-title">Novo Processo</div>
+      <button class="modal-close" onclick="closeModal('processo')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full"><label class="form-label">Cliente</label><select class="form-control" id="pr-cliente"><option value="">Sem cliente</option></select></div>
+        <div class="form-group"><label class="form-label">Tipo *</label>
+          <select class="form-control" id="pr-tipo"><option>Abertura de Empresa</option><option>Alteração</option><option>Encerramento</option><option>Alvará</option><option>Licença</option><option>Certificado Digital</option><option>Regularização</option><option>Outro</option></select></div>
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-control" id="pr-status" onchange="toggleProcRenov()"><option>Em andamento</option><option>Aguardando cliente</option><option>Aguardando órgão</option><option>Concluído</option></select></div>
+        <div class="form-group form-full"><label class="form-label">Descrição</label><input type="text" class="form-control" id="pr-desc"></div>
+        <div class="form-group"><label class="form-label">Data Abertura</label><input type="date" class="form-control" id="pr-abertura"></div>
+        <div class="form-group"><label class="form-label">Previsão</label><input type="date" class="form-control" id="pr-previsao"></div>
+        <div class="form-group"><label class="form-label">Responsável</label><input type="text" class="form-control" id="pr-responsavel"></div>
+        <div class="form-group" id="pr-renov-wrap" style="display:none"><label class="form-label">Data de Renovação *</label><input type="date" class="form-control" id="pr-renovacao"></div>
+        <div class="form-group form-full"><label class="form-label">Observação</label><input type="text" class="form-control" id="pr-obs"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('processo')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-proc" onclick="saveProcesso()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TEMPLATE OBRIGAÇÃO -->
+<div class="modal-overlay" id="modal-obrigtemplate">
+  <div class="modal" style="width:460px">
+    <div class="modal-header">
+      <div class="modal-icon orange">📋</div>
+      <div class="modal-title" id="modal-obrig-title">Novo Template</div>
+      <button class="modal-close" onclick="closeModal('obrigtemplate')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full"><label class="form-label">Setor *</label><select class="form-control" id="ob-setor"></select></div>
+        <div class="form-group form-full"><label class="form-label">Nome *</label><input type="text" class="form-control" id="ob-nome"></div>
+        <div class="form-group form-full"><label class="form-label">Descrição</label><input type="text" class="form-control" id="ob-desc"></div>
+        <div class="form-group"><label class="form-label">Dia Vencimento</label><input type="number" class="form-control" id="ob-dia" min="1" max="31"></div>
+        <div class="form-group"><label class="form-label">Ordem</label><input type="number" class="form-control" id="ob-ordem"></div>
+        <div class="form-group form-full"><label class="form-label" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="ob-ativo" checked> Ativo</label></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('obrigtemplate')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-obrig" onclick="saveObrigTemplate()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MINI-MODAL OBRIGAÇÃO CLIENTE -->
+<div class="modal-overlay" id="modal-obrigcli">
+  <div class="modal" style="width:400px">
+    <div class="modal-header">
+      <div class="modal-icon blue">✅</div>
+      <div><div class="modal-title" id="oc-title">Obrigação</div><div style="font-size:11px;color:var(--text3)" id="oc-sub"></div></div>
+      <button class="modal-close" onclick="closeModal('obrigcli')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full"><label class="form-label">Status</label>
+          <select class="form-control" id="oc-status"><option>Pendente</option><option>Concluído</option><option>N.A</option><option>Enviado</option></select></div>
+        <div class="form-group form-full"><label class="form-label">Valor</label><input type="text" class="form-control" id="oc-valor" placeholder="0,00"></div>
+        <div class="form-group form-full"><label class="form-label">Observação</label><input type="text" class="form-control" id="oc-obs"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('obrigcli')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-oc" onclick="saveObrigCliente()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL GERENCIAL -->
+<div class="modal-overlay" id="modal-gerencial">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon green">📊</div>
+      <div><div class="modal-title">Valores Gerenciais</div><div style="font-size:11px;color:var(--text3)" id="gm-sub"></div></div>
+      <button class="modal-close" onclick="closeModal('gerencial')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">FGTS</label><input type="text" class="form-control" id="gm-fgts" placeholder="0,00"></div>
+        <div class="form-group"><label class="form-label">INSS</label><input type="text" class="form-control" id="gm-inss" placeholder="0,00"></div>
+        <div class="form-group"><label class="form-label">DAS</label><input type="text" class="form-control" id="gm-das" placeholder="0,00"></div>
+        <div class="form-group"><label class="form-label">IRPJ</label><input type="text" class="form-control" id="gm-irpj" placeholder="0,00"></div>
+        <div class="form-group"><label class="form-label">CSLL</label><input type="text" class="form-control" id="gm-csll" placeholder="0,00"></div>
+        <div class="form-group"><label class="form-label">PIS/COFINS</label><input type="text" class="form-control" id="gm-pis" placeholder="0,00"></div>
+        <div class="form-group"><label class="form-label">Receita Serviços</label><input type="text" class="form-control" id="gm-recserv" placeholder="0,00"></div>
+        <div class="form-group"><label class="form-label">Receita Vendas</label><input type="text" class="form-control" id="gm-recvend" placeholder="0,00"></div>
+        <div class="form-group"><label class="form-label">Despesas Total</label><input type="text" class="form-control" id="gm-despesas" placeholder="0,00"></div>
+        <div class="form-group"><label class="form-label">Caixa Atual</label><input type="text" class="form-control" id="gm-caixa" placeholder="0,00"></div>
+        <div class="form-group form-full"><label class="form-label">Observação</label><input type="text" class="form-control" id="gm-obs"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('gerencial')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-gm" onclick="saveGerencial()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL ALERTAS -->
 <div class="modal-overlay" id="modal-notif">
   <div class="modal" style="max-width:440px">
@@ -674,8 +864,13 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // STATE
 let parcelamentos = [], inss = [], tarefas = [], setores = [], funcionarios = [], clientes = [];
+let processos = [], gerencial = [], obrigacoesTemplates = [], obrigacoesClientes = [];
+let userEmail = '';
 let currentPage = 'dashboard';
-let editingId = { parc: null, inss: null, tarefa: null, cliente: null, setor: null, funcionario: null };
+let editingId = { parc: null, inss: null, tarefa: null, cliente: null, setor: null, funcionario: null, processo: null, obrigtemplate: null };
+// contexto mini-modais sob demanda
+let ocCtx = null;   // {cliente_id, template_id, competencia, setor, registroId}
+let gmCtx = null;   // {cliente_id, competencia, registroId}
 
 // HIERARQUIA
 let currentFuncionario = null; // registro do funcionario logado
@@ -710,6 +905,7 @@ async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '/'; return; }
   const user = session.user;
+  userEmail = user.email;
   document.getElementById('user-email').textContent = user.email;
   document.getElementById('user-name').textContent = user.user_metadata?.nome || user.email.split('@')[0];
   // Busca o funcionario vinculado ao usuário logado
@@ -776,13 +972,15 @@ function applyRoleUI() {
 
 // LOAD
 async function loadAll() {
-  const [p, i, t, s, f, c] = await Promise.all([
+  const [p, i, t, s, f, c, pr, ot] = await Promise.all([
     sb.from('parcelamentos').select('*').order('vencimento', { ascending: true }),
     sb.from('inss_pf').select('*').order('vencimento', { ascending: true }),
     sb.from('tarefas').select('*').order('prazo', { ascending: true }),
     sb.from('setores').select('*').order('nome', { ascending: true }),
     sb.from('funcionarios').select('*').order('nome', { ascending: true }),
-    sb.from('clientes').select('*').order('nome', { ascending: true })
+    sb.from('clientes').select('*').order('nome', { ascending: true }),
+    sb.from('processos_legalizacao').select('*').order('created_at', { ascending: false }),
+    sb.from('obrigacoes_templates').select('*').order('setor_nome,ordem')
   ]);
   parcelamentos = p.data || [];
   inss = i.data || [];
@@ -790,6 +988,8 @@ async function loadAll() {
   setores = s.data || [];
   funcionarios = f.data || [];
   clientes = c.data || [];
+  processos = pr.data || [];
+  obrigacoesTemplates = ot.data || [];
   renderAll();
 }
 
@@ -801,6 +1001,8 @@ function renderAll() {
   renderSetores();
   renderClientes();
   renderConfig();
+  renderObrigacoesTemplates();
+  renderProcessos();
   populateSetorFilter();
   updateBadges();
   buildCalendar();
@@ -846,11 +1048,14 @@ function renderSidebarSetores() {
     ? setores.filter(s => s.ativo !== false)
     : [{nome:'Fiscal'},{nome:'DP'},{nome:'Contábil'},{nome:'Legalização'}];
 
-  document.getElementById('sidebar-departamentos').innerHTML = lista.map((s, i) =>
-    `<div class="nav-item" data-setor="${s.nome}" onclick="navigate('setor','${s.nome.replace(/'/g,"\\'")}')">
+  document.getElementById('sidebar-departamentos').innerHTML = lista.map((s, i) => {
+    const isLeg = s.nome.toLowerCase().includes('legaliza');
+    const nav = isLeg ? `navigate('legalizacao')` : `navigate('setor','${s.nome.replace(/'/g,"\\'")}')`;
+    return `<div class="nav-item" data-setor="${s.nome}" onclick="${nav}">
       <span class="nav-icon">${icons[i % icons.length]}</span> ${s.nome}
-    </div>`
-  ).join('');
+    </div>`;
+  }).join('');
+  applyRoleUI();
 }
 
 // TABS (Configurações)
@@ -1219,16 +1424,22 @@ function renderClientes() {
     const func = funcionarios.find(f => f.id === c.responsavel_id);
     return `<tr>
       <td><strong>${c.nome}</strong></td>
+      <td>${regimeBadge(c.regime_tributario)}</td>
+      <td style="font-size:12px">${c.condicao||'—'}</td>
       <td class="font-mono">${c.cnpj_cpf||'—'}</td>
-      <td style="font-size:12px">${c.email||'—'}</td>
-      <td>${c.telefone||'—'}</td>
+      <td>${c.whatsapp||'—'}</td>
       <td>${func?func.nome:'—'}</td>
       <td>${c.ativo!==false?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td>
       <td><div class="td-actions">
         <button class="icon-btn" onclick='editCliente("${c.id}")'>✏️</button>
         <button class="icon-btn del" onclick='deleteItem("cliente","${c.id}")'>🗑️</button>
       </div></td></tr>`;
-  }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="es-icon">👤</div><p>Nenhum cliente</p></div></td></tr>';
+  }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="es-icon">👤</div><p>Nenhum cliente</p></div></td></tr>';
+}
+function regimeBadge(r) {
+  if (!r) return '—';
+  const m = {'Simples Nacional':'badge-green','Lucro Presumido':'badge-blue','Lucro Real':'badge-purple','MEI':'badge-teal','CAEPF/CEI':'badge-orange','Sem Empregados':'badge-gray','Produtor Rural':'badge-orange','Condomínio':'badge-gray'};
+  return `<span class="badge ${m[r]||'badge-gray'}">${r}</span>`;
 }
 
 // CONFIG
@@ -1403,6 +1614,7 @@ async function saveParcelamento() {
     updated_at: new Date().toISOString()
   };
   const id = editingId.parc;
+  if (!id) obj.criado_por = currentFuncionario?.nome || userEmail;
   const { error } = id
     ? await sb.from('parcelamentos').update(obj).eq('id', id)
     : await sb.from('parcelamentos').insert(obj);
@@ -1468,6 +1680,7 @@ async function saveCliente() {
   setBusy('btn-save-cli', true);
   const obj = {
     nome, cnpj_cpf:gv('c-cnpj'), email:gv('c-email'), telefone:gv('c-telefone'),
+    whatsapp:gv('c-whatsapp'), regime_tributario:gv('c-regime')||null, condicao:gv('c-condicao')||null,
     responsavel_id:gv('c-responsavel')||null, obs:gv('c-obs'),
     ativo:document.getElementById('c-ativo').checked,
     updated_at: new Date().toISOString()
@@ -1581,7 +1794,9 @@ function editCliente(id) {
   populateClienteSelects();
   document.getElementById('modal-cli-title').textContent = 'Editar Cliente';
   setV('c-nome',c.nome); setV('c-cnpj',c.cnpj_cpf); setV('c-email',c.email);
-  setV('c-telefone',c.telefone); setV('c-responsavel',c.responsavel_id||''); setV('c-obs',c.obs);
+  setV('c-telefone',c.telefone); setV('c-whatsapp',c.whatsapp);
+  setV('c-regime',c.regime_tributario||''); setV('c-condicao',c.condicao||'');
+  setV('c-responsavel',c.responsavel_id||''); setV('c-obs',c.obs);
   document.getElementById('c-ativo').checked = c.ativo !== false;
   document.getElementById('modal-cliente').classList.add('open');
 }
@@ -1648,7 +1863,8 @@ function openModal(type) {
     document.getElementById('modal-tar-title').textContent = 'Nova Tarefa';
     document.getElementById('modal-tarefa').classList.add('open');
   } else if (type === 'cliente') {
-    clearFormPadr(['c-nome','c-cnpj','c-email','c-telefone','c-obs']);
+    clearFormPadr(['c-nome','c-cnpj','c-email','c-telefone','c-whatsapp','c-obs']);
+    setV('c-regime',''); setV('c-condicao','');
     document.getElementById('c-ativo').checked = true;
     populateClienteSelects();
     document.getElementById('modal-cli-title').textContent = 'Novo Cliente';
