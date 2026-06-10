@@ -631,6 +631,42 @@
   </div>
 </div>
 
+<!-- MODAL ANEXOS -->
+<div class="modal-overlay" id="modal-anexos">
+  <div class="modal" style="width:600px">
+    <div class="modal-header">
+      <div class="modal-icon blue">📎</div>
+      <div>
+        <div class="modal-title" id="anexos-titulo">Anexos</div>
+        <div style="font-size:11px;color:var(--text3)" id="anexos-subtitulo"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('anexos')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Upload area -->
+      <div id="anexos-upload-area" style="border:2px dashed var(--border);border-radius:var(--radius);padding:24px;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:16px"
+           onclick="document.getElementById('anexos-file-input').click()"
+           ondragover="event.preventDefault();this.style.borderColor='var(--primary)';this.style.background='var(--primary-light)'"
+           ondragleave="this.style.borderColor='var(--border)';this.style.background=''"
+           ondrop="handleAnexosDrop(event)">
+        <div style="font-size:28px;margin-bottom:8px">📁</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text2)">Clique ou arraste arquivos aqui</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">PDF, imagens, documentos — até 20MB</div>
+      </div>
+      <input type="file" id="anexos-file-input" multiple style="display:none" onchange="uploadAnexos(this.files)">
+      <div id="anexos-upload-progress" style="display:none;margin-bottom:12px">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px" id="anexos-progress-text">Enviando...</div>
+        <div class="prog-bar"><div class="prog-fill" id="anexos-progress-bar" style="width:0%"></div></div>
+      </div>
+      <!-- Lista de arquivos -->
+      <div id="anexos-lista"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('anexos')">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://ruuoxvqhpnajghiqafml.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1dW94dnFocG5hamdoaXFhZm1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMjYxMjcsImV4cCI6MjA5NjYwMjEyN30.nHfSPTUdA9N02m0N7rgAlOsQLaTIIPhbVKWQLg3sQAc';
@@ -1020,6 +1056,7 @@ function renderSetorPage(sNome) {
             <td>${tBadge(x.status)}</td>
             <td><div class="td-actions">
               <button class="icon-btn" onclick='editTarefa("${x.id}")'>✏️</button>
+              <button class="icon-btn" onclick='openAnexos("tarefa","${x.id}","${x.titulo.replace(/'/g,"\\'")}") ' title="Anexos">📎</button>
               <button class="icon-btn del" onclick='deleteItem("tarefa","${x.id}")'>🗑️</button>
             </div></td></tr>`;
         }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhuma tarefa</td></tr>'}</tbody>
@@ -1062,6 +1099,7 @@ function renderParcelamentos() {
       <td style="font-size:11px;color:var(--text3)">${p.obs||''}</td>
       <td><div class="td-actions">
         <button class="icon-btn" onclick='editParcelamento("${p.id}")'>✏️</button>
+        <button class="icon-btn" onclick='openAnexos("parcelamento","${p.id}","${p.empresa.replace(/'/g,"\\'")}") ' title="Anexos">📎</button>
         <button class="icon-btn del" onclick='deleteItem("parc","${p.id}")'>🗑️</button>
       </div></td></tr>`;
   }).join('') : '<tr><td colspan="12"><div class="empty-state"><div class="es-icon">📭</div><p>Nenhum registro</p></div></td></tr>';
@@ -1114,6 +1152,7 @@ function renderInss() {
       <td>${iBadge(i.status)}</td>
       <td><div class="td-actions">
         <button class="icon-btn" onclick='editInss("${i.id}")'>✏️</button>
+        <button class="icon-btn" onclick='openAnexos("inss","${i.id}","${i.nome.replace(/'/g,"\\'")}") ' title="Anexos">📎</button>
         <button class="icon-btn del" onclick='deleteItem("inss","${i.id}")'>🗑️</button>
       </div></td></tr>`;
   }).join('') : '<tr><td colspan="12"><div class="empty-state"><div class="es-icon">📭</div><p>Nenhum registro</p></div></td></tr>';
@@ -1158,6 +1197,7 @@ function renderTarefas() {
       <td>${tBadge(t.status)}</td>
       <td><div class="td-actions">
         <button class="icon-btn" onclick='editTarefa("${t.id}")'>✏️</button>
+        <button class="icon-btn" onclick='openAnexos("tarefa","${t.id}","${t.titulo.replace(/'/g,"\\'")}") ' title="Anexos">📎</button>
         <button class="icon-btn del" onclick='deleteItem("tarefa","${t.id}")'>🗑️</button>
       </div></td></tr>`;
   }).join('') : '<tr><td colspan="10"><div class="empty-state"><div class="es-icon">📭</div><p>Nenhuma tarefa</p></div></td></tr>';
@@ -1634,7 +1674,8 @@ function clearFormPadr(ids) {
 
 function closeModal(type) {
   const map = { parc:'modal-parc', inss:'modal-inss', tarefa:'modal-tarefa',
-    notif:'modal-notif', cliente:'modal-cliente', setor:'modal-setor', funcionario:'modal-funcionario' };
+    notif:'modal-notif', cliente:'modal-cliente', setor:'modal-setor',
+    funcionario:'modal-funcionario', anexos:'modal-anexos' };
   document.getElementById(map[type])?.classList.remove('open');
 }
 
@@ -1818,6 +1859,96 @@ function toast(title, msg, type='info') {
 document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); });
 });
+
+// ── ANEXOS ────────────────────────────────────────────────
+let anexosCtx = { tipo: null, id: null };
+
+async function openAnexos(tipo, id, titulo) {
+  anexosCtx = { tipo, id };
+  document.getElementById('anexos-titulo').textContent = '📎 Anexos';
+  document.getElementById('anexos-subtitulo').textContent = titulo;
+  document.getElementById('modal-anexos').classList.add('open');
+  await loadAnexos();
+}
+
+async function loadAnexos() {
+  const lista = document.getElementById('anexos-lista');
+  lista.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text3)"><div class="spinner"></div></div>';
+  const { data, error } = await sb.from('anexos')
+    .select('*')
+    .eq('referencia_tipo', anexosCtx.tipo)
+    .eq('referencia_id', anexosCtx.id)
+    .order('created_at', { ascending: false });
+  if (error) { lista.innerHTML = '<div style="color:var(--danger);padding:12px">Erro ao carregar anexos.</div>'; return; }
+  if (!data.length) {
+    lista.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3)">📂 Nenhum anexo ainda. Envie o primeiro arquivo acima.</div>';
+    return;
+  }
+  lista.innerHTML = data.map(a => {
+    const isImg = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(a.nome_arquivo);
+    const isPdf = /\.pdf$/i.test(a.nome_arquivo);
+    const icon = isImg ? '🖼️' : isPdf ? '📄' : '📎';
+    const size = a.tamanho ? (a.tamanho > 1048576 ? (a.tamanho/1048576).toFixed(1)+'MB' : Math.round(a.tamanho/1024)+'KB') : '';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:24px">${icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.nome_arquivo}</div>
+        <div style="font-size:11px;color:var(--text3)">${size} · ${new Date(a.created_at).toLocaleDateString('pt-BR')}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <a href="${a.url}" target="_blank" class="icon-btn" title="Abrir/Baixar" style="text-decoration:none">👁️</a>
+        <button class="icon-btn del" onclick="deleteAnexo('${a.id}','${a.nome_arquivo.replace(/'/g,"\\'")}','${anexosCtx.tipo}','${anexosCtx.id}')" title="Excluir">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function uploadAnexos(files) {
+  if (!files.length) return;
+  const progress = document.getElementById('anexos-upload-progress');
+  const progressBar = document.getElementById('anexos-progress-bar');
+  const progressText = document.getElementById('anexos-progress-text');
+  progress.style.display = 'block';
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    progressText.textContent = `Enviando ${i+1}/${files.length}: ${file.name}`;
+    progressBar.style.width = Math.round(((i+0.5)/files.length)*100)+'%';
+    const ext = file.name.split('.').pop();
+    const path = `${anexosCtx.tipo}/${anexosCtx.id}/${Date.now()}_${file.name}`;
+    const { data: upData, error: upErr } = await sb.storage.from('anexos').upload(path, file, { upsert: false });
+    if (upErr) { toast('Erro', `Falha ao enviar ${file.name}: ${upErr.message}`, 'error'); continue; }
+    const { data: { publicUrl } } = sb.storage.from('anexos').getPublicUrl(path);
+    await sb.from('anexos').insert({
+      referencia_tipo: anexosCtx.tipo,
+      referencia_id: anexosCtx.id,
+      nome_arquivo: file.name,
+      url: publicUrl,
+      tamanho: file.size,
+      tipo_mime: file.type
+    });
+  }
+  progressBar.style.width = '100%';
+  progressText.textContent = 'Concluído!';
+  setTimeout(() => { progress.style.display = 'none'; progressBar.style.width = '0%'; }, 1200);
+  document.getElementById('anexos-file-input').value = '';
+  await loadAnexos();
+  toast('Sucesso', `${files.length} arquivo(s) enviado(s)`, 'success');
+}
+
+function handleAnexosDrop(e) {
+  e.preventDefault();
+  document.getElementById('anexos-upload-area').style.borderColor = 'var(--border)';
+  document.getElementById('anexos-upload-area').style.background = '';
+  uploadAnexos(e.dataTransfer.files);
+}
+
+async function deleteAnexo(id, nome, tipo, refId) {
+  if (!confirm(`Excluir "${nome}"?`)) return;
+  const path = `${tipo}/${refId}/`;
+  await sb.from('anexos').delete().eq('id', id);
+  await loadAnexos();
+  toast('Removido', nome, 'success');
+}
 
 init();
 </script>
