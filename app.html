@@ -3173,7 +3173,14 @@ async function loadGerencial() {
   renderGerencial();
 }
 
-const parseNum = v => { if (v===null||v===undefined||v==='') return 0; return parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0; };
+const parseNum = v => {
+  if (v === null || v === undefined || v === '') return 0;
+  const s = String(v);
+  // Se tem vírgula → formato BR ("1.478,15"): remove pontos, troca vírgula por ponto
+  if (s.includes(',')) return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+  // Sem vírgula → número padrão do banco ("1478.15"): parse direto
+  return parseFloat(s) || 0;
+};
 const fmtBR = n => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function renderGerencial() {
