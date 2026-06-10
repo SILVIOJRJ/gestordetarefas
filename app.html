@@ -875,7 +875,8 @@
         <div class="form-group"><label class="form-label">Receita Serviços</label><input type="text" class="form-control" id="gm-recserv" placeholder="0,00" onblur="fmtNumField(this)"></div>
         <div class="form-group"><label class="form-label">Receita Vendas</label><input type="text" class="form-control" id="gm-recvend" placeholder="0,00" onblur="fmtNumField(this)"></div>
         <div class="form-group"><label class="form-label">Despesas Total</label><input type="text" class="form-control" id="gm-despesas" placeholder="0,00" onblur="fmtNumField(this)"></div>
-        <div class="form-group"><label class="form-label">Caixa Atual</label><input type="text" class="form-control" id="gm-caixa" placeholder="0,00" onblur="fmtNumField(this)"></div>
+        <div class="form-group"><label class="form-label">Folha Líquida</label><input type="text" class="form-control" id="gm-folha" placeholder="0,00" onblur="fmtNumField(this)" title="Preenchido automaticamente pelo Controle Mensal DP"></div>
+        <div class="form-group"><label class="form-label">Caixa Atual</label><input type="text" class="form-control" id="gm-caixa" placeholder="0,00" onblur="fmtNumField(this)" title="Calculado automaticamente se vazio: Receitas − Encargos − Impostos − Despesas − Folha"></div>
         <div class="form-group form-full"><label class="form-label">Observação</label><input type="text" class="form-control" id="gm-obs"></div>
       </div>
     </div>
@@ -3226,7 +3227,7 @@ function renderGerencial() {
   let cli = clientes.filter(c => c.ativo !== false);
   if (search) cli = cli.filter(c => (c.nome||'').toLowerCase().includes(search));
 
-  const tot = { fgts:0, inss:0, das:0, irpj:0, csll:0, pis:0, recserv:0, recvend:0, desp:0, caixa:0 };
+  const tot = { fgts:0, inss:0, das:0, irpj:0, csll:0, pis:0, recserv:0, recvend:0, desp:0, folha:0, caixa:0 };
   const body = cli.map(c => {
     const g = gerData.find(x => x.cliente_id === c.id && x.competencia === comp);
     const fgts   = parseNum(g?.fgts);
@@ -3238,13 +3239,14 @@ function renderGerencial() {
     const recserv = parseNum(g?.receita_servicos);
     const recvend = parseNum(g?.receita_vendas);
     const desp   = parseNum(g?.despesas_total);
+    const folha  = parseNum(g?.folha_pagamento);
     const receitas = recserv + recvend;
     const encargos = fgts + inss;
     const impostos = das + irpj + csll + pis;
     // Caixa: usa valor manual se existir, senão calcula automaticamente se tiver dados
     const caixaManual = g?.caixa_atual != null ? parseNum(g.caixa_atual) : null;
-    const caixaCalc = (receitas > 0 || encargos > 0 || desp > 0 || impostos > 0)
-      ? receitas - encargos - impostos - desp : null;
+    const caixaCalc = (receitas > 0 || encargos > 0 || desp > 0 || impostos > 0 || folha > 0)
+      ? receitas - encargos - impostos - desp - folha : null;
     const caixaVal = caixaManual !== null ? caixaManual : caixaCalc;
     const caixaAuto = caixaManual === null && caixaCalc !== null;
 
@@ -3252,7 +3254,7 @@ function renderGerencial() {
       tot.fgts += fgts; tot.inss += inss; tot.das += das;
       tot.irpj += irpj; tot.csll += csll; tot.pis += pis;
       tot.recserv += recserv; tot.recvend += recvend;
-      tot.desp += desp; tot.caixa += caixaVal || 0;
+      tot.desp += desp; tot.folha += folha; tot.caixa += caixaVal || 0;
     }
     const cell = v => `<td class="font-mono">${g&&v?fmtBR(parseNum(v)):'—'}</td>`;
 
@@ -3294,7 +3296,7 @@ function renderGerencial() {
       ${cell(g?.fgts)}${cell(g?.inss)}${cell(g?.das)}
       ${cell(g?.irpj)}${cell(g?.csll)}${cell(g?.pis_cofins)}
       ${cell(g?.receita_servicos)}${cell(g?.receita_vendas)}
-      ${cell(g?.despesas_total)}${caixaCell}${fatorRCell}
+      ${cell(g?.despesas_total)}${cell(g?.folha_pagamento)}${caixaCell}${fatorRCell}
       <td style="font-size:11px;color:var(--text3)">${g?.obs||'—'}</td>
       <td style="font-size:11px;color:var(--text3)">${g?.atualizado_por||'—'}</td>
     </tr>`;
@@ -3308,14 +3310,15 @@ function renderGerencial() {
     <td class="font-mono">${fmtBR(tot.csll)}</td><td class="font-mono">${fmtBR(tot.pis)}</td>
     <td class="font-mono">${fmtBR(tot.recserv)}</td><td class="font-mono">${fmtBR(tot.recvend)}</td>
     <td class="font-mono">${fmtBR(tot.desp)}</td>
+    <td class="font-mono">${fmtBR(tot.folha)}</td>
     <td class="font-mono" style="color:${caixaTotColor};font-weight:800">${fmtBR(tot.caixa)}</td>
     <td></td><td></td><td></td></tr>`;
 
   wrap.innerHTML = `<table><thead><tr>
     <th>Regime</th><th>Empresa</th><th>Condição</th><th>FGTS</th><th>INSS</th><th>DAS</th>
     <th>IRPJ</th><th>CSLL</th><th>PIS/COFINS</th><th>Rec. Serviços</th><th>Rec. Vendas</th>
-    <th>Despesas</th>
-    <th style="background:#eff6ff;color:#1d4ed8;border-left:2px solid #93c5fd">Caixa<br><span style="font-size:9px;font-weight:400">Rec−Enc−Imp−Desp</span></th>
+    <th>Despesas</th><th>Folha Líquida</th>
+    <th style="background:#eff6ff;color:#1d4ed8;border-left:2px solid #93c5fd">Caixa<br><span style="font-size:9px;font-weight:400">Rec−Enc−Imp−Desp−Folha</span></th>
     <th style="background:#f5f3ff;color:#7c3aed;white-space:nowrap">Fator R</th>
     <th>Obs</th><th>Atualizado por</th></tr></thead>
     <tbody>${body||'<tr><td colspan=16 style="text-align:center;padding:20px;color:var(--text3)">Sem clientes</td></tr>'}${cli.length?footer:''}</tbody></table>`;
@@ -3330,7 +3333,8 @@ function openGerencial(clienteId) {
   setV('gm-fgts', g?.fgts); setV('gm-inss', g?.inss); setV('gm-das', g?.das);
   setV('gm-irpj', g?.irpj); setV('gm-csll', g?.csll); setV('gm-pis', g?.pis_cofins);
   setV('gm-recserv', g?.receita_servicos); setV('gm-recvend', g?.receita_vendas);
-  setV('gm-despesas', g?.despesas_total); setV('gm-caixa', g?.caixa_atual); setV('gm-obs', g?.obs);
+  setV('gm-despesas', g?.despesas_total); setV('gm-folha', g?.folha_pagamento);
+  setV('gm-caixa', g?.caixa_atual); setV('gm-obs', g?.obs);
   document.getElementById('modal-gerencial').classList.add('open');
 }
 
@@ -3342,7 +3346,8 @@ async function saveGerencial() {
     fgts: gv('gm-fgts')||null, inss: gv('gm-inss')||null, das: gv('gm-das')||null,
     irpj: gv('gm-irpj')||null, csll: gv('gm-csll')||null, pis_cofins: gv('gm-pis')||null,
     receita_servicos: gv('gm-recserv')||null, receita_vendas: gv('gm-recvend')||null,
-    despesas_total: gv('gm-despesas')||null, caixa_atual: gv('gm-caixa')||null, obs: gv('gm-obs')||null,
+    despesas_total: gv('gm-despesas')||null, folha_pagamento: gv('gm-folha')||null,
+    caixa_atual: gv('gm-caixa')||null, obs: gv('gm-obs')||null,
     atualizado_por: currentFuncionario?.nome || userEmail,
     updated_at: new Date().toISOString()
   };
@@ -3474,7 +3479,8 @@ function fmtNumField(el) {
 // Mapa de nome de coluna CM → campo em gerencial_mensal
 // Mapa nome do template (uppercase) → campo em gerencial_mensal
 const CM_GER_MAP = {
-  'DAS':'das', 'FGTS':'fgts', 'INSS':'inss', 'CSLL':'csll', 'IRPJ':'irpj'
+  'DAS':'das', 'FGTS':'fgts', 'INSS':'inss', 'CSLL':'csll', 'IRPJ':'irpj',
+  'FOLHA LÍQUIDA':'folha_pagamento', 'FOLHA LIQUIDA':'folha_pagamento'
 };
 // PIS, COFINS, ISS, ICMS somados em pis_cofins
 const CM_GER_INDIRETO = new Set(['PIS','COFINS','ISS','ICMS','DIFAL']);
@@ -3505,11 +3511,12 @@ async function syncGerencialFromCM(clienteId, competencia) {
     cliente_id: clienteId, competencia,
     ...fields,
     // Preserva campos que só são preenchidos manualmente
-    receita_servicos: existing?.receita_servicos || null,
-    receita_vendas:   existing?.receita_vendas   || null,
-    despesas_total:   existing?.despesas_total   || null,
-    caixa_atual:      existing?.caixa_atual      || null,
-    obs:              existing?.obs              || null,
+    receita_servicos:  existing?.receita_servicos  || null,
+    receita_vendas:    existing?.receita_vendas    || null,
+    despesas_total:    existing?.despesas_total    || null,
+    folha_pagamento:   fields.folha_pagamento      ?? existing?.folha_pagamento ?? null,
+    caixa_atual:       existing?.caixa_atual       || null,
+    obs:               existing?.obs               || null,
     atualizado_por:   currentFuncionario?.nome || userEmail,
     updated_at:       new Date().toISOString()
   };
