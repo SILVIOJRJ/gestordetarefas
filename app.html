@@ -353,7 +353,7 @@
       <button class="btn btn-primary" onclick="openModal('tarefa')">＋ Nova</button>
     </div>
     <div class="table-wrap">
-      <table><thead><tr><th>Título</th><th>Setor</th><th>Responsável</th><th>Cliente</th><th>Prioridade</th><th>Prazo</th><th>Competência</th><th>Doc.</th><th>Status</th><th></th></tr></thead>
+      <table><thead><tr><th>Título</th><th>Setor</th><th>Responsável</th><th>Cliente</th><th>Prioridade</th><th>Prazo</th><th>Competência</th><th>Doc.</th><th>Criado por</th><th>Status</th><th></th></tr></thead>
       <tbody id="tar-tbody"></tbody></table>
     </div>
   </div>
@@ -950,23 +950,34 @@ function applyRoleUI() {
     }
   }
 
-  // Mapeia páginas de setor por nome de setor
-  const setorPages = { fiscal:'Fiscal', dp:'DP', contabil:'Contábil', legalizacao:'Legalização' };
+  // Admin ou usuário sem vínculo: vê tudo
+  const verTudo = isAdmin || !currentFuncionario;
+  const norm = s => (s||'').toLowerCase();
+  const isLegUser = norm(userSetor).includes('legaliza');
+  const podeGerencial = verTudo || ['fiscal','contábil','contabil'].includes(norm(userSetor));
 
   document.querySelectorAll('.nav-item').forEach(n => {
+    // reset
+    n.style.display = '';
     const onclick = n.getAttribute('onclick') || '';
-    const match = onclick.match(/navigate\('([^']+)'\)/);
-    if (!match) return;
-    const page = match[1];
-    if (isAdmin || !currentFuncionario) return; // admin vê tudo
+    const navMatch = onclick.match(/navigate\('([^']+)'(?:,'([^']+)')?\)/);
+    if (!navMatch) return;
+    const page = navMatch[1];
+    const setorArg = navMatch[2] || n.dataset.setor;
+
+    if (verTudo) return; // admin vê tudo
 
     // Configurações só admin
     if (page === 'configuracoes') { n.style.display = 'none'; return; }
-
-    // Páginas de setor: só mostra o setor do usuário
-    if (setorPages[page]) {
-      if (setorPages[page] !== userSetor) n.style.display = 'none';
+    // Gerencial: admin + Fiscal + Contábil
+    if (page === 'gerencial' && !podeGerencial) { n.style.display = 'none'; return; }
+    // Legalização (processos): apenas setor Legalização
+    if (page === 'legalizacao' && !isLegUser) { n.style.display = 'none'; return; }
+    // Páginas de setor dinâmicas (data-setor): só o setor do usuário
+    if (page === 'setor' && setorArg && norm(setorArg) !== norm(userSetor)) {
+      n.style.display = 'none';
     }
+    // Dashboard, Parcelamentos, INSS PF, Tarefas, Clientes, Controle Mensal: todos veem
   });
 }
 
@@ -1037,9 +1048,13 @@ function navigate(page, setorNome) {
   });
   currentPage = page;
   const titles = { dashboard:'Dashboard', parcelamentos:'Parcelamentos', 'inss-pf':'INSS PF',
-    tarefas:'Tarefas', clientes:'Clientes', configuracoes:'Configurações' };
+    tarefas:'Tarefas', clientes:'Clientes', configuracoes:'Configurações',
+    'controle-mensal':'Controle Mensal', gerencial:'Gerencial', legalizacao:'Legalização' };
   document.getElementById('topbar-title').textContent = titles[page] || page;
   if (page === 'dashboard') { buildCalendar(); if (calSelected) { selectCalDay(calSelected.y, calSelected.m, calSelected.d); } else { renderAgendaDefault(); } }
+  if (page === 'controle-mensal') initControleMensal();
+  if (page === 'gerencial') initGerencial();
+  if (page === 'legalizacao') { switchLegTab('processos'); renderProcessos(); renderLegTarefas(); }
 }
 
 function renderSidebarSetores() {
@@ -1111,6 +1126,22 @@ function buildAlerts() {
       const cli = clientes.find(c => c.id === t.cliente_id);
       const nomeC = cli ? cli.nome : 'Cliente';
       list.push({ type:'info', icon:'📤', title:'Documento não enviado', msg:`${nomeC} — ${t.titulo} — documento não enviado` });
+    }
+  });
+
+  processos.forEach(p => {
+    const cli = clientes.find(c => c.id === p.cliente_id);
+    const nome = cli ? cli.nome : (p.tipo || 'Processo');
+    if (p.data_previsao && p.status !== 'Concluído') {
+      const d = new Date(p.data_previsao + 'T00:00:00');
+      const diff = Math.round((d - today) / 86400000);
+      if (diff < 0) list.push({ type:'error', icon:'🔏', title:'Processo ATRASADO', msg:`${nome} — ${p.tipo} — ${Math.abs(diff)}d` });
+    }
+    if (p.data_renovacao) {
+      const d = new Date(p.data_renovacao + 'T00:00:00');
+      const diff = Math.round((d - today) / 86400000);
+      if (diff >= 0 && diff <= 30) list.push({ type:'warning', icon:'🔄', title:`Renovação em ${diff}d`, msg:`${nome} — ${p.tipo}` });
+      else if (diff < 0) list.push({ type:'error', icon:'🔄', title:'Renovação VENCIDA', msg:`${nome} — ${p.tipo} — ${Math.abs(diff)}d` });
     }
   });
 
@@ -1292,7 +1323,7 @@ function renderParcelamentos() {
     const cli = clientes.find(c => c.id === p.cliente_id);
     return `<tr>
       <td>${sBadge(p.status)}</td>
-      <td><strong>${p.empresa}</strong>${cli?`<div style="font-size:11px;color:var(--text3)">${cli.nome}</div>`:''}</td>
+      <td title="Criado por: ${p.criado_por||'—'}"><strong>${p.empresa}</strong>${cli?`<div style="font-size:11px;color:var(--text3)">${cli.nome}</div>`:''}</td>
       <td class="font-mono">${p.codigo||'—'}</td>
       <td><span class="chip">${p.tipo||'—'}</span></td>
       <td>${p.parcela||'—'}${p.total_parcelas?'/'+p.total_parcelas:''}</td>
@@ -1344,7 +1375,7 @@ function renderInss() {
       else if (diff<=3&&i.status!=='Pago') vCls='vencimento-warn';
     }
     return `<tr>
-      <td><strong>${i.nome}</strong></td>
+      <td title="Criado por: ${i.criado_por||'—'}"><strong>${i.nome}</strong></td>
       <td class="font-mono">${i.nit||'—'}</td>
       <td class="font-mono">${i.codigo||'—'}</td>
       <td><span class="chip">${i.aliquota||'—'}</span></td>
@@ -1399,13 +1430,14 @@ function renderTarefas() {
       <td class="${pc}">${fmtDate(t.prazo)}</td>
       <td>${t.competencia?fmtMonth(t.competencia):'—'}</td>
       <td title="${t.documento_enviado?'Enviado':'Pendente'}">${docIcon}</td>
+      <td style="font-size:11px;color:var(--text3)">${t.criado_por||'—'}</td>
       <td>${tBadge(t.status)}</td>
       <td><div class="td-actions">
         <button class="icon-btn" onclick='editTarefa("${t.id}")'>✏️</button>
         <button class="icon-btn" onclick='openAnexos("tarefa","${t.id}","${t.titulo.replace(/'/g,"\\'")}") ' title="Anexos">📎</button>
         <button class="icon-btn del" onclick='deleteItem("tarefa","${t.id}")'>🗑️</button>
       </div></td></tr>`;
-  }).join('') : '<tr><td colspan="10"><div class="empty-state"><div class="es-icon">📭</div><p>Nenhuma tarefa</p></div></td></tr>';
+  }).join('') : '<tr><td colspan="11"><div class="empty-state"><div class="es-icon">📭</div><p>Nenhuma tarefa</p></div></td></tr>';
 }
 
 // CLIENTES
@@ -1638,6 +1670,7 @@ async function saveInss() {
     updated_at: new Date().toISOString()
   };
   const id = editingId.inss;
+  if (!id) obj.criado_por = currentFuncionario?.nome || userEmail;
   const { error } = id
     ? await sb.from('inss_pf').update(obj).eq('id', id)
     : await sb.from('inss_pf').insert(obj);
@@ -1664,6 +1697,7 @@ async function saveTarefa() {
     updated_at: new Date().toISOString()
   };
   const id = editingId.tarefa;
+  if (!id) obj.criado_por = currentFuncionario?.nome || userEmail;
   const { error } = id
     ? await sb.from('tarefas').update(obj).eq('id', id)
     : await sb.from('tarefas').insert(obj);
@@ -1826,7 +1860,7 @@ function editFuncionario(id) {
 
 async function deleteItem(type, id) {
   if (!confirm('Confirma exclusão?')) return;
-  const table = { parc:'parcelamentos', inss:'inss_pf', tarefa:'tarefas', cliente:'clientes', setor:'setores', funcionario:'funcionarios' }[type];
+  const table = { parc:'parcelamentos', inss:'inss_pf', tarefa:'tarefas', cliente:'clientes', setor:'setores', funcionario:'funcionarios', processo:'processos_legalizacao', obrigtemplate:'obrigacoes_templates' }[type];
   const { error } = await sb.from(table).delete().eq('id', id);
   if (error) { toast('Erro', error.message, 'error'); return; }
   toast('Excluído','Registro removido','success');
@@ -1835,7 +1869,7 @@ async function deleteItem(type, id) {
 
 // MODALS
 function openModal(type) {
-  const keyMap = { parc:'parc', inss:'inss', tarefa:'tarefa', cliente:'cliente', setor:'setor', funcionario:'funcionario' };
+  const keyMap = { parc:'parc', inss:'inss', tarefa:'tarefa', cliente:'cliente', setor:'setor', funcionario:'funcionario', processo:'processo', obrigtemplate:'obrigtemplate' };
   editingId[keyMap[type]] = null;
 
   if (type === 'parc') {
@@ -1881,6 +1915,20 @@ function openModal(type) {
     populateFuncSelects();
     document.getElementById('modal-func-title').textContent = 'Novo Funcionário';
     document.getElementById('modal-funcionario').classList.add('open');
+  } else if (type === 'processo') {
+    clearFormPadr(['pr-desc','pr-abertura','pr-previsao','pr-responsavel','pr-renovacao','pr-obs']);
+    populateProcessoSelects();
+    setV('pr-tipo','Abertura de Empresa'); setV('pr-status','Em andamento');
+    setV('pr-abertura', new Date().toISOString().split('T')[0]);
+    document.getElementById('pr-renov-wrap').style.display = 'none';
+    document.getElementById('modal-proc-title').textContent = 'Novo Processo';
+    document.getElementById('modal-processo').classList.add('open');
+  } else if (type === 'obrigtemplate') {
+    clearFormPadr(['ob-nome','ob-desc','ob-dia','ob-ordem']);
+    populateObrigSetorSelect();
+    document.getElementById('ob-ativo').checked = true;
+    document.getElementById('modal-obrig-title').textContent = 'Novo Template';
+    document.getElementById('modal-obrigtemplate').classList.add('open');
   }
 }
 
@@ -1891,7 +1939,9 @@ function clearFormPadr(ids) {
 function closeModal(type) {
   const map = { parc:'modal-parc', inss:'modal-inss', tarefa:'modal-tarefa',
     notif:'modal-notif', cliente:'modal-cliente', setor:'modal-setor',
-    funcionario:'modal-funcionario', anexos:'modal-anexos' };
+    funcionario:'modal-funcionario', anexos:'modal-anexos',
+    processo:'modal-processo', obrigtemplate:'modal-obrigtemplate',
+    obrigcli:'modal-obrigcli', gerencial:'modal-gerencial' };
   document.getElementById(map[type])?.classList.remove('open');
 }
 
@@ -1901,6 +1951,7 @@ function openContextModal() {
   else if (currentPage === 'clientes') openModal('cliente');
   else if (currentPage === 'configuracoes') openModal('setor');
   else if (currentPage === 'setor') { openModal('tarefa'); setTimeout(()=>setV('t-setor', currentSetorName),50); }
+  else if (currentPage === 'legalizacao') openModal('processo');
   else openModal('tarefa');
 }
 
@@ -2164,6 +2215,432 @@ async function deleteAnexo(id, nome, tipo, refId) {
   await sb.from('anexos').delete().eq('id', id);
   await loadAnexos();
   toast('Removido', nome, 'success');
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROCESSOS DE LEGALIZAÇÃO
+// ═══════════════════════════════════════════════════════════
+function switchLegTab(tab) {
+  document.querySelectorAll('#page-legalizacao .tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#page-legalizacao .tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('legtab-'+tab).classList.add('active');
+  const idx = tab === 'processos' ? 0 : 1;
+  document.querySelectorAll('#page-legalizacao .tab-btn')[idx].classList.add('active');
+  if (tab === 'tarefas') renderLegTarefas();
+}
+
+function populateProcessoSelects() {
+  const sel = document.getElementById('pr-cliente');
+  sel.innerHTML = '<option value="">Sem cliente</option>';
+  clientes.filter(c => c.ativo !== false).forEach(c => {
+    const o = document.createElement('option'); o.value = c.id; o.textContent = c.nome;
+    sel.appendChild(o);
+  });
+}
+
+function toggleProcRenov() {
+  const concluido = gv('pr-status') === 'Concluído';
+  document.getElementById('pr-renov-wrap').style.display = concluido ? '' : 'none';
+}
+
+function renderProcessos() {
+  const tbody = document.getElementById('proc-tbody');
+  if (!tbody) return;
+  const search = (gv('proc-search')||'').toLowerCase();
+  const fS = gv('proc-f-status')||'';
+  const fT = gv('proc-f-tipo')||'';
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  let data = processos.filter(p => {
+    const cli = clientes.find(c => c.id === p.cliente_id);
+    const m = search ? [cli?.nome, p.tipo, p.descricao, p.responsavel].join(' ').toLowerCase().includes(search) : true;
+    return m && (fS ? p.status===fS : true) && (fT ? p.tipo===fT : true);
+  });
+
+  tbody.innerHTML = data.length ? data.map(p => {
+    const cli = clientes.find(c => c.id === p.cliente_id);
+    const atrasado = p.data_previsao && new Date(p.data_previsao+'T00:00:00') < today && p.status !== 'Concluído';
+    const stMap = {'Em andamento':'badge-blue','Aguardando cliente':'badge-orange','Aguardando órgão':'badge-orange','Concluído':'badge-green'};
+    const prevCls = atrasado ? 'vencimento-alert' : '';
+    return `<tr>
+      <td><strong>${cli?cli.nome:'—'}</strong></td>
+      <td><span class="chip">${p.tipo||'—'}</span></td>
+      <td style="font-size:12px">${p.descricao||'—'}</td>
+      <td><span class="badge ${stMap[p.status]||'badge-gray'}">${p.status||'—'}</span></td>
+      <td>${fmtDate(p.data_abertura)}</td>
+      <td class="${prevCls}">${fmtDate(p.data_previsao)}</td>
+      <td>${fmtDate(p.data_renovacao)}</td>
+      <td>${p.responsavel||'—'}</td>
+      <td><div class="td-actions">
+        <button class="icon-btn" onclick='openAnexos("processo","${p.id}","${(cli?cli.nome:p.tipo||'Processo').replace(/'/g,"\\'")}") ' title="Anexos">📎</button>
+        <button class="icon-btn" onclick='editProcesso("${p.id}")'>✏️</button>
+        <button class="icon-btn del" onclick='deleteItem("processo","${p.id}")'>🗑️</button>
+      </div></td></tr>`;
+  }).join('') : '<tr><td colspan="9"><div class="empty-state"><div class="es-icon">📑</div><p>Nenhum processo</p></div></td></tr>';
+}
+
+function editProcesso(id) {
+  const p = processos.find(x => x.id === id);
+  if (!p) return;
+  editingId.processo = id;
+  populateProcessoSelects();
+  document.getElementById('modal-proc-title').textContent = 'Editar Processo';
+  setV('pr-cliente', p.cliente_id||''); setV('pr-tipo', p.tipo); setV('pr-status', p.status);
+  setV('pr-desc', p.descricao); setV('pr-abertura', p.data_abertura); setV('pr-previsao', p.data_previsao);
+  setV('pr-responsavel', p.responsavel); setV('pr-renovacao', p.data_renovacao); setV('pr-obs', p.obs);
+  toggleProcRenov();
+  document.getElementById('modal-processo').classList.add('open');
+}
+
+async function saveProcesso() {
+  const tipo = gv('pr-tipo');
+  if (!tipo) { toast('Atenção','Selecione o tipo','warning'); return; }
+  const status = gv('pr-status');
+  if (status === 'Concluído' && !gv('pr-renovacao')) {
+    toast('Atenção','Informe a data de renovação para concluir','warning'); return;
+  }
+  setBusy('btn-save-proc', true);
+  const obj = {
+    cliente_id: gv('pr-cliente')||null, tipo, descricao: gv('pr-desc'), status,
+    data_abertura: gv('pr-abertura')||null, data_previsao: gv('pr-previsao')||null,
+    data_renovacao: gv('pr-renovacao')||null,
+    data_conclusao: status === 'Concluído' ? (new Date().toISOString().split('T')[0]) : null,
+    responsavel: gv('pr-responsavel'), obs: gv('pr-obs'),
+    updated_at: new Date().toISOString()
+  };
+  const id = editingId.processo;
+  if (!id) obj.criado_por = currentFuncionario?.nome || userEmail;
+  const { error } = id
+    ? await sb.from('processos_legalizacao').update(obj).eq('id', id)
+    : await sb.from('processos_legalizacao').insert(obj);
+  setBusy('btn-save-proc', false);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  closeModal('processo');
+  toast('Salvo!', id ? 'Processo atualizado' : 'Processo criado', 'success');
+  await loadAll();
+  renderProcessos();
+}
+
+function renderLegTarefas() {
+  const sNome = (setores.find(s => (s.nome||'').toLowerCase().includes('legaliza'))?.nome) || 'Legalização';
+  const accTarefas = filterByAccess(tarefas);
+  const t = accTarefas.filter(x => x.setor === sNome);
+  const today = new Date(); today.setHours(0,0,0,0);
+  document.getElementById('leg-content-setor').innerHTML = `
+    <div class="card">
+      <div class="card-header"><div class="card-title">Tarefas de ${sNome}</div>
+        <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openModal('tarefa');setTimeout(()=>setV('t-setor','${sNome.replace(/'/g,"\\'")}'),50)">＋ Nova</button>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Título</th><th>Responsável</th><th>Prioridade</th><th>Prazo</th><th>Status</th><th></th></tr></thead>
+        <tbody>${t.map(x => {
+          const diff = x.prazo ? Math.round((new Date(x.prazo+'T00:00:00') - today)/86400000) : null;
+          const pc = diff!==null&&diff<0&&x.status!=='Concluída'?'vencimento-alert':'';
+          const pr = {Alta:'badge-red',Média:'badge-orange',Baixa:'badge-teal'}[x.prioridade]||'badge-gray';
+          return `<tr><td><strong>${x.titulo}</strong></td><td>${x.responsavel||'—'}</td>
+            <td><span class="badge ${pr}">${x.prioridade||'—'}</span></td>
+            <td class="${pc}">${fmtDate(x.prazo)}</td><td>${tBadge(x.status)}</td>
+            <td><div class="td-actions">
+              <button class="icon-btn" onclick='editTarefa("${x.id}")'>✏️</button>
+              <button class="icon-btn del" onclick='deleteItem("tarefa","${x.id}")'>🗑️</button>
+            </div></td></tr>`;
+        }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhuma tarefa</td></tr>'}</tbody>
+      </table></div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// OBRIGAÇÕES — TEMPLATES
+// ═══════════════════════════════════════════════════════════
+function setoresList() {
+  return setores.length ? setores.filter(s=>s.ativo!==false).map(s=>s.nome) : ['DP','Fiscal','Contábil','Legalização'];
+}
+
+function populateObrigSetorSelect() {
+  const sel = document.getElementById('ob-setor');
+  sel.innerHTML = setoresList().map(n => `<option>${n}</option>`).join('');
+}
+
+function renderObrigacoesTemplates() {
+  const tbody = document.getElementById('obrig-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = obrigacoesTemplates.length ? obrigacoesTemplates.map(o => `<tr>
+    <td><span class="chip">${o.setor_nome||'—'}</span></td>
+    <td><strong>${o.nome}</strong></td>
+    <td style="font-size:12px;color:var(--text3)">${o.descricao||'—'}</td>
+    <td>${o.dia_vencimento||'—'}</td>
+    <td>${o.ordem||'—'}</td>
+    <td>${o.ativo!==false?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td>
+    <td><div class="td-actions">
+      <button class="icon-btn" onclick='editObrigTemplate("${o.id}")'>✏️</button>
+      <button class="icon-btn del" onclick='deleteItem("obrigtemplate","${o.id}")'>🗑️</button>
+    </div></td></tr>`).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="es-icon">📋</div><p>Nenhum template — use "Pré-popular padrão"</p></div></td></tr>';
+}
+
+function editObrigTemplate(id) {
+  const o = obrigacoesTemplates.find(x => x.id === id);
+  if (!o) return;
+  editingId.obrigtemplate = id;
+  populateObrigSetorSelect();
+  document.getElementById('modal-obrig-title').textContent = 'Editar Template';
+  setV('ob-setor', o.setor_nome); setV('ob-nome', o.nome); setV('ob-desc', o.descricao);
+  setV('ob-dia', o.dia_vencimento); setV('ob-ordem', o.ordem);
+  document.getElementById('ob-ativo').checked = o.ativo !== false;
+  document.getElementById('modal-obrigtemplate').classList.add('open');
+}
+
+async function saveObrigTemplate() {
+  const nome = gv('ob-nome');
+  if (!nome) { toast('Atenção','Informe o nome','warning'); return; }
+  setBusy('btn-save-obrig', true);
+  const obj = {
+    setor_nome: gv('ob-setor'), nome, descricao: gv('ob-desc'),
+    dia_vencimento: gv('ob-dia')||null, ordem: gv('ob-ordem')||null,
+    ativo: document.getElementById('ob-ativo').checked
+  };
+  const id = editingId.obrigtemplate;
+  const { error } = id
+    ? await sb.from('obrigacoes_templates').update(obj).eq('id', id)
+    : await sb.from('obrigacoes_templates').insert(obj);
+  setBusy('btn-save-obrig', false);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  closeModal('obrigtemplate');
+  toast('Salvo!', id ? 'Template atualizado' : 'Template criado', 'success');
+  await loadAll();
+}
+
+async function seedObrigacoesTemplates() {
+  if (obrigacoesTemplates.length && !confirm('Já existem templates. Adicionar os padrões mesmo assim?')) return;
+  const padrao = {
+    DP: ['Folha de Pagamento','FGTS','eSocial','DCTFWeb','Admissão/Demissão'],
+    Fiscal: ['DAS','DCTF Federal','Estadual','Municipal','DCTF'],
+    'Contábil': ['Balancete','DRE','ECF','ECD']
+  };
+  const rows = [];
+  Object.entries(padrao).forEach(([setor, nomes]) => {
+    nomes.forEach((nome, i) => rows.push({ setor_nome: setor, nome, ordem: i+1, ativo: true }));
+  });
+  const { error } = await sb.from('obrigacoes_templates').insert(rows);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  toast('Pronto!', 'Templates padrão adicionados', 'success');
+  await loadAll();
+}
+
+// ═══════════════════════════════════════════════════════════
+// CONTROLE MENSAL
+// ═══════════════════════════════════════════════════════════
+let cmData = []; // obrigacoes_clientes da competência/setor atual
+
+function initControleMensal() {
+  const compEl = document.getElementById('cm-competencia');
+  if (!compEl.value) compEl.value = currentMonthStr();
+  // Define setor padrão = setor do usuário
+  if (userSetor) {
+    const opt = [...document.getElementById('cm-setor').options].find(o => o.value.toLowerCase() === userSetor.toLowerCase());
+    if (opt) document.getElementById('cm-setor').value = opt.value;
+  }
+  loadControleMensal();
+}
+
+async function loadControleMensal() {
+  const comp = gv('cm-competencia');
+  const setor = gv('cm-setor');
+  if (!comp || !setor) return;
+  const wrap = document.getElementById('cm-table-wrap');
+  if (setor === 'Legalização') { renderControleMensal(); return; }
+  wrap.innerHTML = '<div style="text-align:center;padding:24px"><div class="spinner"></div></div>';
+  const { data } = await sb.from('obrigacoes_clientes').select('*').eq('competencia', comp);
+  cmData = data || [];
+  renderControleMensal();
+}
+
+const CM_COLS = {
+  DP: ['Folha','FGTS','eSocial','DCTFWeb','Rescisão','Férias'],
+  Fiscal: ['DAS','DCTF','Estadual','Municipal'],
+  'Contábil': ['Balanço','DRE','ECF','ECD']
+};
+
+function cmStatusColor(st) {
+  return {'Concluído':'badge-green','Pendente':'badge-orange','Atrasado':'badge-red','N.A':'badge-gray','Enviado':'badge-teal'}[st] || 'badge-orange';
+}
+
+function renderControleMensal() {
+  const setor = gv('cm-setor');
+  const comp = gv('cm-competencia');
+  const wrap = document.getElementById('cm-table-wrap');
+  const search = (gv('cm-search')||'').toLowerCase();
+  let cli = clientes.filter(c => c.ativo !== false);
+  if (search) cli = cli.filter(c => (c.nome||'').toLowerCase().includes(search));
+
+  if (setor === 'Legalização') {
+    const rows = cli.map(c => {
+      const procs = processos.filter(p => p.cliente_id === c.id && p.status !== 'Concluído');
+      const renov = processos.filter(p => p.cliente_id === c.id && p.data_renovacao).sort((a,b)=>a.data_renovacao.localeCompare(b.data_renovacao))[0];
+      return `<tr><td><strong>${c.nome}</strong></td><td>${procs.length}</td>
+        <td>${procs.map(p=>`<span class="chip">${p.status}</span>`).join(' ')||'—'}</td>
+        <td>${renov?fmtDate(renov.data_renovacao):'—'}</td></tr>`;
+    }).join('');
+    wrap.innerHTML = `<table><thead><tr><th>Empresa</th><th>Processos ativos</th><th>Status</th><th>Próx. renovação</th></tr></thead><tbody>${rows||'<tr><td colspan=4 style="text-align:center;padding:20px;color:var(--text3)">Sem clientes</td></tr>'}</tbody></table>`;
+    return;
+  }
+
+  const cols = CM_COLS[setor] || [];
+  const head = `<tr><th>Regime</th><th>Empresa</th><th>Condição</th><th>Whats</th>${cols.map(c=>`<th>${c}</th>`).join('')}<th>Obs</th></tr>`;
+  const body = cli.map(c => {
+    const cells = cols.map(colName => {
+      // template id por nome+setor
+      const tpl = obrigacoesTemplates.find(t => t.setor_nome === setor && t.nome.toLowerCase().includes(colName.toLowerCase()));
+      const match = tpl ? cmData.find(o => o.cliente_id === c.id && o.template_id === tpl.id && o.competencia === comp) : null;
+      const st = match ? match.status : 'Pendente';
+      return `<td style="cursor:pointer" onclick='openObrigCli("${c.id}","${tpl?tpl.id:''}","${colName.replace(/'/g,"")}")'>
+        <span class="badge ${cmStatusColor(st)}">${st}</span></td>`;
+    }).join('');
+    return `<tr><td>${regimeBadge(c.regime_tributario)}</td><td><strong>${c.nome}</strong></td>
+      <td style="font-size:11px">${c.condicao||'—'}</td><td style="font-size:11px">${c.whatsapp||'—'}</td>
+      ${cells}<td style="font-size:11px;color:var(--text3)">—</td></tr>`;
+  }).join('');
+  wrap.innerHTML = `<table><thead>${head}</thead><tbody>${body||`<tr><td colspan="${cols.length+5}" style="text-align:center;padding:20px;color:var(--text3)">Sem clientes ativos</td></tr>`}</tbody></table>`;
+}
+
+function openObrigCli(clienteId, templateId, colName) {
+  const comp = gv('cm-competencia');
+  const setor = gv('cm-setor');
+  const cli = clientes.find(c => c.id === clienteId);
+  if (!templateId) {
+    toast('Atenção', `Crie o template "${colName}" do setor ${setor} em Configurações › Obrigações`, 'warning');
+    return;
+  }
+  ocCtx = { cliente_id: clienteId, template_id: templateId, competencia: comp, setor };
+  const reg = cmData.find(o => o.cliente_id === clienteId && o.template_id === templateId && o.competencia === comp);
+  ocCtx.registroId = reg ? reg.id : null;
+  document.getElementById('oc-title').textContent = colName;
+  document.getElementById('oc-sub').textContent = `${cli?cli.nome:''} · ${fmtMonth(comp)}`;
+  setV('oc-status', reg ? reg.status : 'Pendente');
+  setV('oc-valor', reg ? reg.valor : '');
+  setV('oc-obs', reg ? reg.observacao : '');
+  document.getElementById('modal-obrigcli').classList.add('open');
+}
+
+async function saveObrigCliente() {
+  if (!ocCtx) return;
+  setBusy('btn-save-oc', true);
+  const obj = {
+    cliente_id: ocCtx.cliente_id, template_id: ocCtx.template_id, competencia: ocCtx.competencia,
+    status: gv('oc-status'), valor: gv('oc-valor')||null, observacao: gv('oc-obs')||null,
+    concluido_por: currentFuncionario?.nome || userEmail,
+    data_conclusao: gv('oc-status') === 'Concluído' ? new Date().toISOString().split('T')[0] : null
+  };
+  const { error } = ocCtx.registroId
+    ? await sb.from('obrigacoes_clientes').update(obj).eq('id', ocCtx.registroId)
+    : await sb.from('obrigacoes_clientes').insert(obj);
+  setBusy('btn-save-oc', false);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  closeModal('obrigcli');
+  toast('Salvo!','Obrigação atualizada','success');
+  await loadControleMensal();
+}
+
+// ═══════════════════════════════════════════════════════════
+// PLANILHA GERENCIAL
+// ═══════════════════════════════════════════════════════════
+let gerData = [];
+
+function initGerencial() {
+  const compEl = document.getElementById('ger-competencia');
+  if (!compEl.value) compEl.value = currentMonthStr();
+  loadGerencial();
+}
+
+async function loadGerencial() {
+  const comp = gv('ger-competencia');
+  if (!comp) return;
+  const wrap = document.getElementById('ger-table-wrap');
+  wrap.innerHTML = '<div style="text-align:center;padding:24px"><div class="spinner"></div></div>';
+  const { data } = await sb.from('gerencial_mensal').select('*').eq('competencia', comp);
+  gerData = data || [];
+  renderGerencial();
+}
+
+const parseNum = v => { if (v===null||v===undefined||v==='') return 0; return parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0; };
+const fmtBR = n => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function renderGerencial() {
+  const comp = gv('ger-competencia');
+  const wrap = document.getElementById('ger-table-wrap');
+  const search = (gv('ger-search')||'').toLowerCase();
+  let cli = clientes.filter(c => c.ativo !== false);
+  if (search) cli = cli.filter(c => (c.nome||'').toLowerCase().includes(search));
+
+  const tot = { fgts:0, inss:0, das:0, irpjcsll:0, pis:0, recserv:0, recvend:0, desp:0, caixa:0 };
+  const body = cli.map(c => {
+    const g = gerData.find(x => x.cliente_id === c.id && x.competencia === comp);
+    const irpjcsll = g ? (parseNum(g.irpj)+parseNum(g.csll)) : 0;
+    if (g) {
+      tot.fgts += parseNum(g.fgts); tot.inss += parseNum(g.inss); tot.das += parseNum(g.das);
+      tot.irpjcsll += irpjcsll; tot.pis += parseNum(g.pis_cofins);
+      tot.recserv += parseNum(g.receita_servicos); tot.recvend += parseNum(g.receita_vendas);
+      tot.desp += parseNum(g.despesas_total); tot.caixa += parseNum(g.caixa_atual);
+    }
+    const cell = v => `<td class="font-mono">${g&&v?fmtBR(parseNum(v)):'—'}</td>`;
+    return `<tr style="cursor:pointer" onclick='openGerencial("${c.id}")'>
+      <td>${regimeBadge(c.regime_tributario)}</td>
+      <td><strong>${c.nome}</strong></td>
+      <td style="font-size:11px">${c.condicao||'—'}</td>
+      ${cell(g?.fgts)}${cell(g?.inss)}${cell(g?.das)}
+      <td class="font-mono">${g&&irpjcsll?fmtBR(irpjcsll):'—'}</td>
+      ${cell(g?.pis_cofins)}${cell(g?.receita_servicos)}${cell(g?.receita_vendas)}
+      ${cell(g?.despesas_total)}${cell(g?.caixa_atual)}
+      <td style="font-size:11px;color:var(--text3)">${g?.obs||'—'}</td>
+      <td style="font-size:11px;color:var(--text3)">${g?.atualizado_por||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  const footer = `<tr style="background:var(--surface2);font-weight:700">
+    <td colspan="3">TOTAIS</td>
+    <td class="font-mono">${fmtBR(tot.fgts)}</td><td class="font-mono">${fmtBR(tot.inss)}</td>
+    <td class="font-mono">${fmtBR(tot.das)}</td><td class="font-mono">${fmtBR(tot.irpjcsll)}</td>
+    <td class="font-mono">${fmtBR(tot.pis)}</td><td class="font-mono">${fmtBR(tot.recserv)}</td>
+    <td class="font-mono">${fmtBR(tot.recvend)}</td><td class="font-mono">${fmtBR(tot.desp)}</td>
+    <td class="font-mono">${fmtBR(tot.caixa)}</td><td></td><td></td></tr>`;
+
+  wrap.innerHTML = `<table><thead><tr>
+    <th>Regime</th><th>Empresa</th><th>Condição</th><th>FGTS</th><th>INSS</th><th>DAS</th>
+    <th>IRPJ/CSLL</th><th>PIS/COFINS</th><th>Rec. Serviços</th><th>Rec. Vendas</th>
+    <th>Despesas</th><th>Caixa</th><th>Obs</th><th>Atualizado por</th></tr></thead>
+    <tbody>${body||'<tr><td colspan=14 style="text-align:center;padding:20px;color:var(--text3)">Sem clientes</td></tr>'}${cli.length?footer:''}</tbody></table>`;
+}
+
+function openGerencial(clienteId) {
+  const comp = gv('ger-competencia');
+  const cli = clientes.find(c => c.id === clienteId);
+  const g = gerData.find(x => x.cliente_id === clienteId && x.competencia === comp);
+  gmCtx = { cliente_id: clienteId, competencia: comp, registroId: g ? g.id : null };
+  document.getElementById('gm-sub').textContent = `${cli?cli.nome:''} · ${fmtMonth(comp)}`;
+  setV('gm-fgts', g?.fgts); setV('gm-inss', g?.inss); setV('gm-das', g?.das);
+  setV('gm-irpj', g?.irpj); setV('gm-csll', g?.csll); setV('gm-pis', g?.pis_cofins);
+  setV('gm-recserv', g?.receita_servicos); setV('gm-recvend', g?.receita_vendas);
+  setV('gm-despesas', g?.despesas_total); setV('gm-caixa', g?.caixa_atual); setV('gm-obs', g?.obs);
+  document.getElementById('modal-gerencial').classList.add('open');
+}
+
+async function saveGerencial() {
+  if (!gmCtx) return;
+  setBusy('btn-save-gm', true);
+  const obj = {
+    cliente_id: gmCtx.cliente_id, competencia: gmCtx.competencia,
+    fgts: gv('gm-fgts')||null, inss: gv('gm-inss')||null, das: gv('gm-das')||null,
+    irpj: gv('gm-irpj')||null, csll: gv('gm-csll')||null, pis_cofins: gv('gm-pis')||null,
+    receita_servicos: gv('gm-recserv')||null, receita_vendas: gv('gm-recvend')||null,
+    despesas_total: gv('gm-despesas')||null, caixa_atual: gv('gm-caixa')||null, obs: gv('gm-obs')||null,
+    atualizado_por: currentFuncionario?.nome || userEmail,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await sb.from('gerencial_mensal').upsert(obj, { onConflict: 'cliente_id,competencia' });
+  setBusy('btn-save-gm', false);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  closeModal('gerencial');
+  toast('Salvo!','Valores atualizados','success');
+  await loadGerencial();
 }
 
 init();
