@@ -493,11 +493,11 @@
 <!-- CONFIGURAÇÕES -->
 <div class="page" id="page-configuracoes">
   <div class="page-title">Configurações</div>
-  <div class="page-sub">Gerencie setores e funcionários</div>
+  <div class="page-sub">Gerencie setores, funcionários e obrigações</div>
   <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('setores')">🏢 Setores</button>
-    <button class="tab-btn" onclick="switchTab('funcionarios')">👷 Funcionários</button>
-    <button class="tab-btn" onclick="switchTab('obrigacoes')">📋 Obrigações</button>
+    <button class="tab-btn active" id="cfgtab-btn-setores" onclick="switchCfgTab('setores')">🏢 Setores</button>
+    <button class="tab-btn" id="cfgtab-btn-funcionarios" onclick="switchCfgTab('funcionarios')">👷 Funcionários</button>
+    <button class="tab-btn" id="cfgtab-btn-obrigacoes" onclick="switchCfgTab('obrigacoes')">📋 Obrigações</button>
   </div>
   <div class="tab-panel active" id="tab-setores">
     <div class="card">
@@ -513,9 +513,11 @@
   </div>
   <div class="tab-panel" id="tab-obrigacoes">
     <div class="card">
-      <div class="card-header"><div class="card-title">Templates de Obrigações</div>
-        <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px" onclick="seedObrigacoesTemplates()">↻ Pré-popular padrão</button>
-        <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openModal('obrigtemplate')">＋ Novo Template</button>
+      <div class="card-header"><div class="card-title" id="cfg-obrig-title">Obrigações</div>
+        <div id="cfg-obrig-actions" style="display:flex;gap:6px">
+          <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px" onclick="seedObrigacoesTemplates()">↻ Pré-popular padrão</button>
+          <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openModal('obrigtemplate')">＋ Novo Template</button>
+        </div>
       </div>
       <div class="table-wrap"><table><thead><tr><th>Setor</th><th>Nome</th><th>Descrição</th><th>Dia Venc.</th><th>Ordem</th><th>Status</th><th></th></tr></thead><tbody id="obrig-tbody"></tbody></table></div>
     </div>
@@ -1032,8 +1034,11 @@ function applyRoleUI() {
 
     if (verTudo) return; // admin vê tudo
 
-    // Configurações só admin
-    if (page === 'configuracoes') { n.style.display = 'none'; return; }
+    // Configurações: não-admin vê apenas a aba Obrigações (esconde Setores/Funcionários)
+    if (page === 'configuracoes') {
+      // mantém o link visível, mas restringe internamente ao abrir
+      return;
+    }
     // Gerencial: admin + Fiscal + Contábil
     if (page === 'gerencial' && !podeGerencial) { n.style.display = 'none'; return; }
     // Legalização (processos): apenas setor Legalização
@@ -1126,6 +1131,7 @@ function navigate(page, setorNome) {
   if (page === 'gerencial') initGerencial();
   if (page === 'legalizacao') { switchLegTab('processos'); renderProcessos(); renderLegTarefas(); }
   if (page === 'officeboy') renderEntregas();
+  if (page === 'configuracoes') initConfiguracoes();
 }
 
 function renderSidebarSetores() {
@@ -1150,6 +1156,42 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   event.target.classList.add('active');
+}
+
+function switchCfgTab(tab) {
+  ['setores','funcionarios','obrigacoes'].forEach(t => {
+    const panel = document.getElementById('tab-'+t);
+    const btn = document.getElementById('cfgtab-btn-'+t);
+    if (panel) panel.classList.toggle('active', t === tab);
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  // Filtrar obrigações por setor se não-admin
+  if (tab === 'obrigacoes') renderObrigacoesTemplates();
+}
+
+function initConfiguracoes() {
+  const verTudo = isAdmin || !currentFuncionario;
+  // Não-admin: mostra só aba Obrigações do seu setor
+  const setBtnVisible = (id, vis) => { const el = document.getElementById(id); if (el) el.style.display = vis ? '' : 'none'; };
+  setBtnVisible('cfgtab-btn-setores', verTudo);
+  setBtnVisible('cfgtab-btn-funcionarios', verTudo);
+  // Título e filtro de setor para não-admin
+  const titleEl = document.getElementById('cfg-obrig-title');
+  if (titleEl) titleEl.textContent = verTudo ? 'Templates de Obrigações' : `Obrigações — ${userSetor||'Meu Setor'}`;
+  // Botão Pré-popular para não-admin: chama seedSetorObrigacoes do seu setor
+  const actionsEl = document.getElementById('cfg-obrig-actions');
+  if (actionsEl && !verTudo && userSetor) {
+    actionsEl.innerHTML = `
+      <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px" onclick="seedSetorObrigacoes('${userSetor.replace(/'/g,"\\'")}')">↻ Pré-popular ${userSetor}</button>
+      <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="openObrigTemplateForSetor('${userSetor.replace(/'/g,"\\'")}')">＋ Nova Obrigação</button>`;
+  }
+  // Ativa aba correta
+  if (!verTudo) {
+    switchCfgTab('obrigacoes');
+  } else {
+    switchCfgTab('setores');
+  }
+}
 }
 
 // ALERTS
@@ -2532,7 +2574,10 @@ function populateObrigSetorSelect() {
 function renderObrigacoesTemplates() {
   const tbody = document.getElementById('obrig-tbody');
   if (!tbody) return;
-  tbody.innerHTML = obrigacoesTemplates.length ? obrigacoesTemplates.map(o => `<tr>
+  // Não-admin vê apenas as obrigações do seu setor
+  const verTudo = isAdmin || !currentFuncionario;
+  const lista = verTudo ? obrigacoesTemplates : obrigacoesTemplates.filter(o => o.setor_nome === userSetor);
+  tbody.innerHTML = lista.length ? lista.map(o => `<tr>
     <td><span class="chip">${o.setor_nome||'—'}</span></td>
     <td><strong>${o.nome}</strong></td>
     <td style="font-size:12px;color:var(--text3)">${o.descricao||'—'}</td>
@@ -2768,7 +2813,9 @@ function openObrigCli(clienteId, templateId, colName) {
   const setor = gv('cm-setor');
   const cli = clientes.find(c => c.id === clienteId);
   if (!templateId) {
-    toast('Atenção', `Crie o template "${colName}" do setor ${setor} em Configurações › Obrigações`, 'warning');
+    toast('Atenção', `Template "${colName}" não encontrado. Acesse Configurações → Obrigações para adicioná-lo.`, 'warning');
+    navigate('configuracoes');
+    setTimeout(() => switchCfgTab('obrigacoes'), 100);
     return;
   }
   ocCtx = { cliente_id: clienteId, template_id: templateId, competencia: comp, setor };
