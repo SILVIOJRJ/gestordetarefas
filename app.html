@@ -838,7 +838,7 @@
         <div class="form-group"><label class="form-label">DAS</label><input type="text" class="form-control" id="gm-das" placeholder="0,00" onblur="fmtNumField(this)"></div>
         <div class="form-group"><label class="form-label">IRPJ</label><input type="text" class="form-control" id="gm-irpj" placeholder="0,00" onblur="fmtNumField(this)"></div>
         <div class="form-group"><label class="form-label">CSLL</label><input type="text" class="form-control" id="gm-csll" placeholder="0,00" onblur="fmtNumField(this)"></div>
-        <div class="form-group"><label class="form-label">PIS/COFINS (total)</label><input type="text" class="form-control" id="gm-pis" placeholder="0,00" onblur="fmtNumField(this)"></div>
+        <div class="form-group"><label class="form-label">PIS/COFINS/ISS/ICMS</label><input type="text" class="form-control" id="gm-pis" placeholder="0,00" onblur="fmtNumField(this)" title="Soma de PIS, COFINS, ISS, ICMS, DIFAL — preenchido automaticamente pelo Controle Mensal"></div>
         <div class="form-group"><label class="form-label">Receita Serviços</label><input type="text" class="form-control" id="gm-recserv" placeholder="0,00" onblur="fmtNumField(this)"></div>
         <div class="form-group"><label class="form-label">Receita Vendas</label><input type="text" class="form-control" id="gm-recvend" placeholder="0,00" onblur="fmtNumField(this)"></div>
         <div class="form-group"><label class="form-label">Despesas Total</label><input type="text" class="form-control" id="gm-despesas" placeholder="0,00" onblur="fmtNumField(this)"></div>
@@ -1430,10 +1430,10 @@ async function seedSetorObrigacoes(sNome) {
   if (existentes.length && !confirm(`Já existem ${existentes.length} obrigação(ões) em ${sNome}. Adicionar os padrões mesmo assim?`)) return;
   const padrao = {
     DP: [{nome:'Folha de Pagamento',dia_vencimento:5},{nome:'FGTS',dia_vencimento:7},{nome:'eSocial',dia_vencimento:7},{nome:'DCTFWeb',dia_vencimento:15},{nome:'Rescisão',dia_vencimento:10},{nome:'Férias',dia_vencimento:2}],
-    Fiscal: [{nome:'DAS',dia_vencimento:20},{nome:'PIS',dia_vencimento:25},{nome:'COFINS',dia_vencimento:25},{nome:'CSLL',dia_vencimento:30},{nome:'IRPJ',dia_vencimento:30},{nome:'DCTF',dia_vencimento:15},{nome:'Estadual',dia_vencimento:20},{nome:'Municipal',dia_vencimento:20}],
+    Fiscal: [{nome:'DAS',dia_vencimento:20,descricao:'Simples Nacional'},{nome:'PIS',dia_vencimento:25,descricao:'via DCTFWeb'},{nome:'COFINS',dia_vencimento:25,descricao:'via DCTFWeb'},{nome:'CSLL',dia_vencimento:30,descricao:'Trimestral'},{nome:'IRPJ',dia_vencimento:30,descricao:'Trimestral'},{nome:'DCTF',dia_vencimento:15,descricao:'Federal mensal'},{nome:'ISS',dia_vencimento:15,descricao:'Municipal'},{nome:'ICMS',dia_vencimento:20,descricao:'Estadual'},{nome:'DIFAL',dia_vencimento:20,descricao:'Diferencial de alíquota'},{nome:'Estadual',dia_vencimento:20},{nome:'Municipal',dia_vencimento:20}],
     'Contábil': [{nome:'Balanço',dia_vencimento:28},{nome:'DRE',dia_vencimento:28},{nome:'ECF',dia_vencimento:31},{nome:'ECD',dia_vencimento:30}]
   };
-  const rows = (padrao[sNome] || []).map((item, i) => ({ setor_nome: sNome, nome: item.nome, dia_vencimento: item.dia_vencimento, ordem: i+1, ativo: true }));
+  const rows = (padrao[sNome] || []).map((item, i) => ({ setor_nome: sNome, nome: item.nome, descricao: item.descricao||null, dia_vencimento: item.dia_vencimento, ordem: i+1, ativo: true }));
   if (!rows.length) { toast('Atenção', `Sem padrões definidos para "${sNome}" — crie manualmente`, 'warning'); return; }
   const { error } = await sb.from('obrigacoes_templates').insert(rows);
   if (error) { toast('Erro', error.message, 'error'); return; }
@@ -2594,14 +2594,17 @@ async function seedObrigacoesTemplates() {
       {nome:'Férias', dia_vencimento:2}
     ],
     Fiscal: [
-      {nome:'DAS', dia_vencimento:20},
-      {nome:'PIS', dia_vencimento:25},
-      {nome:'COFINS', dia_vencimento:25},
-      {nome:'CSLL', dia_vencimento:30},
-      {nome:'IRPJ', dia_vencimento:30},
-      {nome:'DCTF', dia_vencimento:15},
-      {nome:'Estadual', dia_vencimento:20},
-      {nome:'Municipal', dia_vencimento:20}
+      {nome:'DAS',        dia_vencimento:20, descricao:'Simples Nacional'},
+      {nome:'PIS',        dia_vencimento:25, descricao:'Lucro Presumido/Real — via DCTFWeb'},
+      {nome:'COFINS',     dia_vencimento:25, descricao:'Lucro Presumido/Real — via DCTFWeb'},
+      {nome:'CSLL',       dia_vencimento:30, descricao:'Trimestral (Lucro Presumido)'},
+      {nome:'IRPJ',       dia_vencimento:30, descricao:'Trimestral (Lucro Presumido)'},
+      {nome:'DCTF',       dia_vencimento:15, descricao:'Declaração Federal mensal'},
+      {nome:'ISS',        dia_vencimento:15, descricao:'Imposto Sobre Serviços — Municipal'},
+      {nome:'ICMS',       dia_vencimento:20, descricao:'Imposto sobre Circulação — Estadual'},
+      {nome:'DIFAL',      dia_vencimento:20, descricao:'Diferencial de Alíquota ICMS'},
+      {nome:'Estadual',   dia_vencimento:20, descricao:'Outras obrigações estaduais'},
+      {nome:'Municipal',  dia_vencimento:20, descricao:'Outras obrigações municipais'}
     ],
     'Contábil': [
       {nome:'Balanço', dia_vencimento:28},
@@ -2654,45 +2657,38 @@ async function loadControleMensal() {
   renderControleMensal();
 }
 
-const CM_COLS = {
-  DP: ['Folha','FGTS','eSocial','DCTFWeb','Rescisão','Férias'],
-  Fiscal: ['DAS','PIS','COFINS','CSLL','IRPJ','DCTF','Estadual','Municipal'],
-  'Contábil': ['Balanço','DRE','ECF','ECD']
-};
-// Dia padrão de vencimento por obrigação (no mês da competência ou mês seguinte)
-const CM_VENC = {
-  'Folha':5,'FGTS':7,'eSocial':7,'DCTFWeb':15,'Rescisão':10,'Férias':2,
-  'DAS':20,'PIS':25,'COFINS':25,'CSLL':30,'IRPJ':30,'DCTF':15,'Estadual':20,'Municipal':20,
-  'Balanço':28,'DRE':28,'ECF':31,'ECD':30
-};
-// Obrigações pagas no mês SEGUINTE à competência
-const CM_MES_SEGUINTE = new Set(['FGTS','eSocial','DCTFWeb','PIS','COFINS','CSLL','IRPJ','DCTF']);
+// Obrigações cujo vencimento cai no mês SEGUINTE à competência
+const CM_MES_SEGUINTE = new Set([
+  'FGTS','eSocial','DCTFWeb','PIS','COFINS','CSLL','IRPJ','DCTF','ISS','ICMS','DIFAL','DCTFWeb'
+]);
 
-function cmVencDate(colName, competencia) {
-  const day = CM_VENC[colName];
+// Retorna colunas do setor dinamicamente a partir dos templates cadastrados
+function getCMCols(setor) {
+  const tpls = obrigacoesTemplates
+    .filter(t => t.setor_nome === setor && t.ativo !== false)
+    .sort((a,b) => (a.ordem||99)-(b.ordem||99));
+  return tpls; // retorna objetos completos com id, nome, dia_vencimento
+}
+
+function cmVencDateFromTpl(tpl, competencia) {
+  const day = tpl?.dia_vencimento;
   if (!day || !competencia) return null;
+  const nome = tpl?.nome || '';
   const [y, m] = competencia.split('-').map(Number);
-  const isSeguinte = CM_MES_SEGUINTE.has(colName);
-  const ano = isSeguinte ? (m === 12 ? y + 1 : y) : y;
-  const mesFinal = isSeguinte ? (m === 12 ? 0 : m) : m - 1;
-  const d = new Date(ano, mesFinal, day);
-  return d;
+  const isSeguinte = CM_MES_SEGUINTE.has(nome);
+  const ano = isSeguinte ? (m === 12 ? y+1 : y) : y;
+  const mesFinal = isSeguinte ? (m === 12 ? 0 : m) : m-1;
+  return new Date(ano, mesFinal, day);
 }
 
-function cmVencStr(colName, competencia) {
-  const d = cmVencDate(colName, competencia);
-  if (!d) return '';
-  return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
-}
-
-function cmCellClass(colName, competencia, status) {
-  if (!status || status === 'Concluído' || status === 'N.A' || status === 'Enviado') return '';
-  const d = cmVencDate(colName, competencia);
+function cmCellClassFromTpl(tpl, competencia, status) {
+  if (!status || ['Concluído','N.A','Enviado'].includes(status)) return '';
+  const d = cmVencDateFromTpl(tpl, competencia);
   if (!d) return '';
   const today = new Date(); today.setHours(0,0,0,0);
   const diff = Math.round((d - today) / 86400000);
-  if (diff < 0) return 'background:#fef2f2'; // atrasado
-  if (diff <= 3) return 'background:#fffbeb'; // próximo
+  if (diff < 0) return 'background:#fef2f2';
+  if (diff <= 3) return 'background:#fffbeb';
   return '';
 }
 
@@ -2723,29 +2719,48 @@ function renderControleMensal() {
   // Filtra clientes por setores_contratados
   cli = cli.filter(c => !c.setores_contratados || c.setores_contratados.length === 0 || c.setores_contratados.includes(setor));
 
-  const cols = CM_COLS[setor] || [];
-  const head = `<tr><th>Regime</th><th>Empresa</th><th>Condição</th><th>Whats</th>${cols.map(c => {
-    const vStr = cmVencStr(c, comp);
-    const d = cmVencDate(c, comp);
-    const today = new Date(); today.setHours(0,0,0,0);
-    const diff = d ? Math.round((d - today) / 86400000) : null;
+  // Colunas dinâmicas a partir dos templates do banco
+  const tpls = getCMCols(setor);
+
+  if (tpls.length === 0) {
+    wrap.innerHTML = `<div class="empty-state"><div class="es-icon">📋</div>
+      <p>Nenhuma obrigação cadastrada para o setor <strong>${setor}</strong>.</p>
+      <p style="margin-top:8px;font-size:12px">Acesse o setor na sidebar → aba <strong>Obrigações do Setor</strong> → "Pré-popular" ou crie manualmente.</p>
+    </div>`;
+    return;
+  }
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const head = `<tr><th>Regime</th><th>Empresa</th><th>Condição</th><th>Whats</th>${tpls.map(tpl => {
+    const d = cmVencDateFromTpl(tpl, comp);
+    const vStr = d ? d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '';
+    const diff = d ? Math.round((d - today)/86400000) : null;
     const hdrStyle = diff !== null && diff < 0 ? 'color:var(--danger)' : diff !== null && diff <= 3 ? 'color:var(--warning)' : '';
-    return `<th style="${hdrStyle}">${c}${vStr?`<br><span style="font-size:10px;font-weight:400">${vStr}</span>`:''}</th>`;
+    return `<th style="${hdrStyle}" title="${tpl.descricao||tpl.nome}">${tpl.nome}${vStr?`<br><span style="font-size:10px;font-weight:400">${vStr}</span>`:''}</th>`;
   }).join('')}<th>Obs</th></tr>`;
+
   const body = cli.map(c => {
-    const cells = cols.map(colName => {
-      const tpl = obrigacoesTemplates.find(t => t.setor_nome === setor && t.nome.toLowerCase().includes(colName.toLowerCase()));
-      const match = tpl ? cmData.find(o => o.cliente_id === c.id && o.template_id === tpl.id && o.competencia === comp) : null;
+    const cells = tpls.map(tpl => {
+      const match = cmData.find(o => o.cliente_id === c.id && o.template_id === tpl.id && o.competencia === comp);
       const st = match ? match.status : 'Pendente';
-      const bg = cmCellClass(colName, comp, st);
-      return `<td style="cursor:pointer;${bg}" onclick='openObrigCli("${c.id}","${tpl?tpl.id:''}","${colName.replace(/'/g,"")}")'>
-        <span class="badge ${cmStatusColor(st)}">${st}</span></td>`;
+      const bg = cmCellClassFromTpl(tpl, comp, st);
+      const val = match?.valor ? `<div style="font-size:10px;color:var(--text3);margin-top:1px">${match.valor}</div>` : '';
+      return `<td style="cursor:pointer;${bg}" onclick='openObrigCli("${c.id}","${tpl.id}","${tpl.nome.replace(/'/g,'')}")'>
+        <span class="badge ${cmStatusColor(st)}">${st}</span>${val}</td>`;
     }).join('');
-    return `<tr><td>${regimeBadge(c.regime_tributario)}</td><td><strong>${c.nome}</strong></td>
-      <td style="font-size:11px">${c.condicao||'—'}</td><td style="font-size:11px">${c.whatsapp||'—'}</td>
-      ${cells}<td style="font-size:11px;color:var(--text3)">—</td></tr>`;
+    return `<tr>
+      <td>${regimeBadge(c.regime_tributario)}</td>
+      <td><strong>${c.nome}</strong></td>
+      <td style="font-size:11px">${c.condicao||'—'}</td>
+      <td style="font-size:11px">${c.whatsapp||'—'}</td>
+      ${cells}
+      <td style="font-size:11px;color:var(--text3)">—</td>
+    </tr>`;
   }).join('');
-  wrap.innerHTML = `<table><thead>${head}</thead><tbody>${body||`<tr><td colspan="${cols.length+5}" style="text-align:center;padding:20px;color:var(--text3)">Sem clientes${setor?' no setor '+setor:' ativos'}</td></tr>`}</tbody></table>`;
+
+  wrap.innerHTML = `<table><thead>${head}</thead><tbody>${body||
+    `<tr><td colspan="${tpls.length+5}" style="text-align:center;padding:20px;color:var(--text3)">Sem clientes no setor ${setor}</td></tr>`
+  }</tbody></table>`;
 }
 
 function openObrigCli(clienteId, templateId, colName) {
@@ -3010,9 +3025,8 @@ function fmtNumField(el) {
 // ═══════════════════════════════════════════════════════════
 // Mapa de nome de coluna CM → campo em gerencial_mensal
 const CM_GER_MAP = {
-  'DAS':'das', 'FGTS':'fgts', 'INSS':'inss',
-  'CSLL':'csll', 'IRPJ':'irpj'
-  // PIS e COFINS somados em pis_cofins abaixo
+  'DAS':'das', 'FGTS':'fgts', 'INSS':'inss', 'CSLL':'csll', 'IRPJ':'irpj'
+  // PIS, COFINS → somados em pis_cofins | ISS, ICMS, DIFAL → incluídos em pis_cofins como impostos indiretos
 };
 
 async function syncGerencialFromCM(clienteId, competencia) {
@@ -3020,7 +3034,7 @@ async function syncGerencialFromCM(clienteId, competencia) {
   const ocs = cmData.filter(oc => oc.cliente_id === clienteId && oc.valor);
   if (ocs.length === 0) return;
 
-  let fields = {}, pis = 0, cofins = 0;
+  let fields = {}, impostoIndireto = 0;
   ocs.forEach(oc => {
     const tpl = obrigacoesTemplates.find(t => t.id === oc.template_id);
     if (!tpl) return;
@@ -3029,10 +3043,10 @@ async function syncGerencialFromCM(clienteId, competencia) {
     if (!val) return;
     const key = CM_GER_MAP[nome];
     if (key) fields[key] = fmtBR((parseNum(fields[key]||'0')) + val);
-    if (nome === 'PIS') pis += val;
-    if (nome === 'COFINS') cofins += val;
+    // PIS, COFINS, ISS, ICMS, DIFAL somados em pis_cofins (impostos indiretos)
+    if (['PIS','COFINS','ISS','ICMS','DIFAL'].includes(nome)) impostoIndireto += val;
   });
-  if (pis > 0 || cofins > 0) fields.pis_cofins = fmtBR(pis + cofins);
+  if (impostoIndireto > 0) fields.pis_cofins = fmtBR(impostoIndireto);
   if (Object.keys(fields).length === 0) return;
 
   // Busca registro existente para preservar campos manuais
