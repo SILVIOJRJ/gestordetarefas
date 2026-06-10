@@ -19,7 +19,7 @@ ALTER TABLE parcelas_historico ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all parcelas_historico" ON parcelas_historico FOR ALL USING (true);
 
 -- =====================================================
--- 2. Tabela para observações por linha no Controle Mensal
+-- 2. Tabela para observacoes por linha no Controle Mensal
 -- =====================================================
 CREATE TABLE IF NOT EXISTS cm_obs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -40,17 +40,21 @@ ALTER TABLE processos_legalizacao
   ADD COLUMN IF NOT EXISTS retorno_confirmado BOOLEAN DEFAULT false;
 
 -- =====================================================
--- 4. Coluna responsavel_id em clientes (se não existir)
+-- 4. Colunas adicionais em clientes
 -- =====================================================
 ALTER TABLE clientes
   ADD COLUMN IF NOT EXISTS responsavel_id UUID,
   ADD COLUMN IF NOT EXISTS criado_por TEXT;
 
 -- =====================================================
--- 5. Coluna valor como NUMERIC em obrigacoes_clientes (se for TEXT, converter)
--- Se a coluna já for NUMERIC, este comando não faz nada.
--- Se der erro "column already exists with different type", rode:
---   ALTER TABLE obrigacoes_clientes ALTER COLUMN valor TYPE NUMERIC USING valor::numeric;
+-- 5. Converter coluna valor para NUMERIC em obrigacoes_clientes
+-- Se ja for NUMERIC este comando nao faz nada de errado.
 -- =====================================================
 ALTER TABLE obrigacoes_clientes
-  ALTER COLUMN valor TYPE NUMERIC USING CASE WHEN valor ~ '^[0-9.,]+$' THEN replace(replace(valor,'.',''),',','.')::numeric ELSE NULL END;
+  ALTER COLUMN valor TYPE NUMERIC
+  USING CASE
+    WHEN valor IS NULL OR valor = '' THEN NULL
+    WHEN valor ~ '^[0-9]+,[0-9]+$' THEN replace(valor, ',', '.')::numeric
+    WHEN valor ~ '^[0-9.]+,[0-9]+$' THEN replace(replace(valor, '.', ''), ',', '.')::numeric
+    ELSE valor::numeric
+  END;
