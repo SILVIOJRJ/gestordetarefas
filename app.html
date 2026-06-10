@@ -3141,10 +3141,14 @@ async function saveObrigCliente() {
       cliente_nome: cli?.nome || '', status: 'Pendente',
       criado_por: currentFuncionario?.nome || userEmail
     };
-    await sb.from('entregas').insert(entObj);
-    const { data: enData } = await sb.from('entregas').select('*').order('criado_em', { ascending: false });
-    entregas = enData || [];
-    toast('Office Boy', 'Pendência de entrega criada automaticamente', 'info');
+    const { error: entErr } = await sb.from('entregas').insert(entObj);
+    if (entErr) { toast('Erro Office Boy', entErr.message, 'error'); }
+    else {
+      const { data: enData } = await sb.from('entregas').select('*').order('criado_em', { ascending: false });
+      entregas = enData || [];
+      updateBadges();
+      toast('Office Boy', 'Pendência de entrega criada automaticamente', 'info');
+    }
   }
   closeModal('obrigcli');
   toast('Salvo!','Obrigação atualizada','success');
