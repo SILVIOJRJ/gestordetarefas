@@ -2881,8 +2881,9 @@ async function loadControleMensal() {
   if (setor === 'Legalização') { renderControleMensal(); return; }
   wrap.innerHTML = '<div style="text-align:center;padding:24px"><div class="spinner"></div></div>';
 
-  // Auto-seed templates faltando para Fiscal
+  // Auto-seed templates faltando por setor
   if (setor.toLowerCase() === 'fiscal') await ensureFiscalTemplates();
+  if (setor.toLowerCase() === 'dp') await ensureDPTemplates();
 
   const ocRes = await sb.from('obrigacoes_clientes').select('*').eq('competencia', comp);
   cmData = ocRes.data || [];
@@ -2891,6 +2892,32 @@ async function loadControleMensal() {
     cmObsData = obsRes.data || [];
   } catch(e) { cmObsData = []; }
   renderControleMensal();
+}
+
+async function ensureDPTemplates() {
+  const DP_PADRAO = [
+    {nome:'HOLERITES',     dia_vencimento:5,  descricao:'Quantidade de holerites do mês',     ordem:1},
+    {nome:'FOLHA LÍQUIDA', dia_vencimento:5,  descricao:'Valor total da folha líquida',        ordem:2},
+    {nome:'INSS',          dia_vencimento:20, descricao:'INSS sobre folha — via DCTFWeb',      ordem:3},
+    {nome:'IRRF',          dia_vencimento:20, descricao:'IRRF sobre folha — via DCTFWeb',      ordem:4},
+    {nome:'FGTS',          dia_vencimento:7,  descricao:'FGTS mensal',                         ordem:5},
+  ];
+  const setorNome = obrigacoesTemplates.find(t => t.setor_nome?.toLowerCase() === 'dp')?.setor_nome
+    || setores.find(s => s.nome?.toLowerCase() === 'dp')?.nome
+    || 'DP';
+  const existentes = new Set(
+    obrigacoesTemplates
+      .filter(t => t.setor_nome?.toLowerCase() === 'dp')
+      .map(t => t.nome.toUpperCase())
+  );
+  const faltando = DP_PADRAO.filter(t => !existentes.has(t.nome.toUpperCase()));
+  if (faltando.length === 0) return;
+  const rows = faltando.map(t => ({ ...t, setor_nome: setorNome, ativo: true }));
+  const { error } = await sb.from('obrigacoes_templates').insert(rows);
+  if (!error) {
+    await loadAll();
+    toast('Templates', `${faltando.length} template(s) DP adicionados automaticamente`, 'info');
+  }
 }
 
 async function ensureFiscalTemplates() {
@@ -3005,7 +3032,8 @@ function renderControleMensal() {
 
   // Ordem fixa de colunas por setor (sobrescreve ordem do banco)
   const CM_ORDEM_FISCAL = ['DAS','PIS','COFINS','CSLL','IRPJ','ISS','ICMS'];
-  const CM_ORDEM = { 'fiscal': CM_ORDEM_FISCAL };
+  const CM_ORDEM_DP     = ['HOLERITES','FOLHA LÍQUIDA','INSS','IRRF','FGTS'];
+  const CM_ORDEM = { 'fiscal': CM_ORDEM_FISCAL, 'dp': CM_ORDEM_DP };
 
   let tpls = getCMCols(setor);
   const ordemDesejada = CM_ORDEM[setor.toLowerCase()];
@@ -3028,12 +3056,16 @@ function renderControleMensal() {
     return;
   }
 
-  // Nomes que compõem o TOTAL DCTF WEB MIT
-  const DCTF_NOMES = new Set(['PIS','COFINS','IRPJ','CSLL']);
+  // Colunas DCTF por setor
+  const isDP = setor.toLowerCase() === 'dp';
+  const DCTF_NOMES    = isDP ? new Set(['INSS','IRRF']) : new Set(['PIS','COFINS','IRPJ','CSLL']);
+  const DCTF_LABEL    = isDP ? 'DCTFWeb' : 'Total DCTF';
+  const DCTF_SUBLABEL = isDP ? 'INSS+IRRF' : 'Web MIT';
   const temDctf = tpls.some(t => DCTF_NOMES.has(t.nome.toUpperCase()));
-  // Índice onde inserir a coluna TOTAL DCTF (após ISS, antes de ICMS)
-  const issIdx = tpls.findIndex(t => t.nome.toUpperCase() === 'ISS');
-  const dctfInsertAfter = issIdx >= 0 ? issIdx : tpls.length - 1;
+  // Para Fiscal: inserir após ISS; para DP: inserir após IRRF (ou após FGTS se não achar)
+  const dctfAnchor = isDP ? 'IRRF' : 'ISS';
+  const anchorIdx = tpls.findIndex(t => t.nome.toUpperCase() === dctfAnchor);
+  const dctfInsertAfter = anchorIdx >= 0 ? anchorIdx : tpls.length - 1;
 
   const today = new Date(); today.setHours(0,0,0,0);
   const headCols = tpls.map((tpl, i) => {
@@ -3044,7 +3076,7 @@ function renderControleMensal() {
     const col = `<th style="${hdrStyle}" title="${tpl.descricao||tpl.nome}">${tpl.nome}${vStr?`<br><span style="font-size:10px;font-weight:400">${vStr}</span>`:''}</th>`;
     // Injeta coluna TOTAL DCTF após ISS
     const extra = (temDctf && i === dctfInsertAfter)
-      ? `<th style="background:#eff6ff;color:#1d4ed8;white-space:nowrap" title="Soma PIS+COFINS+IRPJ+CSLL">Total DCTF<br><span style="font-size:10px;font-weight:400">Web MIT</span></th>`
+      ? `<th style="background:#eff6ff;color:#1d4ed8;white-space:nowrap" title="Soma ${[...DCTF_NOMES].join('+')}">${DCTF_LABEL}<br><span style="font-size:10px;font-weight:400">${DCTF_SUBLABEL}</span></th>`
       : '';
     return col + extra;
   }).join('');
@@ -3197,13 +3229,64 @@ function renderGerencial() {
   const tot = { fgts:0, inss:0, das:0, irpj:0, csll:0, pis:0, recserv:0, recvend:0, desp:0, caixa:0 };
   const body = cli.map(c => {
     const g = gerData.find(x => x.cliente_id === c.id && x.competencia === comp);
+    const fgts   = parseNum(g?.fgts);
+    const inss   = parseNum(g?.inss);
+    const das    = parseNum(g?.das);
+    const irpj   = parseNum(g?.irpj);
+    const csll   = parseNum(g?.csll);
+    const pis    = parseNum(g?.pis_cofins);
+    const recserv = parseNum(g?.receita_servicos);
+    const recvend = parseNum(g?.receita_vendas);
+    const desp   = parseNum(g?.despesas_total);
+    const receitas = recserv + recvend;
+    const encargos = fgts + inss;
+    const impostos = das + irpj + csll + pis;
+    // Caixa: usa valor manual se existir, senão calcula automaticamente se tiver dados
+    const caixaManual = g?.caixa_atual != null ? parseNum(g.caixa_atual) : null;
+    const caixaCalc = (receitas > 0 || encargos > 0 || desp > 0 || impostos > 0)
+      ? receitas - encargos - impostos - desp : null;
+    const caixaVal = caixaManual !== null ? caixaManual : caixaCalc;
+    const caixaAuto = caixaManual === null && caixaCalc !== null;
+
     if (g) {
-      tot.fgts += parseNum(g.fgts); tot.inss += parseNum(g.inss); tot.das += parseNum(g.das);
-      tot.irpj += parseNum(g.irpj); tot.csll += parseNum(g.csll); tot.pis += parseNum(g.pis_cofins);
-      tot.recserv += parseNum(g.receita_servicos); tot.recvend += parseNum(g.receita_vendas);
-      tot.desp += parseNum(g.despesas_total); tot.caixa += parseNum(g.caixa_atual);
+      tot.fgts += fgts; tot.inss += inss; tot.das += das;
+      tot.irpj += irpj; tot.csll += csll; tot.pis += pis;
+      tot.recserv += recserv; tot.recvend += recvend;
+      tot.desp += desp; tot.caixa += caixaVal || 0;
     }
     const cell = v => `<td class="font-mono">${g&&v?fmtBR(parseNum(v)):'—'}</td>`;
+
+    // Caixa: destaque visual, cor por positivo/negativo, indicador auto-calculado
+    const caixaColor = caixaVal === null ? 'var(--text3)' : caixaVal >= 0 ? '#15803d' : '#dc2626';
+    const caixaBg = caixaVal === null ? '' : caixaVal >= 0 ? 'background:#f0fdf4' : 'background:#fef2f2';
+    const caixaCell = `<td class="font-mono" style="font-weight:700;${caixaBg};color:${caixaColor};border-left:2px solid ${caixaVal===null?'#e2e8f0':caixaVal>=0?'#86efac':'#fca5a5'}">
+      ${caixaVal!==null ? fmtBR(caixaVal) : '—'}
+      ${caixaAuto ? '<span style="font-size:9px;opacity:.6;display:block">auto</span>' : ''}
+    </td>`;
+
+    // Fator R: apenas para Simples Nacional com condição Fator R
+    const isFatorR = (c.condicao||'').toLowerCase().includes('fator r');
+    const isSimplesNacional = (c.regime_tributario||'').toLowerCase().includes('simples');
+    let fatorRCell = '<td style="text-align:center">—</td>';
+    if (isFatorR && isSimplesNacional && g) {
+      // Estimativa: folha bruta ≈ INSS/0.28 (INSS patronal ~28% da folha bruta)
+      const folhaEst = inss > 0 ? inss / 0.28 : fgts > 0 ? fgts / 0.08 : 0;
+      if (folhaEst > 0 && receitas > 0) {
+        const ratio = (folhaEst / receitas) * 100;
+        const rColor = ratio >= 28 ? '#15803d' : ratio >= 24 ? '#d97706' : '#dc2626';
+        const rBg    = ratio >= 28 ? '#f0fdf4' : ratio >= 24 ? '#fffbeb' : '#fef2f2';
+        const rIcon  = ratio >= 28 ? '✅' : ratio >= 24 ? '⚠️' : '🔴';
+        fatorRCell = `<td style="text-align:center;background:${rBg};font-size:11px">
+          <span style="color:${rColor};font-weight:600">${rIcon} ${ratio.toFixed(1)}%</span>
+          <span style="display:block;font-size:9px;color:var(--text3)">Fator R</span>
+        </td>`;
+      } else {
+        fatorRCell = `<td style="text-align:center;font-size:11px"><span style="color:#d97706">⚠️ FR</span><span style="display:block;font-size:9px;color:var(--text3)">Sem dados</span></td>`;
+      }
+    } else if (isFatorR) {
+      fatorRCell = `<td style="text-align:center;font-size:10px;color:#7c3aed">FR</td>`;
+    }
+
     return `<tr style="cursor:pointer" onclick='openGerencial("${c.id}")'>
       <td>${regimeBadge(c.regime_tributario)}</td>
       <td><strong>${c.nome}</strong></td>
@@ -3211,26 +3294,31 @@ function renderGerencial() {
       ${cell(g?.fgts)}${cell(g?.inss)}${cell(g?.das)}
       ${cell(g?.irpj)}${cell(g?.csll)}${cell(g?.pis_cofins)}
       ${cell(g?.receita_servicos)}${cell(g?.receita_vendas)}
-      ${cell(g?.despesas_total)}${cell(g?.caixa_atual)}
+      ${cell(g?.despesas_total)}${caixaCell}${fatorRCell}
       <td style="font-size:11px;color:var(--text3)">${g?.obs||'—'}</td>
       <td style="font-size:11px;color:var(--text3)">${g?.atualizado_por||'—'}</td>
     </tr>`;
   }).join('');
 
+  const caixaTotColor = tot.caixa >= 0 ? '#15803d' : '#dc2626';
   const footer = `<tr style="background:var(--surface2);font-weight:700">
     <td colspan="3">TOTAIS</td>
     <td class="font-mono">${fmtBR(tot.fgts)}</td><td class="font-mono">${fmtBR(tot.inss)}</td>
     <td class="font-mono">${fmtBR(tot.das)}</td><td class="font-mono">${fmtBR(tot.irpj)}</td>
     <td class="font-mono">${fmtBR(tot.csll)}</td><td class="font-mono">${fmtBR(tot.pis)}</td>
     <td class="font-mono">${fmtBR(tot.recserv)}</td><td class="font-mono">${fmtBR(tot.recvend)}</td>
-    <td class="font-mono">${fmtBR(tot.desp)}</td><td class="font-mono">${fmtBR(tot.caixa)}</td>
-    <td></td><td></td></tr>`;
+    <td class="font-mono">${fmtBR(tot.desp)}</td>
+    <td class="font-mono" style="color:${caixaTotColor};font-weight:800">${fmtBR(tot.caixa)}</td>
+    <td></td><td></td><td></td></tr>`;
 
   wrap.innerHTML = `<table><thead><tr>
     <th>Regime</th><th>Empresa</th><th>Condição</th><th>FGTS</th><th>INSS</th><th>DAS</th>
     <th>IRPJ</th><th>CSLL</th><th>PIS/COFINS</th><th>Rec. Serviços</th><th>Rec. Vendas</th>
-    <th>Despesas</th><th>Caixa</th><th>Obs</th><th>Atualizado por</th></tr></thead>
-    <tbody>${body||'<tr><td colspan=15 style="text-align:center;padding:20px;color:var(--text3)">Sem clientes</td></tr>'}${cli.length?footer:''}</tbody></table>`;
+    <th>Despesas</th>
+    <th style="background:#eff6ff;color:#1d4ed8;border-left:2px solid #93c5fd">Caixa<br><span style="font-size:9px;font-weight:400">Rec−Enc−Imp−Desp</span></th>
+    <th style="background:#f5f3ff;color:#7c3aed;white-space:nowrap">Fator R</th>
+    <th>Obs</th><th>Atualizado por</th></tr></thead>
+    <tbody>${body||'<tr><td colspan=16 style="text-align:center;padding:20px;color:var(--text3)">Sem clientes</td></tr>'}${cli.length?footer:''}</tbody></table>`;
 }
 
 function openGerencial(clienteId) {
