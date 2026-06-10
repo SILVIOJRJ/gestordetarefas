@@ -2911,10 +2911,11 @@ const CM_MES_SEGUINTE = new Set([
 
 // Retorna colunas do setor dinamicamente a partir dos templates cadastrados
 function getCMCols(setor) {
+  const s = (setor||'').toLowerCase();
   const tpls = obrigacoesTemplates
-    .filter(t => t.setor_nome === setor && t.ativo !== false)
+    .filter(t => (t.setor_nome||'').toLowerCase() === s && t.ativo !== false)
     .sort((a,b) => (a.ordem||99)-(b.ordem||99));
-  return tpls; // retorna objetos completos com id, nome, dia_vencimento
+  return tpls;
 }
 
 function cmVencDateFromTpl(tpl, competencia) {
@@ -2969,12 +2970,11 @@ function renderControleMensal() {
 
   // Ordem fixa de colunas por setor (sobrescreve ordem do banco)
   const CM_ORDEM_FISCAL = ['DAS','PIS','COFINS','CSLL','IRPJ','ISS','ICMS'];
-  const CM_ORDEM = { 'Fiscal': CM_ORDEM_FISCAL, 'FISCAL': CM_ORDEM_FISCAL };
+  const CM_ORDEM = { 'fiscal': CM_ORDEM_FISCAL };
 
   let tpls = getCMCols(setor);
-  if (CM_ORDEM[setor]) {
-    const ordemDesejada = CM_ORDEM[setor];
-    // Filtra só os templates da lista e ordena conforme a ordem desejada
+  const ordemDesejada = CM_ORDEM[setor.toLowerCase()];
+  if (ordemDesejada) {
     tpls = ordemDesejada
       .map(nome => tpls.find(t => t.nome.toUpperCase() === nome.toUpperCase()))
       .filter(Boolean);
@@ -3338,29 +3338,29 @@ function fmtNumField(el) {
 // SYNC CONTROLE MENSAL → GERENCIAL
 // ═══════════════════════════════════════════════════════════
 // Mapa de nome de coluna CM → campo em gerencial_mensal
+// Mapa nome do template (uppercase) → campo em gerencial_mensal
 const CM_GER_MAP = {
   'DAS':'das', 'FGTS':'fgts', 'INSS':'inss', 'CSLL':'csll', 'IRPJ':'irpj'
-  // PIS, COFINS → somados em pis_cofins | ISS, ICMS, DIFAL → incluídos em pis_cofins como impostos indiretos
 };
+// PIS, COFINS, ISS, ICMS somados em pis_cofins
+const CM_GER_INDIRETO = new Set(['PIS','COFINS','ISS','ICMS','DIFAL']);
 
 async function syncGerencialFromCM(clienteId, competencia) {
-  // cmData já foi recarregado pelo loadControleMensal antes desta chamada
-  const ocs = cmData.filter(oc => oc.cliente_id === clienteId && oc.valor);
+  const ocs = cmData.filter(oc => oc.cliente_id === clienteId && oc.valor != null);
   if (ocs.length === 0) return;
 
   let fields = {}, impostoIndireto = 0;
   ocs.forEach(oc => {
     const tpl = obrigacoesTemplates.find(t => t.id === oc.template_id);
     if (!tpl) return;
-    const nome = tpl.nome;
-    const val = parseNum(oc.valor);
+    const nome = (tpl.nome||'').toUpperCase();
+    const val = parseNum(String(oc.valor));
     if (!val) return;
     const key = CM_GER_MAP[nome];
-    if (key) fields[key] = fmtBR((parseNum(fields[key]||'0')) + val);
-    // PIS, COFINS, ISS, ICMS, DIFAL somados em pis_cofins (impostos indiretos)
-    if (['PIS','COFINS','ISS','ICMS','DIFAL'].includes(nome)) impostoIndireto += val;
+    if (key) fields[key] = (fields[key]||0) + val;
+    if (CM_GER_INDIRETO.has(nome)) impostoIndireto += val;
   });
-  if (impostoIndireto > 0) fields.pis_cofins = fmtBR(impostoIndireto);
+  if (impostoIndireto > 0) fields.pis_cofins = impostoIndireto;
   if (Object.keys(fields).length === 0) return;
 
   // Busca registro existente para preservar campos manuais
