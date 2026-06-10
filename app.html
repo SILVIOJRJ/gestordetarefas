@@ -665,8 +665,6 @@
           <select class="form-control" id="c-regime"><option value="">—</option><option>Simples Nacional</option><option>Lucro Presumido</option><option>Lucro Real</option><option>MEI</option><option>CAEPF/CEI</option><option>Sem Empregados</option><option>Produtor Rural</option><option>Condomínio</option></select></div>
         <div class="form-group"><label class="form-label">Condição</label>
           <select class="form-control" id="c-condicao"><option value="">—</option><option>Normal</option><option>Inativo</option><option>Doméstico</option><option>Ponto</option><option>Fator R</option><option>CPRB</option><option>Sem Movimento</option></select></div>
-        <div class="form-group form-full"><label class="form-label">Responsável (Funcionário)</label>
-          <select class="form-control" id="c-responsavel"><option value="">Sem responsável</option></select></div>
         <div class="form-group form-full"><label class="form-label">Observações</label><input type="text" class="form-control" id="c-obs" placeholder="Informações adicionais"></div>
         <div class="form-group form-full">
           <label class="form-label">Setores contratados</label>
@@ -1793,7 +1791,7 @@ async function saveCliente() {
   const obj = {
     nome, cnpj_cpf:gv('c-cnpj'), email:gv('c-email'), telefone:gv('c-telefone'),
     whatsapp:gv('c-whatsapp'), regime_tributario:gv('c-regime')||null, condicao:gv('c-condicao')||null,
-    responsavel_id:gv('c-responsavel')||null, obs:gv('c-obs'),
+    obs:gv('c-obs'),
     setores_contratados: getSetoresContratados(),
     ativo:document.getElementById('c-ativo').checked
   };
@@ -1909,7 +1907,7 @@ function editCliente(id) {
   setV('c-nome',c.nome); setV('c-cnpj',c.cnpj_cpf); setV('c-email',c.email);
   setV('c-telefone',c.telefone); setV('c-whatsapp',c.whatsapp);
   setV('c-regime',c.regime_tributario||''); setV('c-condicao',c.condicao||'');
-  setV('c-responsavel',c.responsavel_id||''); setV('c-obs',c.obs);
+  setV('c-obs',c.obs);
   document.getElementById('c-ativo').checked = c.ativo !== false;
   document.getElementById('modal-cliente').classList.add('open');
 }
