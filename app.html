@@ -841,6 +841,13 @@
         <div class="form-group form-full"><label class="form-label">Status</label>
           <select class="form-control" id="oc-status"><option>Pendente</option><option>Concluído</option><option>N.A</option><option>Enviado</option></select></div>
         <div class="form-group form-full"><label class="form-label">Valor (R$)</label><input type="text" class="form-control" id="oc-valor" placeholder="0,00" onblur="fmtNumField(this)"></div>
+        <div class="form-group form-full" id="oc-consignado-group" style="display:none">
+          <label class="form-label" style="display:flex;align-items:center;gap:6px">
+            💳 Empréstimo Consignado (R$)
+            <span style="font-size:11px;color:var(--text3);font-weight:400">— será somado ao FGTS no Gerencial</span>
+          </label>
+          <input type="text" class="form-control" id="oc-consignado" placeholder="0,00" onblur="fmtNumField(this)">
+        </div>
         <div class="form-group form-full"><label class="form-label">Observação</label><textarea class="form-control" id="oc-obs" rows="2" placeholder="Observações..."></textarea></div>
         <div class="form-group form-full">
           <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
@@ -984,8 +991,19 @@ let calSelected = null; // {y,m,d} dia selecionado
 function canSee(item) {
   if (isAdmin || !currentFuncionario) return true;
   const vis = item.setores_visibilidade;
+  const norm = s => (s||'').trim().toLowerCase();
+
+  // Itens com campo `setor` (tarefas, obrigações setoriais) seguem lógica de setor nativo
+  if (item.setor && userSetor) {
+    // Mesmo setor: sempre visível
+    if (norm(item.setor) === norm(userSetor)) return true;
+    // Setor diferente: só visível se houver flag explícita em setores_visibilidade
+    return Array.isArray(vis) && vis.some(v => norm(v) === norm(userSetor));
+  }
+
+  // Itens sem setor definido (parcelamentos, inss_pf, etc.): comportamento legado
   if (!vis || vis.length === 0) return true;
-  if (userSetor && vis.includes(userSetor)) return true;
+  if (userSetor && vis.some(v => norm(v) === norm(userSetor))) return true;
   if (item.responsavel && currentFuncionario.nome && item.responsavel === currentFuncionario.nome) return true;
   return false;
 }
@@ -1260,7 +1278,7 @@ function buildAlerts() {
       list.push({ type:'warning', icon:'⚠️', title:`INSS vence em ${diff}d`, msg:i.nome });
   });
 
-  tarefas.forEach(t => {
+  filterByAccess(tarefas).forEach(t => {
     if (!t.prazo || t.status === 'Concluída') return;
     const d = new Date(t.prazo + 'T00:00:00');
     if (d < today) list.push({ type:'error', icon:'📌', title:'Tarefa ATRASADA', msg:`${t.titulo} — ${t.responsavel}` });
@@ -1308,7 +1326,7 @@ function buildAlerts() {
 function updateBadges() {
   const pPend = parcelamentos.filter(p => ['Não iniciada','Em andamento'].includes(p.status)).length;
   const iPend = inss.filter(i => ['Pendente','Em Atraso'].includes(i.status)).length;
-  const tPend = tarefas.filter(t => ['Pendente','Em andamento','Atrasada'].includes(t.status)).length;
+  const tPend = filterByAccess(tarefas).filter(t => ['Pendente','Em andamento','Atrasada'].includes(t.status)).length;
   document.getElementById('badge-parc').textContent = pPend;
   document.getElementById('badge-inss').textContent = iPend;
   document.getElementById('badge-tar').textContent = tPend;
@@ -2277,7 +2295,8 @@ function openModal(type) {
     setV('t-competencia', currentMonthStr());
     document.getElementById('t-doc-enviado').checked = false;
     document.getElementById('t-envio-wrap').style.display = 'none';
-    populateTarefaSelects('');
+    // Pré-seleciona setor do usuário logado para não-admins
+    populateTarefaSelects(!isAdmin && userSetor ? userSetor : '');
     renderVisibilidadeCheckboxes('t-visibilidade', null, userSetor);
     document.getElementById('modal-tar-title').textContent = 'Nova Tarefa';
     document.getElementById('modal-tarefa').classList.add('open');
@@ -3144,6 +3163,12 @@ function openObrigCli(clienteId, templateId, colName) {
   setV('oc-obs', reg ? reg.observacao : '');
   const obEl = document.getElementById('oc-officeboy');
   if (obEl) obEl.checked = false;
+  // Mostrar campo consignado apenas para FGTS
+  const isFGTS = (colName||'').toUpperCase() === 'FGTS';
+  const consGrp = document.getElementById('oc-consignado-group');
+  if (consGrp) consGrp.style.display = isFGTS ? '' : 'none';
+  const consVal = reg?.valor_consignado;
+  setV('oc-consignado', isFGTS && consVal != null ? fmtBR(parseFloat(consVal)) : '');
   document.getElementById('modal-obrigcli').classList.add('open');
 }
 
@@ -3153,9 +3178,13 @@ async function saveObrigCliente() {
   const valorRaw = gv('oc-valor');
   const valorNum = valorRaw ? parseNum(valorRaw) : null;
   const officeboy = document.getElementById('oc-officeboy')?.checked;
+  const consGrp = document.getElementById('oc-consignado-group');
+  const consRaw = consGrp?.style.display !== 'none' ? gv('oc-consignado') : null;
+  const consNum = consRaw ? parseNum(consRaw) || null : null;
   const obj = {
     cliente_id: ocCtx.cliente_id, template_id: ocCtx.template_id, competencia: ocCtx.competencia,
     status: gv('oc-status'), valor: valorNum, observacao: gv('oc-obs')||null,
+    valor_consignado: consNum,
     concluido_por: currentFuncionario?.nome || userEmail,
     data_conclusao: gv('oc-status') === 'Concluído' ? new Date().toISOString().split('T')[0] : null
   };
@@ -3495,10 +3524,15 @@ async function syncGerencialFromCM(clienteId, competencia) {
     if (!tpl) return;
     const nome = (tpl.nome||'').toUpperCase();
     const val = parseNum(String(oc.valor));
-    if (!val) return;
     const key = CM_GER_MAP[nome];
-    if (key) fields[key] = (fields[key]||0) + val;
-    if (CM_GER_INDIRETO.has(nome)) impostoIndireto += val;
+    if (key) {
+      if (val) fields[key] = (fields[key]||0) + val;
+      // Empréstimo consignado soma ao FGTS no gerencial
+      if (nome === 'FGTS' && oc.valor_consignado) {
+        fields[key] = (fields[key]||0) + parseNum(String(oc.valor_consignado));
+      }
+    }
+    if (CM_GER_INDIRETO.has(nome) && val) impostoIndireto += val;
   });
   if (impostoIndireto > 0) fields.pis_cofins = impostoIndireto;
   if (Object.keys(fields).length === 0) return;
