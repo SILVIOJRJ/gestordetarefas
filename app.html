@@ -1647,23 +1647,21 @@ function canSee(item) {
   const vis = item.setores_visibilidade;
   const hasVis = Array.isArray(vis) && vis.length > 0;
 
-  // Itens com campo `setor` (tarefas): lógica de setor nativo
-  if (item.setor && userSetor) {
-    if (norm(item.setor) === norm(userSetor)) return true;
-    // Setor diferente: só visível se userSetor estiver em setores_visibilidade
+  // Itens com campo `setor` (tarefas): lógica estrita de setor
+  if ('setor' in item) {
+    if (!userSetor) return true; // usuário sem setor vê tudo (compatibilidade)
+    if (!item.setor && !hasVis) return false; // sem setor + sem vis = só admin vê
+    if (!item.setor && hasVis) return vis.some(v => norm(v) === norm(userSetor));
+    if (norm(item.setor) === norm(userSetor)) return true; // mesmo setor
+    // Setor diferente: só via setores_visibilidade explícita
     return hasVis && vis.some(v => norm(v) === norm(userSetor));
   }
 
-  // Usuário sem setor: vê tudo
-  if (!userSetor) return true;
-
   // Itens sem campo `setor` (parcelamentos, inss_pf, etc.)
-  if (hasVis) {
-    // setores_visibilidade definido: respeita a lista
-    return vis.some(v => norm(v) === norm(userSetor));
-  }
+  if (!userSetor) return true;
+  if (hasVis) return vis.some(v => norm(v) === norm(userSetor));
 
-  // Sem setores_visibilidade: infere setor pelo criador
+  // Sem vis: infere pelo criador
   if (item.criado_por) {
     const criador = funcionarios.find(f =>
       norm(f.nome) === norm(item.criado_por) || norm(f.email||'') === norm(item.criado_por)
@@ -1671,12 +1669,10 @@ function canSee(item) {
     if (criador) {
       const setorCriador = setores.find(s => s.id === criador.setor_id);
       if (setorCriador) return norm(setorCriador.nome) === norm(userSetor);
-      // Criador sem setor = admin global → item visível a todos
-      return true;
+      return true; // criador sem setor = item global (parcelamentos/INSS antigos)
     }
   }
-  // Sem criador identificável = item global (visível a todos)
-  return true;
+  return true; // item global sem criador identificável
 }
 function filterByAccess(items) {
   if (!currentFuncionario) return items;
@@ -2150,16 +2146,8 @@ function renderDashboard() {
   const accInss = filterByAccess(inss);
   // Filtragem de tarefas: garante que usuários com setor só vejam tarefas do seu setor
   const norm = s => (s||'').trim().toLowerCase();
-  const accTar = filterByAccess(tarefas).filter(t => {
-    if (!userSetor) return true; // sem setor = vê tudo
-    if (!t.setor) return true;   // tarefa sem setor = visível a todos
-    if (norm(t.setor) === norm(userSetor)) return true; // mesmo setor
-    // Setor diferente: só aparece se explicitamente compartilhado
-    const vis = t.setores_visibilidade;
-    return Array.isArray(vis) && vis.some(v => norm(v) === norm(userSetor));
-  });
-  console.log('[Tarefas] total:', tarefas.length, '| após filtro:', accTar.length, '| userSetor:', userSetor, '| isAdmin:', isAdmin);
-
+  // filterByAccess já aplica canSee (que agora tem lógica correta de setor)
+  const accTar = filterByAccess(tarefas);
   const alerts = buildAlerts();
   document.getElementById('dash-alerts').innerHTML = alerts.slice(0,5).map(a => {
     const cls = a.type==='error'?'danger':a.type==='info'?'info':'warning';
@@ -2590,11 +2578,6 @@ function renderTarefas() {
   const normS = s => (s||'').trim().toLowerCase();
   const adminNome = currentFuncionario?.nome ? normS(currentFuncionario.nome) : null;
   let data = filterByAccess(tarefas).filter(t => {
-    // Dupla garantia de setor apenas para não-admins
-    if (!isAdmin && userSetor && t.setor && normS(t.setor) !== normS(userSetor)) {
-      const vis = t.setores_visibilidade;
-      if (!Array.isArray(vis) || !vis.some(v => normS(v) === normS(userSetor))) return false;
-    }
     const m = search ? [t.titulo,t.descricao,t.responsavel].join(' ').toLowerCase().includes(search) : true;
     if (!m) return false;
     if (fS && t.setor !== fS) return false;
