@@ -447,6 +447,26 @@
   .mta-kpi-mini-val { font-size:26px; font-weight:800; color:#e2e8f0; }
   .mta-kpi-mini-label { font-size:11px; color:#64748b; margin-top:4px; }
   @media(max-width:768px) { #page-minhas-tarefas-admin { padding:16px; } }
+  /* Timeline de eventos de tarefa */
+  .task-timeline { position:relative; padding-left:24px; margin:10px 0; }
+  .task-timeline::before { content:''; position:absolute; left:7px; top:0; bottom:0; width:2px; background:rgba(255,255,255,0.08); }
+  .task-evento-item { position:relative; margin-bottom:14px; }
+  .task-evento-dot { position:absolute; left:-20px; top:4px; width:12px; height:12px; border-radius:50%; background:#6366f1; border:2px solid #1e293b; flex-shrink:0; }
+  .task-evento-dot.tipo-protocolo { background:#3b82f6; }
+  .task-evento-dot.tipo-situacao  { background:#f59e0b; }
+  .task-evento-dot.tipo-conclusao { background:#22c55e; }
+  .task-evento-dot.tipo-abertura  { background:#8b5cf6; }
+  .task-evento-card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:10px 14px; }
+  .task-evento-header { display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap; }
+  .task-evento-titulo { font-size:13px; font-weight:600; color:#e2e8f0; }
+  .task-evento-protocolo { font-size:11px; background:rgba(59,130,246,0.15); color:#60a5fa; padding:2px 8px; border-radius:6px; font-family:monospace; }
+  .task-evento-situacao  { font-size:11px; background:rgba(245,158,11,0.15); color:#fbbf24; padding:2px 8px; border-radius:6px; }
+  .task-evento-desc { font-size:12px; color:#94a3b8; margin-top:4px; }
+  .task-evento-meta { font-size:10px; color:#475569; margin-top:5px; }
+  .btn-progresso { background:rgba(99,102,241,0.2); color:#a5b4fc; border:1px solid rgba(99,102,241,0.35); border-radius:8px; padding:5px 12px; font-size:12px; font-weight:600; cursor:pointer; }
+  .btn-progresso:hover { background:rgba(99,102,241,0.35); }
+  .btn-abertura { background:rgba(139,92,246,0.2); color:#c4b5fd; border:1px solid rgba(139,92,246,0.35); border-radius:8px; padding:5px 12px; font-size:12px; font-weight:600; cursor:pointer; }
+  .btn-abertura:hover { background:rgba(139,92,246,0.35); }
 </style>
 </head>
 <body>
@@ -1432,6 +1452,51 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('entrega')">Cancelar</button>
       <button class="btn btn-success" id="btn-confirmar-entrega" onclick="confirmarEntrega()">✅ Confirmar Entrega</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PROGRESSO DE TAREFA -->
+<div class="modal-overlay" id="modal-task-evento">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header" style="background:#1e293b;color:#f1f5f9">
+      <div class="modal-icon" style="background:rgba(99,102,241,0.2);font-size:20px">📝</div>
+      <div class="modal-title" style="color:#f1f5f9">Registrar Andamento</div>
+      <button class="modal-close" onclick="closeModal('task-evento')" style="color:#94a3b8">✕</button>
+    </div>
+    <div class="modal-body" style="background:#0f172a">
+      <div class="form-grid">
+        <div class="form-group form-full">
+          <label class="form-label" style="color:#94a3b8">Tipo de evento</label>
+          <select class="form-control" id="ev-tipo" onchange="onEventoTipoChange()" style="background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.12);color:#e2e8f0">
+            <option value="progresso">📋 Atualização de progresso</option>
+            <option value="protocolo">🔢 Número de protocolo / código</option>
+            <option value="situacao">📍 Mudança de situação</option>
+            <option value="abertura">🏢 Dados de abertura</option>
+            <option value="conclusao">✅ Conclusão / encerramento</option>
+          </select>
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label" style="color:#94a3b8">Título do evento *</label>
+          <input type="text" class="form-control" id="ev-titulo" placeholder="Ex: Protocolo recebido na JUCEMG" style="background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.12);color:#e2e8f0">
+        </div>
+        <div class="form-group" id="ev-protocolo-wrap">
+          <label class="form-label" style="color:#94a3b8">Nº Protocolo / PRP / Código</label>
+          <input type="text" class="form-control" id="ev-protocolo" placeholder="Ex: PRP-2026-001234" style="background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.12);color:#e2e8f0;font-family:monospace">
+        </div>
+        <div class="form-group" id="ev-situacao-wrap">
+          <label class="form-label" style="color:#94a3b8">Situação atual</label>
+          <input type="text" class="form-control" id="ev-situacao" placeholder="Ex: Aguardando deferimento" style="background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.12);color:#e2e8f0">
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label" style="color:#94a3b8">Descrição / Observações</label>
+          <textarea class="form-control" id="ev-descricao" rows="3" placeholder="Detalhes adicionais sobre este evento..." style="background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.12);color:#e2e8f0;resize:vertical"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="background:#0f172a;border-top:1px solid rgba(255,255,255,0.08)">
+      <button class="btn btn-ghost" onclick="closeModal('task-evento')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-evento" onclick="saveTaskEvento()">💾 Registrar</button>
     </div>
   </div>
 </div>
@@ -3117,6 +3182,14 @@ async function saveCliente() {
     const regime = gv('cli-regime') || null;
     await criarTarefasEmpresaNova(savedId, nome, regime);
   }
+  // Se veio de openClienteFromTask, vincula a tarefa-origem ao cliente salvo
+  if (savedId && window._aberturaSourceTarefaId) {
+    await sb.from('tarefas').update({ cliente_id: savedId, updated_at: new Date().toISOString() })
+      .eq('id', window._aberturaSourceTarefaId);
+    const orig = tarefas.find(x => x.id === window._aberturaSourceTarefaId);
+    if (orig) orig.cliente_id = savedId;
+    window._aberturaSourceTarefaId = null;
+  }
 }
 
 async function saveSetor() {
@@ -3382,7 +3455,8 @@ function closeModal(type) {
     processo:'modal-processo', obrigtemplate:'modal-obrigtemplate',
     obrigcli:'modal-obrigcli', gerencial:'modal-gerencial',
     entrega:'modal-entrega', 'admin-tarefa':'modal-admin-tarefa',
-    rotina:'modal-rotina', 'parc-cronograma':'modal-parc-cronograma' };
+    rotina:'modal-rotina', 'parc-cronograma':'modal-parc-cronograma',
+    'task-evento':'modal-task-evento' };
   document.getElementById(map[type])?.classList.remove('open');
 }
 
@@ -4874,6 +4948,95 @@ function renderPainelAdmin() {
   }
 }
 
+// ─── TASK EVENTOS (ANDAMENTO) ────────────────────────────────────────────────
+
+function isAberturaTask(t) {
+  const txt = ((t.titulo||'') + ' ' + (t.descricao||'')).toLowerCase();
+  return txt.includes('abertura') || txt.includes('empresa nova') || txt.includes('[empresa nova]') || txt.includes('legaliza');
+}
+
+function onEventoTipoChange() {
+  const tipo = document.getElementById('ev-tipo')?.value;
+  const showProtocolo = ['protocolo','abertura','situacao','conclusao','progresso'].includes(tipo);
+  const showSituacao  = ['situacao','abertura','conclusao','progresso'].includes(tipo);
+  document.getElementById('ev-protocolo-wrap').style.display = showProtocolo ? '' : 'none';
+  document.getElementById('ev-situacao-wrap').style.display  = showSituacao  ? '' : 'none';
+}
+
+function openTaskEventoModal(tarefaId) {
+  _currentDetailTarefaId = tarefaId;
+  document.getElementById('ev-tipo').value = 'progresso';
+  document.getElementById('ev-titulo').value = '';
+  document.getElementById('ev-protocolo').value = '';
+  document.getElementById('ev-situacao').value = '';
+  document.getElementById('ev-descricao').value = '';
+  onEventoTipoChange();
+  document.getElementById('modal-task-evento').classList.add('open');
+}
+
+async function saveTaskEvento() {
+  const tarefaId = _currentDetailTarefaId;
+  if (!tarefaId) return;
+  const titulo = document.getElementById('ev-titulo')?.value?.trim();
+  if (!titulo) { toast('Atenção','Informe o título do evento','warning'); return; }
+  setBusy('btn-save-evento', true);
+  const { error } = await sb.from('task_eventos').insert({
+    tarefa_id: tarefaId,
+    tipo: document.getElementById('ev-tipo')?.value || 'progresso',
+    titulo,
+    protocolo: document.getElementById('ev-protocolo')?.value?.trim() || null,
+    situacao:  document.getElementById('ev-situacao')?.value?.trim()  || null,
+    descricao: document.getElementById('ev-descricao')?.value?.trim() || null,
+    autor: currentFuncionario?.nome || userEmail
+  });
+  setBusy('btn-save-evento', false);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  closeModal('task-evento');
+  toast('Registrado!', 'Andamento salvo na timeline', 'success');
+  // Auto-advance task status to Em andamento if still Pendente
+  const t = tarefas.find(x => x.id === tarefaId);
+  if (t && t.status === 'Pendente') {
+    await sb.from('tarefas').update({ status:'Em andamento', updated_at:new Date().toISOString() }).eq('id', tarefaId);
+    t.status = 'Em andamento';
+  }
+  openAdminTarefaDetail(tarefaId);
+}
+
+function openClienteFromTask(tarefaId) {
+  const t = tarefas.find(x => x.id === tarefaId);
+  if (!t) return;
+  // Extract client name: remove prefixes like [EMPRESA NOVA], "Legalização —", etc.
+  let nomeBase = (t.titulo||'')
+    .replace(/\[EMPRESA NOVA\]/gi,'')
+    .replace(/Parametrização\s+\w+\s*[—\-]/i,'')
+    .replace(/Legalização\s*[—\-]/i,'')
+    .replace(/Abertura\s+(de\s+)?empresa\s*[—\-]?/i,'')
+    .replace(/\s*[—\-]\s*.+$/,'')
+    .trim();
+
+  // Close detail modal first, then open cliente modal
+  closeModal('admin-tarefa');
+  editingId.cliente = null;
+  clearFormPadr(['c-nome','c-cnpj','c-email','c-telefone','c-whatsapp','c-obs']);
+  setV('c-regime',''); setV('c-condicao','');
+  document.getElementById('c-ativo').checked = true;
+  document.getElementById('cli-empresa-nova').checked = true;
+  onEmpresaNovaChange();
+  setV('c-nome', nomeBase);
+  // Pre-fill regime from task description if available
+  const desc = (t.descricao||'').toLowerCase();
+  if (desc.includes('simples nacional')) setV('cli-regime','Simples Nacional');
+  else if (desc.includes('lucro presumido')) setV('cli-regime','Lucro Presumido');
+  else if (desc.includes('lucro real')) setV('cli-regime','Lucro Real');
+  else if (desc.includes('mei')) setV('cli-regime','MEI');
+  // Store the source task id so saveCliente can link the 4 tasks to it
+  window._aberturaSourceTarefaId = tarefaId;
+  populateClienteSelects();
+  renderSetoresContratadosCheckboxes([]);
+  document.getElementById('modal-cli-title').textContent = '🏢 Cadastrar Empresa — ' + (nomeBase||'Nova Empresa');
+  document.getElementById('modal-cliente').classList.add('open');
+}
+
 // ─── MINHAS TAREFAS ADMIN ─────────────────────────────────────────────────────
 
 function renderMinhasTarefasAdmin() {
@@ -4978,7 +5141,10 @@ function renderMinhasTarefasAdmin() {
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0">
         <span style="font-size:11px;padding:3px 10px;border-radius:8px;font-weight:600;background:${concluida?'rgba(34,197,94,0.15)':emAndamento?'rgba(59,130,246,0.15)':atrasada?'rgba(239,68,68,0.15)':'rgba(255,255,255,0.06)'};color:${concluida?'#22c55e':emAndamento?'#60a5fa':atrasada?'#ef4444':'#94a3b8'}">${t.status}</span>
+        <button onclick="event.stopPropagation();openTaskEventoModal('${t.id}')" style="font-size:11px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:6px;padding:3px 8px;cursor:pointer">📝 Andamento</button>
         <button onclick="event.stopPropagation();openEditTarefaAdmin('${t.id}')" style="font-size:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;border-radius:6px;padding:3px 8px;cursor:pointer">✏️ Editar</button>
+        ${isAberturaTask(t)&&!t.cliente_id?`<button onclick="event.stopPropagation();openClienteFromTask('${t.id}')" style="font-size:11px;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:#c4b5fd;border-radius:6px;padding:3px 8px;cursor:pointer">🏢 Abertura</button>`:''}
+
       </div>
     </div>`;
   }).join('');
@@ -5083,39 +5249,85 @@ function renderAdminEsteira(tab) {
   }).join('');
 }
 
+let _currentDetailTarefaId = null;
+
 async function openAdminTarefaDetail(tarefaId) {
   const t = tarefas.find(x => x.id === tarefaId);
   if (!t) return;
+  _currentDetailTarefaId = tarefaId;
   document.getElementById('admin-tar-modal-title').textContent = t.titulo;
   const body = document.getElementById('admin-tar-modal-body');
   body.innerHTML = '<div style="padding:20px;color:#94a3b8">Carregando...</div>';
   document.getElementById('modal-admin-tarefa').classList.add('open');
 
-  let comentarios = [];
+  // Load comments and events in parallel
+  let comentarios = [], eventos = [];
   try {
-    const { data } = await sb.from('comentarios_tarefas').select('*').eq('tarefa_id', tarefaId).order('created_at', { ascending: true });
-    comentarios = data || [];
+    const [r1, r2] = await Promise.all([
+      sb.from('comentarios_tarefas').select('*').eq('tarefa_id', tarefaId).order('created_at', { ascending: true }),
+      sb.from('task_eventos').select('*').eq('tarefa_id', tarefaId).order('created_at', { ascending: true })
+    ]);
+    comentarios = r1.data || [];
+    eventos = r2.data || [];
   } catch(e) {}
 
   const cli = clientes.find(c => c.id === t.cliente_id);
   const prBadge = {Alta:'#ef4444',Média:'#f59e0b',Baixa:'#22c55e'}[t.prioridade]||'#64748b';
   const vencido = t.prazo && new Date(t.prazo+'T00:00:00') < new Date();
+  const isAbertura = isAberturaTask(t);
+  const jaTemCliente = !!t.cliente_id;
+
+  // Build timeline HTML
+  const tipoLabel = { progresso:'📋', protocolo:'🔢', situacao:'📍', abertura:'🏢', conclusao:'✅' };
+  const timelineHtml = eventos.length ? `<div class="task-timeline">
+    ${eventos.map(ev => `<div class="task-evento-item">
+      <div class="task-evento-dot tipo-${ev.tipo||'progresso'}"></div>
+      <div class="task-evento-card">
+        <div class="task-evento-header">
+          <span class="task-evento-titulo">${tipoLabel[ev.tipo]||'📋'} ${ev.titulo||''}</span>
+          ${ev.protocolo?`<span class="task-evento-protocolo">${ev.protocolo}</span>`:''}
+          ${ev.situacao?`<span class="task-evento-situacao">${ev.situacao}</span>`:''}
+        </div>
+        ${ev.descricao?`<div class="task-evento-desc">${ev.descricao}</div>`:''}
+        <div class="task-evento-meta">${ev.autor||''} · ${new Date(ev.created_at).toLocaleString('pt-BR')}</div>
+      </div>
+    </div>`).join('')}
+  </div>` : '<div style="color:#475569;font-size:12px;padding:8px 0 12px">Nenhum andamento registrado ainda.</div>';
 
   body.innerHTML = `<div style="padding:20px">
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
-      <span style="background:rgba(99,102,241,0.2);color:#a5b4fc;padding:4px 12px;border-radius:12px;font-size:12px">${t.setor||'—'}</span>
-      <span style="background:${prBadge}22;color:${prBadge};padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700">${t.prioridade||'—'}</span>
-      <span style="background:rgba(255,255,255,0.06);color:#94a3b8;padding:4px 12px;border-radius:12px;font-size:12px">${t.status||'—'}</span>
+    <!-- Badges de status -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+      ${t.setor?`<span style="background:rgba(99,102,241,0.2);color:#a5b4fc;padding:3px 10px;border-radius:10px;font-size:12px">${t.setor}</span>`:''}
+      <span style="background:${prBadge}22;color:${prBadge};padding:3px 10px;border-radius:10px;font-size:12px;font-weight:700">${t.prioridade||'—'}</span>
+      <span style="background:rgba(255,255,255,0.06);color:#94a3b8;padding:3px 10px;border-radius:10px;font-size:12px">${t.status||'—'}</span>
+      ${isAbertura&&!jaTemCliente?`<span style="background:rgba(139,92,246,0.2);color:#c4b5fd;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">🏢 Abertura</span>`:''}
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div><div style="font-size:11px;color:#475569;margin-bottom:2px">Responsável</div><div style="color:#e2e8f0;font-weight:600">${t.responsavel||'—'}</div></div>
-      <div><div style="font-size:11px;color:#475569;margin-bottom:2px">Prazo</div><div style="color:${vencido?'#ef4444':'#e2e8f0'};font-weight:600">${fmtDate(t.prazo)}</div></div>
-      <div><div style="font-size:11px;color:#475569;margin-bottom:2px">Cliente</div><div style="color:#e2e8f0">${cli?cli.nome:'—'}</div></div>
-      <div><div style="font-size:11px;color:#475569;margin-bottom:2px">Competência</div><div style="color:#e2e8f0">${t.competencia?fmtMonth(t.competencia):'—'}</div></div>
+
+    <!-- Metadados -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div><div style="font-size:10px;color:#475569;margin-bottom:2px;text-transform:uppercase;letter-spacing:.06em">Responsável</div><div style="color:#e2e8f0;font-weight:600;font-size:13px">${t.responsavel||'—'}</div></div>
+      <div><div style="font-size:10px;color:#475569;margin-bottom:2px;text-transform:uppercase;letter-spacing:.06em">Prazo</div><div style="color:${vencido?'#ef4444':'#e2e8f0'};font-weight:600;font-size:13px">${fmtDate(t.prazo)||'—'}${vencido?' ⚠️':''}</div></div>
+      <div><div style="font-size:10px;color:#475569;margin-bottom:2px;text-transform:uppercase;letter-spacing:.06em">Cliente</div><div style="color:#e2e8f0;font-size:13px">${cli?cli.nome:'—'}</div></div>
+      <div><div style="font-size:10px;color:#475569;margin-bottom:2px;text-transform:uppercase;letter-spacing:.06em">Competência</div><div style="color:#e2e8f0;font-size:13px">${t.competencia?fmtMonth(t.competencia):'—'}</div></div>
     </div>
-    ${t.descricao?`<div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:#94a3b8">${t.descricao}</div>`:''}
-    <div style="font-size:12px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">💬 Comentários e Pedidos de Ajuda</div>
-    <div class="admin-coment-thread">
+
+    ${t.descricao?`<div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#94a3b8">${t.descricao}</div>`:''}
+
+    <!-- Botões de ação -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.07)">
+      <button class="btn-progresso" onclick="openTaskEventoModal('${tarefaId}')">＋ Registrar Andamento</button>
+      <button class="btn-progresso" onclick="openEditTarefaAdmin('${tarefaId}');closeModal('admin-tarefa')" style="background:rgba(255,255,255,0.06);color:#94a3b8;border-color:rgba(255,255,255,0.12)">✏️ Editar Tarefa</button>
+      ${isAbertura&&!jaTemCliente?`<button class="btn-abertura" onclick="openClienteFromTask('${tarefaId}')">🏢 Cadastrar Cliente / Abertura</button>`:''}
+      ${isAbertura&&jaTemCliente?`<button class="btn-abertura" onclick="editCliente('${t.cliente_id}');closeModal('admin-tarefa')" style="background:rgba(34,197,94,0.15);color:#86efac;border-color:rgba(34,197,94,0.3)">🏢 Ver Cliente Vinculado</button>`:''}
+    </div>
+
+    <!-- Timeline de andamentos -->
+    <div style="font-size:11px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">📊 Histórico de Andamento</div>
+    ${timelineHtml}
+
+    <!-- Comentários internos -->
+    <div style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.08em;margin:14px 0 10px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)">💬 Comentários Internos</div>
+    <div class="admin-coment-thread" id="admin-coment-thread-${tarefaId}">
       ${comentarios.length ? comentarios.map(c=>`
         <div class="admin-coment-item ${c.tipo==='ajuda'?'admin-coment-ajuda':''}">
           <div style="display:flex;align-items:center;gap:8px">
@@ -5125,9 +5337,9 @@ async function openAdminTarefaDetail(tarefaId) {
           </div>
           <div class="admin-coment-msg">${c.mensagem}</div>
           <div class="admin-coment-time">${new Date(c.created_at).toLocaleString('pt-BR')}</div>
-        </div>`).join('') : '<div style="color:#475569;font-size:13px;padding:8px 0">Nenhum comentário ainda.</div>'}
+        </div>`).join('') : '<div style="color:#475569;font-size:12px;padding:6px 0">Nenhum comentário ainda.</div>'}
     </div>
-    <div style="margin-top:12px;display:flex;gap:8px">
+    <div style="margin-top:10px;display:flex;gap:8px">
       <input type="text" id="admin-new-coment" placeholder="Adicionar comentário..." style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#e2e8f0;font-size:13px">
       <button onclick="addAdminComentario('${tarefaId}')" style="background:#6366f1;color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600">Enviar</button>
     </div>
