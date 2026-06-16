@@ -4714,7 +4714,7 @@ function renderPainelAdmin() {
   const chartsEl = document.getElementById('admin-charts');
   if (chartsEl) {
     const setorCount = {};
-    acessosLog.forEach(a => { const s = a.setor || '(Sem setor)'; setorCount[s] = (setorCount[s]||0)+1; });
+    acessosLog.forEach(a => { if (!a.setor) return; setorCount[a.setor] = (setorCount[a.setor]||0)+1; });
     const maxAc = Math.max(...Object.values(setorCount), 1);
     const respCount = {};
     tarefas.filter(t => t.status !== 'Concluída').forEach(t => { const r = t.responsavel||'(Sem resp.)'; respCount[r] = (respCount[r]||0)+1; });
