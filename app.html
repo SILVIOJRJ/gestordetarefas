@@ -3580,7 +3580,11 @@ function obCard(e, tipo) {
       <span class="badge ${badgeMap[tipo]}" style="white-space:nowrap;font-size:10px">${labelMap[tipo]}</span>
     </div>
     <div style="display:flex;gap:8px;margin-top:10px">
-      ${tipo==='guia' ? `<button class="ob-card-btn" style="background:#f59e0b;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;flex:1" onclick='conferirGuia("${e.id}")'>✓ Conferido — Pronto para Entrega</button>` : ''}
+      ${tipo==='guia'
+        ? ((currentFuncionario?.nome||'').trim().toLowerCase() === 'andrei'
+            ? `<button class="ob-card-btn" style="background:#f59e0b;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;flex:1" onclick='conferirGuia("${e.id}")'>✓ Conferido — Pronto para Entrega</button>`
+            : `<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic">⏳ Aguardando conferência do Office Boy</div>`)
+        : ''}
       ${tipo==='pendente' ? `<button class="ob-card-btn entrega" onclick='abrirConfirmarEntrega("${e.id}")' style="flex:1">🚚 Registrar Entrega</button>` : ''}
     </div>
   </div>`;
