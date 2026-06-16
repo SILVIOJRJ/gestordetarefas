@@ -845,7 +845,10 @@
       <div class="form-grid">
         <div class="form-group form-full"><label class="form-label">Status</label>
           <select class="form-control" id="oc-status"><option>Pendente</option><option>Concluído</option><option>N.A</option><option>Enviado</option></select></div>
-        <div class="form-group form-full"><label class="form-label">Valor (R$)</label><input type="text" class="form-control" id="oc-valor" placeholder="0,00" onblur="fmtNumField(this)"></div>
+        <div class="form-group form-full" id="oc-valor-group">
+          <label class="form-label" id="oc-valor-label">Valor (R$)</label>
+          <input type="text" class="form-control" id="oc-valor" placeholder="0,00" onblur="ocValorBlur()">
+        </div>
         <div class="form-group form-full" id="oc-consignado-group" style="display:none">
           <label class="form-label" style="display:flex;align-items:center;gap:6px">
             💳 Empréstimo Consignado (R$)
@@ -3179,7 +3182,11 @@ function renderControleMensal() {
       const st = match ? match.status : 'Pendente';
       const bg = cmCellClassFromTpl(tpl, comp, st);
       const valNum = match?.valor != null ? parseFloat(match.valor) : 0;
-      const valDisp = valNum ? `<div style="font-size:10px;color:var(--text3);margin-top:1px">R$ ${fmtBR(valNum)}</div>` : '';
+      const valDisp = valNum
+        ? isTemplateQtd(tpl.nome)
+          ? `<div style="font-size:10px;color:#2563eb;margin-top:1px;font-weight:600">📄 ${Math.round(valNum)} doc${Math.round(valNum)>1?'s':''}</div>`
+          : `<div style="font-size:10px;color:var(--text3);margin-top:1px">R$ ${fmtBR(valNum)}</div>`
+        : '';
       const cell = `<td style="cursor:pointer;${bg}" onclick='openObrigCli("${c.id}","${tpl.id}","${tpl.nome.replace(/'/g,'')}")'>
         <span class="badge ${cmStatusColor(st)}">${st}</span>${valDisp}</td>`;
       // Injeta célula TOTAL DCTF após ISS
@@ -3206,6 +3213,26 @@ function renderControleMensal() {
   }</tbody></table>`;
 }
 
+// Templates que usam "Quantidade" em vez de valor monetário
+const TEMPLATES_QUANTIDADE = new Set(['HOLERITES','RESCISÃO','FERIAS','FÉRIAS','ESOCIAL','E-SOCIAL']);
+
+function isTemplateQtd(colName) {
+  return TEMPLATES_QUANTIDADE.has((colName||'').toUpperCase().trim());
+}
+
+// Formata/valida o campo valor do modal de obrigação conforme o tipo
+function ocValorBlur() {
+  const el = document.getElementById('oc-valor');
+  if (!el) return;
+  if (ocCtx?._isQtd) {
+    // Quantidade: apenas inteiro positivo
+    const n = parseInt(el.value.replace(/\D/g,''), 10);
+    el.value = n > 0 ? String(n) : '';
+  } else {
+    fmtNumField(el);
+  }
+}
+
 function openObrigCli(clienteId, templateId, colName) {
   const comp = gv('cm-competencia');
   const setor = gv('cm-setor');
@@ -3216,14 +3243,29 @@ function openObrigCli(clienteId, templateId, colName) {
     setTimeout(() => switchCfgTab('obrigacoes'), 100);
     return;
   }
-  ocCtx = { cliente_id: clienteId, template_id: templateId, competencia: comp, setor };
+  const isQtd = isTemplateQtd(colName);
+  ocCtx = { cliente_id: clienteId, template_id: templateId, competencia: comp, setor, _isQtd: isQtd };
   const reg = cmData.find(o => o.cliente_id === clienteId && o.template_id === templateId && o.competencia === comp);
   ocCtx.registroId = reg ? reg.id : null;
   document.getElementById('oc-title').textContent = colName;
   document.getElementById('oc-sub').textContent = `${cli?cli.nome:''} · ${fmtMonth(comp)}`;
   setV('oc-status', reg ? reg.status : 'Pendente');
-  const valorDb = reg?.valor;
-  setV('oc-valor', valorDb != null ? fmtBR(parseFloat(valorDb)) : '');
+
+  // Adapta campo valor: Quantidade (inteiro) ou Valor monetário
+  const valorLabel = document.getElementById('oc-valor-label');
+  const valorInput = document.getElementById('oc-valor');
+  if (isQtd) {
+    valorLabel.textContent = '📄 Quantidade de Documentos';
+    valorInput.placeholder = 'Ex: 12';
+    const qtdDb = reg?.valor != null ? Math.round(parseFloat(reg.valor)) : '';
+    valorInput.value = qtdDb > 0 ? String(qtdDb) : '';
+  } else {
+    valorLabel.textContent = 'Valor (R$)';
+    valorInput.placeholder = '0,00';
+    const valorDb = reg?.valor;
+    setV('oc-valor', valorDb != null ? fmtBR(parseFloat(valorDb)) : '');
+  }
+
   setV('oc-obs', reg ? reg.observacao : '');
   const obEl = document.getElementById('oc-officeboy');
   if (obEl) obEl.checked = false;
@@ -3240,7 +3282,10 @@ async function saveObrigCliente() {
   if (!ocCtx) return;
   setBusy('btn-save-oc', true);
   const valorRaw = gv('oc-valor');
-  const valorNum = valorRaw ? parseNum(valorRaw) : null;
+  // Quantidade (inteiro) ou valor monetário conforme o tipo de template
+  const valorNum = ocCtx._isQtd
+    ? (valorRaw ? parseInt(valorRaw.replace(/\D/g,''), 10) || null : null)
+    : (valorRaw ? parseNum(valorRaw) : null);
   const officeboy = document.getElementById('oc-officeboy')?.checked;
   const consGrp = document.getElementById('oc-consignado-group');
   const consRaw = consGrp?.style.display !== 'none' ? gv('oc-consignado') : null;
@@ -3273,9 +3318,10 @@ async function saveObrigCliente() {
   if (officeboy) {
     const cli = clientes.find(c => c.id === ocCtx.cliente_id);
     const tpl = obrigacoesTemplates.find(t => t.id === ocCtx.template_id);
+    const qtdInfo = ocCtx._isQtd && valorNum ? ` (${valorNum} doc${valorNum>1?'s':''})` : '';
     const entObj = {
       tipo: 'obrigacao', referencia_id: ocCtx.template_id,
-      referencia_nome: `${tpl?.nome||'Obrigação'} — ${fmtMonth(ocCtx.competencia)}`,
+      referencia_nome: `${tpl?.nome||'Obrigação'}${qtdInfo} — ${fmtMonth(ocCtx.competencia)}`,
       cliente_nome: cli?.nome || '', status: 'Pendente',
       criado_por: currentFuncionario?.nome || userEmail
     };
