@@ -410,6 +410,26 @@
     .admin-pipeline { flex-direction: column; }
     #page-painel-admin { padding: 16px; }
   }
+  .admin-kpi-card:nth-child(1) { background: linear-gradient(135deg,#4f46e5,#6366f1); border-color:transparent; }
+  .admin-kpi-card:nth-child(2) { background: linear-gradient(135deg,#059669,#10b981); border-color:transparent; }
+  .admin-kpi-card:nth-child(3) { background: linear-gradient(135deg,#b45309,#f59e0b); border-color:transparent; }
+  .admin-kpi-card:nth-child(4) { background: linear-gradient(135deg,#1d4ed8,#3b82f6); border-color:transparent; }
+  .admin-kpi-value { color:#fff !important; }
+  .admin-kpi-label { color:rgba(255,255,255,0.75) !important; }
+  .admin-section-title { color:#818cf8; border-left:3px solid #6366f1; padding-left:10px; }
+  .admin-chart-wrap { margin: 16px 0; }
+  .admin-chart-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .admin-chart-label { font-size:12px; color:#94a3b8; width:120px; flex-shrink:0; text-align:right; }
+  .admin-chart-bar-bg { flex:1; background:rgba(255,255,255,0.06); border-radius:20px; height:18px; overflow:hidden; }
+  .admin-chart-bar-fill { height:100%; border-radius:20px; background:linear-gradient(90deg,#6366f1,#8b5cf6); transition:width 0.6s ease; display:flex; align-items:center; justify-content:flex-end; padding-right:6px; }
+  .admin-chart-val { font-size:10px; color:#fff; font-weight:700; }
+  .admin-coment-thread { border-left:3px solid #6366f1; margin:12px 0; padding-left:12px; }
+  .admin-coment-item { background:rgba(255,255,255,0.04); border-radius:8px; padding:10px 12px; margin-bottom:8px; }
+  .admin-coment-autor { font-size:11px; font-weight:700; color:#a5b4fc; }
+  .admin-coment-msg { font-size:13px; color:#e2e8f0; margin-top:4px; }
+  .admin-coment-time { font-size:10px; color:#475569; margin-top:4px; }
+  .admin-coment-ajuda { border-left-color:#f59e0b; background:rgba(245,158,11,0.08); }
+  .empresa-nova-badge { background:#10b981; color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; margin-left:6px; }
 </style>
 </head>
 <body>
@@ -522,7 +542,10 @@
       <h1>🛡️ Painel Administrativo</h1>
       <p>Visão estratégica · Acesso restrito</p>
     </div>
-    <button class="btn btn-primary" onclick="loadPainelAdmin()">🔄 Atualizar</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="openModalAdminDelegacao()">＋ Delegar Tarefa</button>
+      <button class="btn btn-primary" onclick="loadPainelAdmin()">🔄 Atualizar</button>
+    </div>
   </div>
 
   <div class="admin-section-title">Visão Geral</div>
@@ -533,7 +556,14 @@
     <div class="admin-kpi-card"><div class="admin-kpi-value" id="kpi-admin-acessos">—</div><div class="admin-kpi-label">Funcionários hoje</div></div>
   </div>
 
-  <div class="admin-section-title">Esteira por Responsável</div>
+  <div class="admin-section-title">Uso por Setor</div>
+  <div id="admin-charts"></div>
+
+  <div class="admin-section-title">Esteira de Tarefas</div>
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <button id="admin-tab-delegadas" onclick="switchAdminTab('delegadas')" style="padding:8px 18px;border-radius:20px;border:none;cursor:pointer;font-weight:600;font-size:13px;background:#6366f1;color:#fff">Minhas Delegações</button>
+    <button id="admin-tab-setor" onclick="switchAdminTab('setor')" style="padding:8px 18px;border-radius:20px;border:none;cursor:pointer;font-weight:600;font-size:13px;background:rgba(255,255,255,0.08);color:#94a3b8">Criadas pelo Setor</button>
+  </div>
   <div class="admin-esteira-grid" id="admin-esteira"></div>
 
   <div class="admin-section-title">Log de Acessos</div>
@@ -1067,6 +1097,26 @@
             <input type="checkbox" id="c-ativo" checked> Ativo
           </label>
         </div>
+        <div class="form-group form-full">
+          <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="cli-empresa-nova" onchange="onEmpresaNovaChange()">
+            <span>🆕 Empresa Nova — auto-criar tarefas de parametrização</span>
+          </label>
+        </div>
+        <div id="cli-empresa-nova-wrap" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px;margin-top:8px" class="form-full">
+          <div style="font-size:12px;color:#166534;font-weight:600;margin-bottom:8px">Campos adicionais para empresa nova:</div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Nº Processo / Registro</label><input type="text" class="form-control" id="cli-num-registro" placeholder="Ex: PRN-12345, NIRE, CNPJ..."></div>
+            <div class="form-group"><label class="form-label">Responsável Técnico</label><input type="text" class="form-control" id="cli-resp-tecnico" placeholder="CRC, OAB, CRM..."></div>
+            <div class="form-group"><label class="form-label">Data Início Atividades</label><input type="date" class="form-control" id="cli-data-inicio"></div>
+            <div class="form-group"><label class="form-label">Regime Tributário</label>
+              <select class="form-control" id="cli-regime">
+                <option value="">Selecione...</option>
+                <option>Simples Nacional</option><option>Lucro Presumido</option><option>Lucro Real</option><option>MEI</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1331,6 +1381,22 @@
   </div>
 </div>
 
+<!-- MODAL ADMIN TAREFA -->
+<div class="modal-overlay" id="modal-admin-tarefa">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header" style="background:#1e293b;color:#f1f5f9">
+      <div class="modal-icon blue">📋</div>
+      <div class="modal-title" id="admin-tar-modal-title" style="color:#f1f5f9">Detalhes da Tarefa</div>
+      <button class="modal-close" onclick="closeModal('admin-tarefa')" style="color:#94a3b8">✕</button>
+    </div>
+    <div class="modal-body" style="background:#0f172a;color:#e2e8f0;padding:0" id="admin-tar-modal-body">
+    </div>
+    <div class="modal-footer" style="background:#0f172a;border-top:1px solid rgba(255,255,255,0.08)">
+      <button class="btn btn-ghost" onclick="closeModal('admin-tarefa')">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://ruuoxvqhpnajghiqafml.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1dW94dnFocG5hamdoaXFhZm1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMjYxMjcsImV4cCI6MjA5NjYwMjEyN30.nHfSPTUdA9N02m0N7rgAlOsQLaTIIPhbVKWQLg3sQAc';
@@ -1455,7 +1521,7 @@ async function init() {
     userSetor = funcData?.setores?.nome || null;
   } catch (e) { currentFuncionario = null; isAdmin = false; userSetor = null; }
 
-  if (currentFuncionario) {
+  if (currentFuncionario && !isAdmin) {
     sb.from('acessos_log').insert({
       funcionario_nome: currentFuncionario.nome,
       funcionario_email: userEmail,
@@ -2370,7 +2436,7 @@ function renderClientes() {
   document.getElementById('cli-tbody').innerHTML = data.length ? data.map(c => {
     const func = funcionarios.find(f => f.id === c.responsavel_id);
     return `<tr>
-      <td><strong>${c.nome}</strong></td>
+      <td><strong>${c.nome}</strong>${c.empresa_nova ? '<span class="empresa-nova-badge">NOVA</span>' : ''}</td>
       <td>${regimeBadge(c.regime_tributario)}</td>
       <td style="font-size:12px">${c.condicao||'—'}</td>
       <td class="font-mono">${c.cnpj_cpf||'—'}</td>
@@ -2962,23 +3028,38 @@ async function saveCliente() {
   const nome = gv('c-nome');
   if (!nome) { toast('Atenção','Informe o nome do cliente','warning'); return; }
   setBusy('btn-save-cli', true);
+  const empresaNova = document.getElementById('cli-empresa-nova')?.checked || false;
   const obj = {
     nome, cnpj_cpf:gv('c-cnpj'), email:gv('c-email'), telefone:gv('c-telefone'),
     whatsapp:gv('c-whatsapp'), regime_tributario:gv('c-regime')||null, condicao:gv('c-condicao')||null,
     obs:gv('c-obs'), responsavel_id: gv('c-responsavel')||null,
     setores_contratados: getSetoresContratados(),
     ativo:document.getElementById('c-ativo').checked,
-    criado_por: currentFuncionario?.nome || userEmail
+    criado_por: currentFuncionario?.nome || userEmail,
+    empresa_nova: empresaNova,
+    prn: gv('cli-num-registro')||null,
+    responsavel_tecnico: gv('cli-resp-tecnico')||null,
+    data_inicio_atividades: gv('cli-data-inicio')||null
   };
   const id = editingId.cliente;
-  const { error } = id
-    ? await sb.from('clientes').update(obj).eq('id', id)
-    : await sb.from('clientes').insert(obj);
-  setBusy('btn-save-cli', false);
-  if (error) { toast('Erro', error.message, 'error'); return; }
+  let savedId = id;
+  if (id) {
+    const { error } = await sb.from('clientes').update(obj).eq('id', id);
+    setBusy('btn-save-cli', false);
+    if (error) { toast('Erro', error.message, 'error'); return; }
+  } else {
+    const { data, error } = await sb.from('clientes').insert(obj).select('id').single();
+    setBusy('btn-save-cli', false);
+    if (error) { toast('Erro', error.message, 'error'); return; }
+    savedId = data?.id;
+  }
   closeModal('cliente');
   toast('Salvo!', id ? 'Cliente atualizado' : 'Cliente cadastrado', 'success');
   await loadAll();
+  if (!id && empresaNova && savedId) {
+    const regime = gv('cli-regime') || null;
+    await criarTarefasEmpresaNova(savedId, nome, regime);
+  }
 }
 
 async function saveSetor() {
@@ -3085,6 +3166,12 @@ function editCliente(id) {
   setV('c-regime',c.regime_tributario||''); setV('c-condicao',c.condicao||'');
   setV('c-obs',c.obs); setV('c-responsavel',c.responsavel_id||'');
   document.getElementById('c-ativo').checked = c.ativo !== false;
+  const enCheck = document.getElementById('cli-empresa-nova');
+  if (enCheck) { enCheck.checked = !!c.empresa_nova; onEmpresaNovaChange(); }
+  setV('cli-num-registro', c.prn||'');
+  setV('cli-resp-tecnico', c.responsavel_tecnico||'');
+  setV('cli-data-inicio', c.data_inicio_atividades||'');
+  setV('cli-regime', c.regime_tributario||'');
   document.getElementById('modal-cliente').classList.add('open');
 }
 
@@ -3187,6 +3274,11 @@ function openModal(type) {
     clearFormPadr(['c-nome','c-cnpj','c-email','c-telefone','c-whatsapp','c-obs']);
     setV('c-regime',''); setV('c-condicao','');
     document.getElementById('c-ativo').checked = true;
+    const enCb = document.getElementById('cli-empresa-nova');
+    if (enCb) { enCb.checked = false; }
+    document.getElementById('cli-empresa-nova-wrap').style.display = 'none';
+    clearFormPadr(['cli-num-registro','cli-resp-tecnico','cli-data-inicio']);
+    setV('cli-regime','');
     populateClienteSelects();
     renderSetoresContratadosCheckboxes([]);
     document.getElementById('modal-cli-title').textContent = 'Novo Cliente';
@@ -3232,7 +3324,8 @@ function closeModal(type) {
     funcionario:'modal-funcionario', anexos:'modal-anexos',
     processo:'modal-processo', obrigtemplate:'modal-obrigtemplate',
     obrigcli:'modal-obrigcli', gerencial:'modal-gerencial',
-    entrega:'modal-entrega' };
+    entrega:'modal-entrega', 'admin-tarefa':'modal-admin-tarefa',
+    rotina:'modal-rotina', 'parc-cronograma':'modal-parc-cronograma' };
   document.getElementById(map[type])?.classList.remove('open');
 }
 
@@ -4617,62 +4710,42 @@ function renderPainelAdmin() {
   if (elConc) elConc.textContent = concluidas.length;
   if (elAcess) elAcess.textContent = funcsHoje.size;
 
-  // Esteira por responsável
-  const esteiraEl = document.getElementById('admin-esteira');
-  if (esteiraEl) {
-    const respMap = {};
-    tarefas.forEach(t => {
-      const r = t.responsavel || '(Sem responsável)';
-      if (!respMap[r]) respMap[r] = [];
-      respMap[r].push(t);
-    });
-    const lastAcessoMap = {};
-    acessosLog.forEach(a => {
-      const n = a.funcionario_nome;
-      if (!lastAcessoMap[n]) lastAcessoMap[n] = a.acessado_em;
-    });
+  // Charts
+  const chartsEl = document.getElementById('admin-charts');
+  if (chartsEl) {
+    const setorCount = {};
+    acessosLog.forEach(a => { const s = a.setor || '(Sem setor)'; setorCount[s] = (setorCount[s]||0)+1; });
+    const maxAc = Math.max(...Object.values(setorCount), 1);
+    const respCount = {};
+    tarefas.filter(t => t.status !== 'Concluída').forEach(t => { const r = t.responsavel||'(Sem resp.)'; respCount[r] = (respCount[r]||0)+1; });
+    const maxTar = Math.max(...Object.values(respCount), 1);
 
-    esteiraEl.innerHTML = Object.entries(respMap).map(([resp, tasks]) => {
-      const func = funcionarios.find(f => norm(f.nome) === norm(resp));
-      const setor = func ? (setores.find(s => s.id === func.setor_id)?.nome || '') : '';
-      const pend = tasks.filter(t => t.status === 'Pendente');
-      const em = tasks.filter(t => t.status === 'Em andamento');
-      const conc = tasks.filter(t => t.status === 'Concluída');
-      const lastAc = lastAcessoMap[resp] ? fmtDate(lastAcessoMap[resp].slice(0,10)) : '—';
-      const pendentes2 = tasks.filter(t => t.status === 'Pendente' || t.status === 'Em andamento');
-
-      const pBadge = s => { const m={'Alta':'badge-red','Média':'badge-orange','Baixa':'badge-green'}; return `<span class="badge ${m[s]||'badge-gray'}" style="font-size:10px">${s||'—'}</span>`; };
-
-      return `<div class="admin-esteira-card">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-          <div style="font-weight:700;font-size:15px;color:#e2e8f0">${resp}</div>
-          ${setor ? `<span class="badge badge-blue" style="font-size:11px">${setor}</span>` : ''}
-          <span style="margin-left:auto;font-size:11px;color:#64748b">Último acesso: ${lastAc}</span>
+    chartsEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:20px">
+        <div style="font-size:13px;font-weight:700;color:#e2e8f0;margin-bottom:14px">📊 Acessos por Setor (90 dias)</div>
+        <div class="admin-chart-wrap">
+          ${Object.entries(setorCount).sort((a,b)=>b[1]-a[1]).map(([s,n])=>`
+            <div class="admin-chart-row"><div class="admin-chart-label">${s}</div>
+              <div class="admin-chart-bar-bg"><div class="admin-chart-bar-fill" style="width:${Math.round(n/maxAc*100)}%"><span class="admin-chart-val">${n}</span></div></div>
+            </div>`).join('')}
+          ${!Object.keys(setorCount).length ? '<div style="color:#475569;font-size:13px;text-align:center;padding:20px">Nenhum acesso registrado ainda</div>' : ''}
         </div>
-        <div class="admin-pipeline">
-          <div class="admin-pipeline-col">
-            <div class="admin-pipeline-col-header">Pendente <span class="admin-pipeline-count">${pend.length}</span></div>
-            <div class="admin-pipeline-tasks">${pend.slice(0,5).map(t=>`<div class="admin-pipeline-task-item">${t.titulo||'—'}</div>`).join('')}</div>
-          </div>
-          <div class="admin-pipeline-col">
-            <div class="admin-pipeline-col-header">Em andamento <span class="admin-pipeline-count" style="background:#3b82f6">${em.length}</span></div>
-            <div class="admin-pipeline-tasks">${em.slice(0,5).map(t=>`<div class="admin-pipeline-task-item">${t.titulo||'—'}</div>`).join('')}</div>
-          </div>
-          <div class="admin-pipeline-col">
-            <div class="admin-pipeline-col-header">Concluída <span class="admin-pipeline-count" style="background:#22c55e">${conc.length}</span></div>
-            <div class="admin-pipeline-tasks">${conc.slice(0,3).map(t=>`<div class="admin-pipeline-task-item">${t.titulo||'—'}</div>`).join('')}</div>
-          </div>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:20px">
+        <div style="font-size:13px;font-weight:700;color:#e2e8f0;margin-bottom:14px">📋 Tarefas Pendentes por Responsável</div>
+        <div class="admin-chart-wrap">
+          ${Object.entries(respCount).sort((a,b)=>b[1]-a[1]).map(([r,n])=>`
+            <div class="admin-chart-row"><div class="admin-chart-label">${r}</div>
+              <div class="admin-chart-bar-bg"><div class="admin-chart-bar-fill" style="width:${Math.round(n/maxTar*100)}%;background:linear-gradient(90deg,#f59e0b,#ef4444)"><span class="admin-chart-val">${n}</span></div></div>
+            </div>`).join('')}
+          ${!Object.keys(respCount).length ? '<div style="color:#475569;font-size:13px;text-align:center;padding:20px">Sem tarefas pendentes</div>' : ''}
         </div>
-        ${pendentes2.length ? `<div style="margin-top:12px;border-top:1px solid rgba(255,255,255,0.06);padding-top:10px">
-          ${pendentes2.slice(0,4).map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;color:#cbd5e1">
-            <span style="flex:1">${t.titulo||'—'}</span>
-            ${pBadge(t.prioridade)}
-            <span style="color:#64748b">${fmtDate(t.prazo)}</span>
-          </div>`).join('')}
-        </div>` : ''}
-      </div>`;
-    }).join('');
+      </div>
+    </div>`;
   }
+
+  // Esteira (tab-based)
+  renderAdminEsteira('delegadas');
 
   // Log de acessos
   const logBody = document.getElementById('admin-log-body');
@@ -4742,6 +4815,190 @@ function renderPainelAdmin() {
     html += `</div>`;
     calEl.innerHTML = html;
   }
+}
+
+// ─── ADMIN PANEL EXTRAS ───────────────────────────────────────────────────────
+
+function switchAdminTab(tab) {
+  const btnDel = document.getElementById('admin-tab-delegadas');
+  const btnSet = document.getElementById('admin-tab-setor');
+  if (btnDel) { btnDel.style.background = tab==='delegadas' ? '#6366f1' : 'rgba(255,255,255,0.08)'; btnDel.style.color = tab==='delegadas' ? '#fff' : '#94a3b8'; }
+  if (btnSet) { btnSet.style.background = tab==='setor' ? '#6366f1' : 'rgba(255,255,255,0.08)'; btnSet.style.color = tab==='setor' ? '#fff' : '#94a3b8'; }
+  renderAdminEsteira(tab);
+}
+
+function renderAdminEsteira(tab) {
+  const norm = s => (s||'').trim().toLowerCase();
+  const adminNome = currentFuncionario?.nome || '';
+  const esteiraEl = document.getElementById('admin-esteira');
+  if (!esteiraEl) return;
+
+  const lastAcessoMap = {};
+  acessosLog.forEach(a => { const n = a.funcionario_nome; if (!lastAcessoMap[n]) lastAcessoMap[n] = a.acessado_em; });
+
+  let filtered = tarefas;
+  if (tab === 'delegadas') filtered = tarefas.filter(t => norm(t.criado_por) === norm(adminNome));
+  else filtered = tarefas.filter(t => norm(t.criado_por) !== norm(adminNome));
+
+  const respMap = {};
+  filtered.forEach(t => {
+    const r = t.responsavel || '(Sem responsável)';
+    if (!respMap[r]) respMap[r] = [];
+    respMap[r].push(t);
+  });
+
+  if (!Object.keys(respMap).length) {
+    esteiraEl.innerHTML = `<div style="color:#475569;font-size:13px;padding:24px;text-align:center">Nenhuma tarefa nesta categoria.</div>`;
+    return;
+  }
+
+  const pBadge = s => { const m={'Alta':'badge-red','Média':'badge-orange','Baixa':'badge-green'}; return `<span class="badge ${m[s]||'badge-gray'}" style="font-size:10px">${s||'—'}</span>`; };
+
+  esteiraEl.innerHTML = Object.entries(respMap).map(([resp, tasks]) => {
+    const func = funcionarios.find(f => norm(f.nome) === norm(resp));
+    const setor = func ? (setores.find(s => s.id === func.setor_id)?.nome || '') : '';
+    const pend = tasks.filter(t => t.status === 'Pendente');
+    const em = tasks.filter(t => t.status === 'Em andamento');
+    const conc = tasks.filter(t => t.status === 'Concluída');
+    const lastAc = lastAcessoMap[resp] ? fmtDate(lastAcessoMap[resp].slice(0,10)) : '—';
+    const pendentes2 = tasks.filter(t => t.status === 'Pendente' || t.status === 'Em andamento');
+
+    return `<div class="admin-esteira-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="font-weight:700;font-size:15px;color:#e2e8f0">${resp}</div>
+        ${setor ? `<span class="badge badge-blue" style="font-size:11px">${setor}</span>` : ''}
+        <span style="margin-left:auto;font-size:11px;color:#64748b">Último acesso: ${lastAc}</span>
+      </div>
+      <div class="admin-pipeline">
+        <div class="admin-pipeline-col">
+          <div class="admin-pipeline-col-header">Pendente <span class="admin-pipeline-count">${pend.length}</span></div>
+          <div class="admin-pipeline-tasks">${pend.slice(0,5).map(t=>`<div class="admin-pipeline-task-item" style="cursor:pointer" onclick="openAdminTarefaDetail('${t.id}')">${t.titulo||'—'}</div>`).join('')}</div>
+        </div>
+        <div class="admin-pipeline-col">
+          <div class="admin-pipeline-col-header">Em andamento <span class="admin-pipeline-count" style="background:#3b82f6">${em.length}</span></div>
+          <div class="admin-pipeline-tasks">${em.slice(0,5).map(t=>`<div class="admin-pipeline-task-item" style="cursor:pointer" onclick="openAdminTarefaDetail('${t.id}')">${t.titulo||'—'}</div>`).join('')}</div>
+        </div>
+        <div class="admin-pipeline-col">
+          <div class="admin-pipeline-col-header">Concluída <span class="admin-pipeline-count" style="background:#22c55e">${conc.length}</span></div>
+          <div class="admin-pipeline-tasks">${conc.slice(0,3).map(t=>`<div class="admin-pipeline-task-item" style="cursor:pointer" onclick="openAdminTarefaDetail('${t.id}')">${t.titulo||'—'}</div>`).join('')}</div>
+        </div>
+      </div>
+      ${pendentes2.length ? `<div style="margin-top:12px;border-top:1px solid rgba(255,255,255,0.06);padding-top:10px">
+        ${pendentes2.slice(0,4).map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;color:#cbd5e1;cursor:pointer" onclick="openAdminTarefaDetail('${t.id}')">
+          <span style="flex:1">${t.titulo||'—'}</span>
+          ${pBadge(t.prioridade)}
+          <span style="color:#64748b">${fmtDate(t.prazo)}</span>
+        </div>`).join('')}
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function openAdminTarefaDetail(tarefaId) {
+  const t = tarefas.find(x => x.id === tarefaId);
+  if (!t) return;
+  document.getElementById('admin-tar-modal-title').textContent = t.titulo;
+  const body = document.getElementById('admin-tar-modal-body');
+  body.innerHTML = '<div style="padding:20px;color:#94a3b8">Carregando...</div>';
+  document.getElementById('modal-admin-tarefa').classList.add('open');
+
+  let comentarios = [];
+  try {
+    const { data } = await sb.from('comentarios_tarefas').select('*').eq('tarefa_id', tarefaId).order('created_at', { ascending: true });
+    comentarios = data || [];
+  } catch(e) {}
+
+  const cli = clientes.find(c => c.id === t.cliente_id);
+  const prBadge = {Alta:'#ef4444',Média:'#f59e0b',Baixa:'#22c55e'}[t.prioridade]||'#64748b';
+  const vencido = t.prazo && new Date(t.prazo+'T00:00:00') < new Date();
+
+  body.innerHTML = `<div style="padding:20px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+      <span style="background:rgba(99,102,241,0.2);color:#a5b4fc;padding:4px 12px;border-radius:12px;font-size:12px">${t.setor||'—'}</span>
+      <span style="background:${prBadge}22;color:${prBadge};padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700">${t.prioridade||'—'}</span>
+      <span style="background:rgba(255,255,255,0.06);color:#94a3b8;padding:4px 12px;border-radius:12px;font-size:12px">${t.status||'—'}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div><div style="font-size:11px;color:#475569;margin-bottom:2px">Responsável</div><div style="color:#e2e8f0;font-weight:600">${t.responsavel||'—'}</div></div>
+      <div><div style="font-size:11px;color:#475569;margin-bottom:2px">Prazo</div><div style="color:${vencido?'#ef4444':'#e2e8f0'};font-weight:600">${fmtDate(t.prazo)}</div></div>
+      <div><div style="font-size:11px;color:#475569;margin-bottom:2px">Cliente</div><div style="color:#e2e8f0">${cli?cli.nome:'—'}</div></div>
+      <div><div style="font-size:11px;color:#475569;margin-bottom:2px">Competência</div><div style="color:#e2e8f0">${t.competencia?fmtMonth(t.competencia):'—'}</div></div>
+    </div>
+    ${t.descricao?`<div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:#94a3b8">${t.descricao}</div>`:''}
+    <div style="font-size:12px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">💬 Comentários e Pedidos de Ajuda</div>
+    <div class="admin-coment-thread">
+      ${comentarios.length ? comentarios.map(c=>`
+        <div class="admin-coment-item ${c.tipo==='ajuda'?'admin-coment-ajuda':''}">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="admin-coment-autor">${c.autor}</span>
+            ${c.autor_setor?`<span style="font-size:10px;color:#475569">${c.autor_setor}</span>`:''}
+            ${c.tipo==='ajuda'?'<span style="font-size:10px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px">🆘 Pedido de ajuda</span>':''}
+          </div>
+          <div class="admin-coment-msg">${c.mensagem}</div>
+          <div class="admin-coment-time">${new Date(c.created_at).toLocaleString('pt-BR')}</div>
+        </div>`).join('') : '<div style="color:#475569;font-size:13px;padding:8px 0">Nenhum comentário ainda.</div>'}
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <input type="text" id="admin-new-coment" placeholder="Adicionar comentário..." style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#e2e8f0;font-size:13px">
+      <button onclick="addAdminComentario('${tarefaId}')" style="background:#6366f1;color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600">Enviar</button>
+    </div>
+  </div>`;
+}
+
+async function addAdminComentario(tarefaId) {
+  const msg = document.getElementById('admin-new-coment')?.value?.trim();
+  if (!msg) return;
+  await sb.from('comentarios_tarefas').insert({
+    tarefa_id: tarefaId,
+    autor: currentFuncionario?.nome || userEmail,
+    autor_setor: userSetor || 'Admin',
+    mensagem: msg,
+    tipo: 'comentario'
+  });
+  document.getElementById('admin-new-coment').value = '';
+  openAdminTarefaDetail(tarefaId);
+}
+
+function openModalAdminDelegacao() {
+  openModal('tarefa');
+  setTimeout(() => {
+    const titleEl = document.getElementById('modal-tar-title');
+    if (titleEl) titleEl.textContent = '📋 Delegar Tarefa (Admin)';
+  }, 50);
+}
+
+function onEmpresaNovaChange() {
+  const checked = document.getElementById('cli-empresa-nova').checked;
+  document.getElementById('cli-empresa-nova-wrap').style.display = checked ? '' : 'none';
+}
+
+async function criarTarefasEmpresaNova(clienteId, clienteNome, regime) {
+  const adminNome = currentFuncionario?.nome || userEmail;
+  const prazoBase = new Date();
+  prazoBase.setDate(prazoBase.getDate() + 15);
+  const prazoStr = prazoBase.toISOString().split('T')[0];
+  const compAtual = currentMonthStr();
+
+  const tarefasNova = [
+    { titulo:`[EMPRESA NOVA] Parametrização Contábil — ${clienteNome}`, setor:'Contábil',
+      descricao:`Cadastrar empresa no sistema Domínio (ERP). Configurar plano de contas, centros de custo e regime tributário (${regime||'a definir'}). Ativar obrigações no Controle Mensal e Gerencial.`, prioridade:'Alta' },
+    { titulo:`[EMPRESA NOVA] Parametrização DP — ${clienteNome}`, setor:'DP',
+      descricao:`Configurar parâmetros de folha de pagamento. Cadastrar parâmetros INSS, FGTS e tabelas. Realizar teste de funcionamento com eSocial e DCTFWeb (enviar sem movimento se necessário).`, prioridade:'Alta' },
+    { titulo:`[EMPRESA NOVA] Legalização — ${clienteNome}`, setor:'Legalização',
+      descricao:`Solicitar licenças: sanitária, bombeiro, prefeitura. Protocolar registro no órgão competente. Preencher número de processo/registro e dados do responsável técnico no cadastro do cliente.`, prioridade:'Alta' },
+    { titulo:`[EMPRESA NOVA] Parametrização Fiscal — ${clienteNome}`, setor:'Fiscal',
+      descricao:`Configurar obrigações fiscais padrão conforme regime tributário (${regime||'a definir'}). Ativar DAS, DCTF, EFD, NF-e e demais obrigações aplicáveis no Controle Mensal.`, prioridade:'Alta' }
+  ];
+
+  for (const t of tarefasNova) {
+    await sb.from('tarefas').insert({
+      ...t, responsavel:'', status:'Pendente', prazo:prazoStr,
+      competencia:compAtual, cliente_id:clienteId, criado_por:adminNome,
+      documento_enviado:false, updated_at:new Date().toISOString()
+    });
+  }
+  toast('Empresa Nova', `4 tarefas de parametrização criadas para ${clienteNome}`, 'success');
+  await loadAll();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
