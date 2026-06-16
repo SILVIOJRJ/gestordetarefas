@@ -1005,14 +1005,29 @@ function canSee(item) {
     return hasVis && vis.some(v => norm(v) === norm(userSetor));
   }
 
-  // Usuário sem setor: vê tudo (compatibilidade com registros antigos)
+  // Usuário sem setor: vê tudo
   if (!userSetor) return true;
 
-  // Itens sem setor (parcelamentos, inss_pf, etc.): comportamento legado
-  if (!hasVis) return true;
-  if (vis.some(v => norm(v) === norm(userSetor))) return true;
-  if (item.responsavel && currentFuncionario.nome && item.responsavel === currentFuncionario.nome) return true;
-  return false;
+  // Itens sem campo `setor` (parcelamentos, inss_pf, etc.)
+  if (hasVis) {
+    // setores_visibilidade definido: respeita a lista
+    return vis.some(v => norm(v) === norm(userSetor));
+  }
+
+  // Sem setores_visibilidade: infere setor pelo criador
+  if (item.criado_por) {
+    const criador = funcionarios.find(f =>
+      norm(f.nome) === norm(item.criado_por) || norm(f.email||'') === norm(item.criado_por)
+    );
+    if (criador) {
+      const setorCriador = setores.find(s => s.id === criador.setor_id);
+      if (setorCriador) return norm(setorCriador.nome) === norm(userSetor);
+      // Criador sem setor = admin global → item visível a todos
+      return true;
+    }
+  }
+  // Sem criador identificável = item global (visível a todos)
+  return true;
 }
 function filterByAccess(items) {
   if (!currentFuncionario) return items;
@@ -1271,7 +1286,7 @@ function buildAlerts() {
   const compAtual = currentMonthStr();
   const list = [];
 
-  parcelamentos.forEach(p => {
+  filterByAccess(parcelamentos).forEach(p => {
     if (!p.vencimento) return;
     const d = new Date(p.vencimento + 'T00:00:00');
     const diff = Math.round((d - today) / 86400000);
@@ -1291,7 +1306,7 @@ function buildAlerts() {
     }
   });
 
-  inss.forEach(i => {
+  filterByAccess(inss).forEach(i => {
     if (!i.vencimento) return;
     const d = new Date(i.vencimento + 'T00:00:00');
     const diff = Math.round((d - today) / 86400000);
@@ -1347,8 +1362,8 @@ function buildAlerts() {
 }
 
 function updateBadges() {
-  const pPend = parcelamentos.filter(p => ['Não iniciada','Em andamento'].includes(p.status)).length;
-  const iPend = inss.filter(i => ['Pendente','Em Atraso'].includes(i.status)).length;
+  const pPend = filterByAccess(parcelamentos).filter(p => ['Não iniciada','Em andamento'].includes(p.status)).length;
+  const iPend = filterByAccess(inss).filter(i => ['Pendente','Em Atraso'].includes(i.status)).length;
   const tPend = filterByAccess(tarefas).filter(t => ['Pendente','Em andamento','Atrasada'].includes(t.status)).length;
   document.getElementById('badge-parc').textContent = pPend;
   document.getElementById('badge-inss').textContent = iPend;
