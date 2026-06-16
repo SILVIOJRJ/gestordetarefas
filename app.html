@@ -2945,36 +2945,40 @@ const DIA_SEMANA_LABEL = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 function proximaOcorrenciaRotina(r) {
   const today = new Date(); today.setHours(0,0,0,0);
   if (r.status === 'encerrada') return null;
+  const ultimaVal = r.ultima_validacao ? new Date(r.ultima_validacao + 'T00:00:00') : null;
+  let d = null;
   if (r.frequencia === 'diaria') {
-    const d = new Date(today); d.setDate(d.getDate() + 1); return d;
-  }
-  if (r.frequencia === 'semanal' && r.dia_semana != null) {
-    const d = new Date(today);
+    d = new Date(today); d.setDate(d.getDate() + 1);
+  } else if (r.frequencia === 'semanal' && r.dia_semana != null) {
+    d = new Date(today);
     let diff = ((r.dia_semana - d.getDay()) + 7) % 7 || 7;
-    d.setDate(d.getDate() + diff); return d;
-  }
-  if (r.frequencia === 'quinzenal' && r.dia_mes) {
+    d.setDate(d.getDate() + diff);
+  } else if (r.frequencia === 'quinzenal' && r.dia_mes) {
     const d1 = new Date(today.getFullYear(), today.getMonth(), r.dia_mes);
     const d2 = new Date(today.getFullYear(), today.getMonth(), r.dia_mes + 15);
-    if (d1 > today) return d1;
-    if (d2 > today) return d2;
-    return new Date(today.getFullYear(), today.getMonth() + 1, r.dia_mes);
-  }
-  if (r.frequencia === 'mensal' && r.dia_mes) {
-    const d = new Date(today.getFullYear(), today.getMonth(), r.dia_mes);
+    if (d1 > today) d = d1;
+    else if (d2 > today) d = d2;
+    else d = new Date(today.getFullYear(), today.getMonth() + 1, r.dia_mes);
+  } else if (r.frequencia === 'mensal' && r.dia_mes) {
+    d = new Date(today.getFullYear(), today.getMonth(), r.dia_mes);
     if (d <= today) d.setMonth(d.getMonth() + 1);
-    return d;
-  }
-  if (r.frequencia === 'anual' && r.dia_ano) {
+  } else if (r.frequencia === 'anual' && r.dia_ano) {
     const [mes, dia] = r.dia_ano.split('-').map(Number);
-    const d = new Date(today.getFullYear(), mes - 1, dia);
+    d = new Date(today.getFullYear(), mes - 1, dia);
     if (d <= today) d.setFullYear(d.getFullYear() + 1);
-    return d;
+  } else if (r.frequencia === 'data_fixa' && r.data_fixa) {
+    d = new Date(r.data_fixa + 'T00:00:00');
   }
-  if (r.frequencia === 'data_fixa' && r.data_fixa) {
-    return new Date(r.data_fixa + 'T00:00:00');
+  if (!d) return null;
+  // Se já validou para esta competência, avança para o próximo período
+  if (ultimaVal && ultimaVal >= d) {
+    if (r.frequencia === 'mensal' && r.dia_mes) d.setMonth(d.getMonth() + 1);
+    else if (r.frequencia === 'semanal') d.setDate(d.getDate() + 7);
+    else if (r.frequencia === 'quinzenal') d.setDate(d.getDate() + 15);
+    else if (r.frequencia === 'anual') d.setFullYear(d.getFullYear() + 1);
+    else if (r.frequencia === 'diaria') d.setDate(d.getDate() + 1);
   }
-  return null;
+  return d;
 }
 
 function fmtProxRotina(r) {
@@ -3052,6 +3056,7 @@ function renderRotinas() {
       <td><span class="badge ${prBadge[r.prioridade]||'badge-gray'}">${r.prioridade||'—'}</span></td>
       <td><span class="badge ${stBadge[r.status]||'badge-gray'}">${r.status}</span></td>
       <td><div class="td-actions">
+        <button class="icon-btn" title="Validar entrega desta competência" onclick='validarEntregaRotina("${r.id}")' style="background:#d1fae5;color:#065f46;border-color:#6ee7b7">✅</button>
         <button class="icon-btn" onclick='editRotina("${r.id}")'>✏️</button>
         <button class="icon-btn del" onclick='deleteItem("rotina","${r.id}")'>🗑️</button>
       </div></td></tr>`;
@@ -3114,6 +3119,16 @@ async function saveRotina() {
   if (error) { toast('Erro', error.message, 'error'); return; }
   closeModal('rotina');
   toast('Salvo!', id ? 'Rotina atualizada' : 'Rotina criada com sucesso', 'success');
+  await loadAll();
+}
+
+async function validarEntregaRotina(id) {
+  const r = rotinas.find(x => x.id === id);
+  if (!r) return;
+  const today = new Date().toISOString().split('T')[0];
+  const { error } = await sb.from('rotinas').update({ ultima_validacao: today, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  toast('✅ Validado!', `Entrega de "${r.titulo}" registrada. Próxima competência ativada.`, 'success');
   await loadAll();
 }
 
@@ -4316,10 +4331,12 @@ function renderControleMensal() {
       const st = match ? match.status : 'Pendente';
       const bg = cmCellClassFromTpl(tpl, comp, st);
       const valNum = match?.valor != null ? parseFloat(match.valor) : 0;
-      const valDisp = valNum
+      const consNum = (tpl.nome.toUpperCase() === 'FGTS' && match?.valor_consignado != null) ? parseFloat(match.valor_consignado) : 0;
+      const valTotal = valNum + consNum;
+      const valDisp = valTotal
         ? isTemplateQtd(tpl.nome)
-          ? `<div style="font-size:10px;color:#2563eb;margin-top:1px;font-weight:600">📄 ${Math.round(valNum)} doc${Math.round(valNum)>1?'s':''}</div>`
-          : `<div style="font-size:10px;color:var(--text3);margin-top:1px">R$ ${fmtBR(valNum)}</div>`
+          ? `<div style="font-size:10px;color:#2563eb;margin-top:1px;font-weight:600">📄 ${Math.round(valTotal)} doc${Math.round(valTotal)>1?'s':''}</div>`
+          : `<div style="font-size:10px;color:var(--text3);margin-top:1px">R$ ${fmtBR(valTotal)}${consNum>0?` <span style="color:#7c3aed;font-size:9px">(+${fmtBR(consNum)} cons.)</span>`:''}</div>`
         : '';
       const cell = `<td style="cursor:pointer;${bg}" onclick='openObrigCli("${c.id}","${tpl.id}","${tpl.nome.replace(/'/g,'')}")'>
         <span class="badge ${cmStatusColor(st)}">${st}</span>${valDisp}</td>`;
