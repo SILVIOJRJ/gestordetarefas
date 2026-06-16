@@ -233,6 +233,7 @@
     <div class="nav-section-title">Financeiro</div>
     <div class="nav-item" onclick="navigate('parcelamentos')"><span class="nav-icon">📋</span> Parcelamentos <span class="nav-badge warn" id="badge-parc">0</span></div>
     <div class="nav-item" onclick="navigate('inss-pf')"><span class="nav-icon">🧾</span> INSS PF <span class="nav-badge" id="badge-inss">0</span></div>
+    <div class="nav-item" onclick="navigate('rotinas')"><span class="nav-icon">🔁</span> Rotinas <span class="nav-badge warn" id="badge-rot" style="display:none">0</span></div>
     <div class="nav-section-title">Departamentos</div>
     <div id="sidebar-departamentos"></div>
     <div class="nav-section-title">Controle</div>
@@ -291,6 +292,10 @@
       <div class="card">
         <div class="card-header"><span>🧾</span><div class="card-title">INSS PF · Abertos</div></div>
         <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Categoria</th><th>Competência</th><th>Vencimento</th><th>Status</th></tr></thead><tbody id="dash-inss-tbody"></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span>🔁</span><div class="card-title">Rotinas · Próximas ocorrências</div></div>
+        <div id="dash-rot-list" style="padding:8px 0"></div>
       </div>
     </div>
     <div>
@@ -358,6 +363,38 @@
     <div class="table-wrap">
       <table><thead><tr><th>Nome</th><th>NIT</th><th>Cód. GPS</th><th>%</th><th>Categoria</th><th>Salário</th><th>Valor GPS</th><th>Competência</th><th>Vencimento</th><th>Envio</th><th>Status</th><th></th></tr></thead>
       <tbody id="inss-tbody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ROTINAS -->
+<div class="page" id="page-rotinas">
+  <div class="page-title">Rotinas</div>
+  <div class="page-sub">Pendências recorrentes com alertas automáticos no dashboard</div>
+  <div class="kpi-grid" id="kpi-rot"></div>
+  <div class="card">
+    <div class="toolbar">
+      <div class="search-box">🔍<input type="text" id="rot-search" placeholder="Pesquisar..." oninput="filterRotinas()"></div>
+      <select class="select-filter" id="rot-f-freq" onchange="filterRotinas()">
+        <option value="">Todas as Frequências</option>
+        <option value="diaria">Diária</option>
+        <option value="semanal">Semanal</option>
+        <option value="quinzenal">Quinzenal</option>
+        <option value="mensal">Mensal</option>
+        <option value="anual">Anual</option>
+        <option value="data_fixa">Data Fixa</option>
+      </select>
+      <select class="select-filter" id="rot-f-status" onchange="filterRotinas()">
+        <option value="">Todos os Status</option>
+        <option value="ativa">Ativa</option>
+        <option value="pausada">Pausada</option>
+        <option value="encerrada">Encerrada</option>
+      </select>
+      <button class="btn btn-primary" onclick="openModal('rotina')">＋ Nova Rotina</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Rotina</th><th>Frequência</th><th>Próxima Ocorrência</th><th>Lembrar</th><th>Responsável</th><th>Setor</th><th>Prioridade</th><th>Status</th><th></th></tr></thead>
+      <tbody id="rot-tbody"></tbody></table>
     </div>
   </div>
 </div>
@@ -597,6 +634,71 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('parc-cronograma')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ROTINA -->
+<div class="modal-overlay" id="modal-rotina">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon blue">🔁</div>
+      <div class="modal-title" id="modal-rot-title">Nova Rotina</div>
+      <button class="modal-close" onclick="closeModal('rotina')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full"><label class="form-label">Título *</label><input type="text" class="form-control" id="rot-titulo" placeholder="Ex: Verificar DAS Simples Nacional"></div>
+        <div class="form-group form-full"><label class="form-label">Descrição</label><input type="text" class="form-control" id="rot-desc" placeholder="Detalhes da rotina"></div>
+        <div class="form-group"><label class="form-label">Frequência *</label>
+          <select class="form-control" id="rot-freq" onchange="onRotFreqChange()">
+            <option value="diaria">Diária</option>
+            <option value="semanal">Semanal</option>
+            <option value="quinzenal">Quinzenal</option>
+            <option value="mensal" selected>Mensal</option>
+            <option value="anual">Anual</option>
+            <option value="data_fixa">Data Fixa</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Prioridade</label>
+          <select class="form-control" id="rot-prior"><option>Alta</option><option selected>Média</option><option>Baixa</option></select>
+        </div>
+        <!-- Configuração dinâmica por frequência -->
+        <div class="form-group" id="rot-wrap-diasemana" style="display:none"><label class="form-label">Dia da semana</label>
+          <select class="form-control" id="rot-diasemana">
+            <option value="1">Segunda-feira</option><option value="2">Terça-feira</option>
+            <option value="3">Quarta-feira</option><option value="4">Quinta-feira</option>
+            <option value="5">Sexta-feira</option><option value="6">Sábado</option><option value="0">Domingo</option>
+          </select>
+        </div>
+        <div class="form-group" id="rot-wrap-diames" style="display:none"><label class="form-label">Dia do mês</label>
+          <input type="number" class="form-control" id="rot-diames" min="1" max="28" placeholder="ex: 15">
+        </div>
+        <div class="form-group" id="rot-wrap-diaano" style="display:none"><label class="form-label">Data anual (MM-DD)</label>
+          <input type="text" class="form-control" id="rot-diaano" placeholder="ex: 03-15 = 15 de Março">
+        </div>
+        <div class="form-group" id="rot-wrap-datafixa" style="display:none"><label class="form-label">Data específica</label>
+          <input type="date" class="form-control" id="rot-datafixa">
+        </div>
+        <div class="form-group"><label class="form-label">Lembrar X dias antes</label>
+          <input type="number" class="form-control" id="rot-lembrar" min="0" max="30" value="3" placeholder="3">
+        </div>
+        <div class="form-group"><label class="form-label">Responsável</label>
+          <input type="text" class="form-control" id="rot-resp" placeholder="Nome do responsável">
+        </div>
+        <div class="form-group"><label class="form-label">Setor</label>
+          <select class="form-control" id="rot-setor"><option value="">Todos os setores</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-control" id="rot-status"><option value="ativa">Ativa</option><option value="pausada">Pausada</option><option value="encerrada">Encerrada</option></select>
+        </div>
+        <div class="form-group form-full"><label class="form-label">Observação</label><input type="text" class="form-control" id="rot-obs"></div>
+        <div class="form-group form-full"><label class="form-label">Visível para (setores)</label><div class="checkbox-grid" id="rot-visibilidade"></div></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('rotina')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-rot" onclick="saveRotina()">💾 Salvar</button>
     </div>
   </div>
 </div>
@@ -984,11 +1086,11 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // STATE
 let parcelamentos = [], inss = [], tarefas = [], setores = [], funcionarios = [], clientes = [];
-let processos = [], gerencial = [], obrigacoesTemplates = [], obrigacoesClientes = [];
+let processos = [], gerencial = [], obrigacoesTemplates = [], obrigacoesClientes = [], rotinas = [];
 let entregas = [];
 let userEmail = '';
 let currentPage = 'dashboard';
-let editingId = { parc: null, inss: null, tarefa: null, cliente: null, setor: null, funcionario: null, processo: null, obrigtemplate: null };
+let editingId = { parc: null, inss: null, tarefa: null, cliente: null, setor: null, funcionario: null, processo: null, obrigtemplate: null, rot: null };
 // contexto mini-modais sob demanda
 let ocCtx = null;   // {cliente_id, template_id, competencia, setor, registroId}
 let gmCtx = null;   // {cliente_id, competencia, registroId}
@@ -1189,6 +1291,11 @@ async function loadAll() {
   processos = pr.data || [];
   obrigacoesTemplates = ot.data || [];
   entregas = en.data || [];
+  // Carrega rotinas separado (tabela nova, pode não existir ainda)
+  try {
+    const { data: rotData } = await sb.from('rotinas').select('*').order('created_at', { ascending: false });
+    rotinas = rotData || [];
+  } catch(e) { rotinas = []; }
   renderAll();
 }
 
@@ -1196,6 +1303,7 @@ function renderAll() {
   renderDashboard();
   renderParcelamentos();
   renderInss();
+  renderRotinas();
   renderTarefas();
   renderSetores();
   renderClientes();
@@ -1237,6 +1345,7 @@ function navigate(page, setorNome) {
   });
   currentPage = page;
   const titles = { dashboard:'Dashboard', parcelamentos:'Parcelamentos', 'inss-pf':'INSS PF',
+    rotinas:'Rotinas',
     tarefas:'Tarefas', clientes:'Clientes', configuracoes:'Configurações',
     'controle-mensal':'Controle Mensal', gerencial:'Gerencial', legalizacao:'Legalização',
     officeboy:'Office Boy' };
@@ -1390,6 +1499,19 @@ function buildAlerts() {
     }
   });
 
+  // Alertas de rotinas próximas
+  filterByAccess(rotinas).forEach(r => {
+    if (r.status !== 'ativa') return;
+    const d = proximaOcorrenciaRotina(r);
+    if (!d) return;
+    const diff = Math.round((d - today) / 86400000);
+    const lembrar = r.lembrar_antes_dias ?? 3;
+    if (diff < 0)
+      list.push({ type:'error', icon:'🔁', title:'Rotina em atraso!', msg:`${r.titulo}${r.responsavel?' · '+r.responsavel:''}` });
+    else if (diff <= lembrar)
+      list.push({ type:'warning', icon:'🔁', title:`Rotina em ${diff === 0 ? 'hoje' : diff+'d'}`, msg:`${r.titulo} · ${descFreqRotina(r)}` });
+  });
+
   // Verificar templates faltando — apenas para o setor do usuário (ou todos se admin sem setor)
   const norm2 = s => (s||'').trim().toLowerCase();
   const setoresVerif = (!currentFuncionario || isAdmin)
@@ -1420,6 +1542,15 @@ function updateBadges() {
   const obTotal = obGuias + obConf;
   const obBadge = document.getElementById('badge-ob');
   if (obBadge) { obBadge.textContent = obTotal; obBadge.style.display = obTotal > 0 ? '' : 'none'; }
+  // Badge Rotinas: ativas com próxima ocorrência dentro do lembrar_antes_dias
+  const today2 = new Date(); today2.setHours(0,0,0,0);
+  const rotPend = filterByAccess(rotinas).filter(r => {
+    if (r.status !== 'ativa') return false;
+    const d = proximaOcorrenciaRotina(r);
+    return d && Math.round((d - today2)/86400000) <= (r.lembrar_antes_dias ?? 3);
+  }).length;
+  const rotBadge = document.getElementById('badge-rot');
+  if (rotBadge) { rotBadge.textContent = rotPend; rotBadge.style.display = rotPend > 0 ? '' : 'none'; }
 }
 
 // DASHBOARD
@@ -2124,6 +2255,203 @@ function toggleParcEnvio() {
     document.getElementById('p-enviado-cliente').checked ? '' : 'none';
 }
 
+// ─── ROTINAS ──────────────────────────────────────────────────────────────
+
+const FREQ_LABEL = { diaria:'Diária', semanal:'Semanal', quinzenal:'Quinzenal', mensal:'Mensal', anual:'Anual', data_fixa:'Data Fixa' };
+const DIA_SEMANA_LABEL = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+function proximaOcorrenciaRotina(r) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (r.status === 'encerrada') return null;
+  if (r.frequencia === 'diaria') {
+    const d = new Date(today); d.setDate(d.getDate() + 1); return d;
+  }
+  if (r.frequencia === 'semanal' && r.dia_semana != null) {
+    const d = new Date(today);
+    let diff = ((r.dia_semana - d.getDay()) + 7) % 7 || 7;
+    d.setDate(d.getDate() + diff); return d;
+  }
+  if (r.frequencia === 'quinzenal' && r.dia_mes) {
+    const d1 = new Date(today.getFullYear(), today.getMonth(), r.dia_mes);
+    const d2 = new Date(today.getFullYear(), today.getMonth(), r.dia_mes + 15);
+    if (d1 > today) return d1;
+    if (d2 > today) return d2;
+    return new Date(today.getFullYear(), today.getMonth() + 1, r.dia_mes);
+  }
+  if (r.frequencia === 'mensal' && r.dia_mes) {
+    const d = new Date(today.getFullYear(), today.getMonth(), r.dia_mes);
+    if (d <= today) d.setMonth(d.getMonth() + 1);
+    return d;
+  }
+  if (r.frequencia === 'anual' && r.dia_ano) {
+    const [mes, dia] = r.dia_ano.split('-').map(Number);
+    const d = new Date(today.getFullYear(), mes - 1, dia);
+    if (d <= today) d.setFullYear(d.getFullYear() + 1);
+    return d;
+  }
+  if (r.frequencia === 'data_fixa' && r.data_fixa) {
+    return new Date(r.data_fixa + 'T00:00:00');
+  }
+  return null;
+}
+
+function fmtProxRotina(r) {
+  const d = proximaOcorrenciaRotina(r);
+  if (!d) return '—';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.round((d - today) / 86400000);
+  const ds = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+  if (diff === 0) return `<span style="color:#ef4444;font-weight:700">Hoje</span>`;
+  if (diff === 1) return `<span style="color:#f59e0b;font-weight:600">Amanhã</span>`;
+  if (diff <= 5) return `<span style="color:#f59e0b">em ${diff}d (${ds})</span>`;
+  return `<span style="color:var(--text3)">em ${diff}d (${ds})</span>`;
+}
+
+function descFreqRotina(r) {
+  if (r.frequencia === 'semanal') return `Toda ${DIA_SEMANA_LABEL[r.dia_semana]||'?'}`;
+  if (r.frequencia === 'quinzenal') return `Quinzenal · dia ${r.dia_mes}`;
+  if (r.frequencia === 'mensal') return `Todo dia ${r.dia_mes}`;
+  if (r.frequencia === 'anual' && r.dia_ano) {
+    const [m,d] = r.dia_ano.split('-');
+    return `Anual · ${d}/${m}`;
+  }
+  if (r.frequencia === 'data_fixa') return `Fixo · ${fmtDate(r.data_fixa)}`;
+  return FREQ_LABEL[r.frequencia] || r.frequencia;
+}
+
+function onRotFreqChange() {
+  const f = gv('rot-freq');
+  document.getElementById('rot-wrap-diasemana').style.display = f === 'semanal' ? '' : 'none';
+  document.getElementById('rot-wrap-diames').style.display = ['mensal','quinzenal'].includes(f) ? '' : 'none';
+  document.getElementById('rot-wrap-diaano').style.display = f === 'anual' ? '' : 'none';
+  document.getElementById('rot-wrap-datafixa').style.display = f === 'data_fixa' ? '' : 'none';
+}
+
+function filterRotinas() { renderRotinas(); }
+function renderRotinas() {
+  const search = (gv('rot-search')||'').toLowerCase();
+  const fFreq = gv('rot-f-freq')||'';
+  const fStatus = gv('rot-f-status')||'';
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  let data = filterByAccess(rotinas).filter(r => {
+    if (fFreq && r.frequencia !== fFreq) return false;
+    if (fStatus && r.status !== fStatus) return false;
+    if (search && ![r.titulo,r.descricao,r.responsavel,r.setor].join(' ').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  // KPIs
+  const ativas = rotinas.filter(r => r.status === 'ativa').length;
+  const hojeDemais = rotinas.filter(r => {
+    const d = proximaOcorrenciaRotina(r);
+    if (!d) return false;
+    return Math.round((d - today)/86400000) <= 3;
+  }).length;
+  document.getElementById('kpi-rot').innerHTML = `
+    <div class="kpi-card"><div class="kpi-value">${ativas}</div><div class="kpi-label">Rotinas Ativas</div></div>
+    <div class="kpi-card"><div class="kpi-value" style="color:#f59e0b">${hojeDemais}</div><div class="kpi-label">Próximas (3 dias)</div></div>
+    <div class="kpi-card"><div class="kpi-value">${rotinas.length}</div><div class="kpi-label">Total</div></div>`;
+
+  const prBadge = {Alta:'badge-red',Média:'badge-orange',Baixa:'badge-teal'};
+  const stBadge = {ativa:'badge-green',pausada:'badge-orange',encerrada:'badge-gray'};
+
+  document.getElementById('rot-tbody').innerHTML = data.length ? data.map(r => {
+    const prox = proximaOcorrenciaRotina(r);
+    const diff = prox ? Math.round((prox - today)/86400000) : null;
+    const rowCls = diff !== null && diff <= 3 && r.status === 'ativa' ? 'background:rgba(245,158,11,0.06);border-left:3px solid #f59e0b' : '';
+    return `<tr style="${rowCls}">
+      <td><strong>${r.titulo}</strong>${r.descricao?`<div style="font-size:11px;color:var(--text3)">${r.descricao}</div>`:''}</td>
+      <td><span class="chip">${descFreqRotina(r)}</span></td>
+      <td>${fmtProxRotina(r)}</td>
+      <td style="font-size:12px">${r.lembrar_antes_dias||3}d antes</td>
+      <td>${r.responsavel||'—'}</td>
+      <td>${r.setor||'—'}</td>
+      <td><span class="badge ${prBadge[r.prioridade]||'badge-gray'}">${r.prioridade||'—'}</span></td>
+      <td><span class="badge ${stBadge[r.status]||'badge-gray'}">${r.status}</span></td>
+      <td><div class="td-actions">
+        <button class="icon-btn" onclick='editRotina("${r.id}")'>✏️</button>
+        <button class="icon-btn del" onclick='deleteItem("rotina","${r.id}")'>🗑️</button>
+      </div></td></tr>`;
+  }).join('') : '<tr><td colspan="9"><div class="empty-state"><div class="es-icon">🔁</div><p>Nenhuma rotina cadastrada</p></div></td></tr>';
+
+  // Dashboard card
+  const el = document.getElementById('dash-rot-list');
+  if (el) {
+    const proximas = filterByAccess(rotinas).filter(r => {
+      if (r.status !== 'ativa') return false;
+      const d = proximaOcorrenciaRotina(r);
+      return d && Math.round((d - today)/86400000) <= (r.lembrar_antes_dias || 3);
+    }).sort((a,b) => {
+      const da = proximaOcorrenciaRotina(a), db = proximaOcorrenciaRotina(b);
+      return da - db;
+    }).slice(0,5);
+    el.innerHTML = proximas.length ? proximas.map(r => {
+      const d = proximaOcorrenciaRotina(r);
+      const diff = Math.round((d - today)/86400000);
+      const cor = diff <= 0 ? '#ef4444' : diff <= 1 ? '#f59e0b' : '#3b82f6';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--border)">
+        <span style="font-size:20px">🔁</span>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:13px">${r.titulo}</div>
+          <div style="font-size:11px;color:var(--text3)">${descFreqRotina(r)}${r.responsavel?' · '+r.responsavel:''}</div>
+        </div>
+        <span style="font-weight:700;font-size:12px;color:${cor}">${diff <= 0 ? 'HOJE' : diff+'d'}</span>
+      </div>`;
+    }).join('') : '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Nenhuma rotina próxima 🎉</div>';
+  }
+
+  updateBadges();
+}
+
+async function saveRotina() {
+  const titulo = gv('rot-titulo');
+  if (!titulo) { toast('Atenção','Informe o título da rotina','warning'); return; }
+  setBusy('btn-save-rot', true);
+  const freq = gv('rot-freq');
+  const obj = {
+    titulo, descricao: gv('rot-desc')||null,
+    frequencia: freq,
+    dia_semana: freq === 'semanal' ? parseInt(gv('rot-diasemana')) : null,
+    dia_mes: ['mensal','quinzenal'].includes(freq) ? parseInt(gv('rot-diames'))||null : null,
+    dia_ano: freq === 'anual' ? gv('rot-diaano')||null : null,
+    data_fixa: freq === 'data_fixa' ? gv('rot-datafixa')||null : null,
+    lembrar_antes_dias: parseInt(gv('rot-lembrar'))||3,
+    prioridade: gv('rot-prior'), responsavel: gv('rot-resp')||null,
+    setor: gv('rot-setor')||null, status: gv('rot-status'),
+    obs: gv('rot-obs')||null,
+    setores_visibilidade: getVisibilidade('rot-visibilidade'),
+    updated_at: new Date().toISOString()
+  };
+  const id = editingId.rot;
+  if (!id) obj.criado_por = currentFuncionario?.nome || userEmail;
+  const { error } = id
+    ? await sb.from('rotinas').update(obj).eq('id', id)
+    : await sb.from('rotinas').insert(obj);
+  setBusy('btn-save-rot', false);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  closeModal('rotina');
+  toast('Salvo!', id ? 'Rotina atualizada' : 'Rotina criada com sucesso', 'success');
+  await loadAll();
+}
+
+function editRotina(id) {
+  const r = rotinas.find(x => x.id === id);
+  if (!r) return;
+  editingId.rot = id;
+  document.getElementById('modal-rot-title').textContent = 'Editar Rotina';
+  setV('rot-titulo',r.titulo); setV('rot-desc',r.descricao||'');
+  setV('rot-freq',r.frequencia); onRotFreqChange();
+  setV('rot-diasemana',r.dia_semana??1); setV('rot-diames',r.dia_mes||'');
+  setV('rot-diaano',r.dia_ano||''); setV('rot-datafixa',r.data_fixa||'');
+  setV('rot-lembrar',r.lembrar_antes_dias??3);
+  setV('rot-prior',r.prioridade||'Média'); setV('rot-resp',r.responsavel||'');
+  setV('rot-setor',r.setor||''); setV('rot-status',r.status||'ativa');
+  setV('rot-obs',r.obs||'');
+  renderVisibilidadeCheckboxes('rot-visibilidade', r.setores_visibilidade, null);
+  document.getElementById('modal-rotina').classList.add('open');
+}
+
 // SAVE
 async function saveParcelamento() {
   const empresa = gv('p-empresa');
@@ -2402,7 +2730,7 @@ function editFuncionario(id) {
 
 async function deleteItem(type, id) {
   if (!confirm('Confirma exclusão?')) return;
-  const table = { parc:'parcelamentos', inss:'inss_pf', tarefa:'tarefas', cliente:'clientes', setor:'setores', funcionario:'funcionarios', processo:'processos_legalizacao', obrigtemplate:'obrigacoes_templates' }[type];
+  const table = { parc:'parcelamentos', inss:'inss_pf', tarefa:'tarefas', cliente:'clientes', setor:'setores', funcionario:'funcionarios', processo:'processos_legalizacao', obrigtemplate:'obrigacoes_templates', rotina:'rotinas' }[type];
   const { error } = await sb.from(table).delete().eq('id', id);
   if (error) { toast('Erro', error.message, 'error'); return; }
   toast('Excluído','Registro removido','success');
@@ -2411,7 +2739,7 @@ async function deleteItem(type, id) {
 
 // MODALS
 function openModal(type) {
-  const keyMap = { parc:'parc', inss:'inss', tarefa:'tarefa', cliente:'cliente', setor:'setor', funcionario:'funcionario', processo:'processo', obrigtemplate:'obrigtemplate' };
+  const keyMap = { parc:'parc', inss:'inss', tarefa:'tarefa', cliente:'cliente', setor:'setor', funcionario:'funcionario', processo:'processo', obrigtemplate:'obrigtemplate', rotina:'rot' };
   editingId[keyMap[type]] = null;
 
   if (type === 'parc') {
@@ -2431,6 +2759,17 @@ function openModal(type) {
     document.getElementById('i-recorrente').checked = false;
     document.getElementById('i-recorrente-wrap').style.display = '';
     document.getElementById('modal-inss').classList.add('open');
+  } else if (type === 'rotina') {
+    clearFormPadr(['rot-titulo','rot-desc','rot-diames','rot-diaano','rot-resp','rot-obs']);
+    setV('rot-freq','mensal'); setV('rot-prior','Média'); setV('rot-status','ativa'); setV('rot-lembrar','3');
+    // Popula select de setores
+    const selS = document.getElementById('rot-setor');
+    selS.innerHTML = '<option value="">Todos os setores</option>' + setores.map(s => `<option>${s.nome}</option>`).join('');
+    if (!isAdmin && userSetor) setV('rot-setor', userSetor);
+    onRotFreqChange();
+    renderVisibilidadeCheckboxes('rot-visibilidade', null, userSetor);
+    document.getElementById('modal-rot-title').textContent = 'Nova Rotina';
+    document.getElementById('modal-rotina').classList.add('open');
   } else if (type === 'tarefa') {
     clearFormPadr(['t-titulo','t-prazo','t-desc','t-data-envio']);
     setV('t-competencia', currentMonthStr());
