@@ -1372,7 +1372,17 @@ function renderDashboard() {
 
   const accParc = filterByAccess(parcelamentos);
   const accInss = filterByAccess(inss);
-  const accTar = filterByAccess(tarefas);
+  // Filtragem de tarefas: garante que usuários com setor só vejam tarefas do seu setor
+  const norm = s => (s||'').trim().toLowerCase();
+  const accTar = filterByAccess(tarefas).filter(t => {
+    if (!userSetor) return true; // sem setor = vê tudo
+    if (!t.setor) return true;   // tarefa sem setor = visível a todos
+    if (norm(t.setor) === norm(userSetor)) return true; // mesmo setor
+    // Setor diferente: só aparece se explicitamente compartilhado
+    const vis = t.setores_visibilidade;
+    return Array.isArray(vis) && vis.some(v => norm(v) === norm(userSetor));
+  });
+  console.log('[Tarefas] total:', tarefas.length, '| após filtro:', accTar.length, '| userSetor:', userSetor, '| isAdmin:', isAdmin);
 
   const alerts = buildAlerts();
   document.getElementById('dash-alerts').innerHTML = alerts.slice(0,5).map(a => {
@@ -1801,7 +1811,13 @@ function renderTarefas() {
   const fPrazo = gv('tar-f-prazo')||'';
   const today = new Date(); today.setHours(0,0,0,0);
 
+  const normS = s => (s||'').trim().toLowerCase();
   let data = filterByAccess(tarefas).filter(t => {
+    // Filtro explícito de setor (dupla garantia além do canSee)
+    if (userSetor && t.setor && normS(t.setor) !== normS(userSetor)) {
+      const vis = t.setores_visibilidade;
+      if (!Array.isArray(vis) || !vis.some(v => normS(v) === normS(userSetor))) return false;
+    }
     const m = search ? [t.titulo,t.descricao,t.responsavel].join(' ').toLowerCase().includes(search) : true;
     if (!m) return false;
     if (fS && t.setor !== fS) return false;
