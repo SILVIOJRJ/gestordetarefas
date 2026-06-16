@@ -1749,14 +1749,6 @@ async function init() {
 
   applyRoleUI();
   await loadAll();
-  // Recalcula userSetores agora que setores[] foi carregado
-  userSetores = userSetor ? [userSetor] : [];
-  if (Array.isArray(currentFuncionario?.setores_ids)) {
-    currentFuncionario.setores_ids.forEach(sid => {
-      const s = setores.find(x => x.id === sid);
-      if (s && !userSetores.some(n => n.toLowerCase() === s.nome.toLowerCase())) userSetores.push(s.nome);
-    });
-  }
   // Verifica se a coluna valor_consignado já existe (migration_consignado.sql)
   checkConsignadoMigration();
   document.getElementById('loading-screen').style.display = 'none';
@@ -1872,9 +1864,18 @@ async function loadAll() {
     const { data: rotData } = await sb.from('rotinas').select('*').order('created_at', { ascending: false });
     rotinas = rotData || [];
   } catch(e) { rotinas = []; }
+  // Recalcula userSetores agora que setores[] foi carregado
+  userSetores = userSetor ? [userSetor] : [];
+  if (Array.isArray(currentFuncionario?.setores_ids)) {
+    currentFuncionario.setores_ids.forEach(sid => {
+      const s = setores.find(x => x.id === sid);
+      if (s && !userSetores.some(n => n.toLowerCase() === s.nome.toLowerCase())) userSetores.push(s.nome);
+    });
+  }
   // Auto-renovação mensal (silenciosa para INSS, banner para Parcelamentos)
   await checkInssAutoRenovacao();
   renderAll();
+  applyRoleUI(); // re-aplica com userSetores já populado
   checkParcelamentosVencidos();
 }
 
