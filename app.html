@@ -3623,13 +3623,22 @@ function obCard(e, tipo) {
   const dataStr = e.criado_em ? new Date(e.criado_em).toLocaleDateString('pt-BR') : '—';
   const confStr = e.conferido_em ? new Date(e.conferido_em).toLocaleDateString('pt-BR') : null;
 
+  // Extrai competência do nome (padrão "— Jun/2026") para exibir como tag destacada
+  const compMatch = (e.referencia_nome||'').match(/[—\-]\s*([A-Za-zÀ-ú]+\/\d{4})\s*$/);
+  const compTag = compMatch ? compMatch[1] : null;
+  // Remove a parte da competência do título para não duplicar
+  const tituloLimpo = compTag ? (e.referencia_nome||'').replace(/\s*[—\-]\s*[A-Za-zÀ-ú]+\/\d{4}\s*$/, '').trim() : (e.referencia_nome||'—');
+
   const badgeMap = { guia:'badge-orange', pendente:'badge-blue', concluida:'badge-green' };
   const labelMap = { guia:'Aguardando Conferência', pendente:'Conferido — Pendente de Entrega', concluida:'Entregue' };
 
   return `<div class="ob-card" style="${tipo==='guia'?'border-left:4px solid #f59e0b':tipo==='pendente'?'border-left:4px solid #3b82f6':'border-left:4px solid #22c55e'}">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
       <div style="flex:1">
-        <div class="ob-card-title">${e.referencia_nome||'—'}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div class="ob-card-title" style="margin:0">${tituloLimpo}</div>
+          ${compTag ? `<span style="background:#dbeafe;color:#1d4ed8;font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;white-space:nowrap">📅 Comp. ${compTag}</span>` : ''}
+        </div>
         <div class="ob-card-sub">${e.cliente_nome ? e.cliente_nome+' · ' : ''}Solicitado em ${dataStr}${confStr?' &nbsp;·&nbsp; Conferido em '+confStr:''}</div>
         ${tipo==='concluida' ? `<div style="font-size:12px;color:var(--text3);margin-top:4px">
           📅 ${e.data_entrega?fmtDate(e.data_entrega):'—'} &nbsp;|&nbsp;
