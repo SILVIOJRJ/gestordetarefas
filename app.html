@@ -2718,8 +2718,8 @@ async function uploadAnexos(files) {
     progressBar.style.width = Math.round(((i+0.5)/files.length)*100)+'%';
     const ext = file.name.split('.').pop();
     const nomeSanitizado = file.name
-      .normalize('NFD').replace(/[̀-ͯ]/g, '') // remove acentos
-      .replace(/[^a-zA-Z0-9._\-]/g, '_');               // substitui espaços e caracteres inválidos por _
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9._\-]/g, '_');
     const path = `${anexosCtx.tipo}/${anexosCtx.id}/${Date.now()}_${nomeSanitizado}`;
     const { data: upData, error: upErr } = await sb.storage.from('anexos').upload(path, file, { upsert: false });
     if (upErr) { toast('Erro', `Falha ao enviar ${file.name}: ${upErr.message}`, 'error'); continue; }
