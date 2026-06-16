@@ -1038,6 +1038,8 @@ async function init() {
 
   applyRoleUI();
   await loadAll();
+  // Verifica se a coluna valor_consignado já existe (migration_consignado.sql)
+  checkConsignadoMigration();
   document.getElementById('loading-screen').style.display = 'none';
   const alerts = buildAlerts();
   if (alerts.length) {
@@ -1050,6 +1052,15 @@ async function init() {
 async function logout() {
   await sb.auth.signOut();
   window.location.href = '/';
+}
+
+// Verifica se a migration do consignado foi aplicada no Supabase
+async function checkConsignadoMigration() {
+  const { error } = await sb.from('obrigacoes_clientes')
+    .select('valor_consignado').limit(1);
+  if (error && error.message && error.message.includes('valor_consignado')) {
+    console.warn('[Migration pendente] Execute migration_consignado.sql no Supabase para habilitar Empréstimo Consignado no FGTS.');
+  }
 }
 
 // Ajusta a UI conforme o papel do usuário
@@ -3184,13 +3195,25 @@ async function saveObrigCliente() {
   const obj = {
     cliente_id: ocCtx.cliente_id, template_id: ocCtx.template_id, competencia: ocCtx.competencia,
     status: gv('oc-status'), valor: valorNum, observacao: gv('oc-obs')||null,
-    valor_consignado: consNum,
     concluido_por: currentFuncionario?.nome || userEmail,
     data_conclusao: gv('oc-status') === 'Concluído' ? new Date().toISOString().split('T')[0] : null
   };
-  const { error } = ocCtx.registroId
+  // Só inclui valor_consignado se preenchido (evita erro caso a coluna ainda não exista no banco)
+  if (consNum !== null) obj.valor_consignado = consNum;
+
+  let { error } = ocCtx.registroId
     ? await sb.from('obrigacoes_clientes').update(obj).eq('id', ocCtx.registroId)
     : await sb.from('obrigacoes_clientes').insert(obj);
+
+  // Fallback: se a coluna valor_consignado não existir ainda, salva sem ela
+  if (error && error.message && error.message.includes('valor_consignado')) {
+    delete obj.valor_consignado;
+    const retry = ocCtx.registroId
+      ? await sb.from('obrigacoes_clientes').update(obj).eq('id', ocCtx.registroId)
+      : await sb.from('obrigacoes_clientes').insert(obj);
+    error = retry.error;
+    if (!error) toast('Atenção', 'Execute migration_consignado.sql no Supabase para salvar o consignado', 'warning');
+  }
   setBusy('btn-save-oc', false);
   if (error) { toast('Erro', error.message, 'error'); return; }
   // Office Boy: cria entrega se marcado
