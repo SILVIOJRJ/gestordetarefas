@@ -1004,9 +1004,8 @@ let calSelected = null; // {y,m,d} dia selecionado
 
 // Verifica se usuário pode ver um item conforme regras de visibilidade
 function canSee(item) {
-  // Admin SEM setor definido = super-admin, vê tudo
   if (!currentFuncionario) return true;
-  if (isAdmin && !userSetor) return true;
+  if (isAdmin) return true; // admin sempre vê tudo, independente de setor
 
   const norm = s => (s||'').trim().toLowerCase();
   const vis = item.setores_visibilidade;
@@ -1045,7 +1044,7 @@ function canSee(item) {
 }
 function filterByAccess(items) {
   if (!currentFuncionario) return items;
-  if (isAdmin && !userSetor) return items;
+  if (isAdmin) return items; // admin vê tudo
   return (items || []).filter(canSee);
 }
 
@@ -1131,8 +1130,7 @@ function applyRoleUI() {
     }
   }
 
-  // Super-admin (sem setor): vê tudo. Admin com setor ou usuário normal: filtrado.
-  const superAdmin = (isAdmin && !userSetor) || !currentFuncionario;
+  const superAdmin = isAdmin || !currentFuncionario; // admin sempre é super-admin
   const verTudo = superAdmin;
   const norm = s => (s||'').toLowerCase();
   const isLegUser = norm(userSetor).includes('legaliza');
@@ -1394,8 +1392,8 @@ function buildAlerts() {
 
   // Verificar templates faltando — apenas para o setor do usuário (ou todos se admin sem setor)
   const norm2 = s => (s||'').trim().toLowerCase();
-  const setoresVerif = (!currentFuncionario || (isAdmin && !userSetor))
-    ? setoresList().filter(s => s !== 'Legalização')   // super-admin vê todos
+  const setoresVerif = (!currentFuncionario || isAdmin)
+    ? setoresList().filter(s => s !== 'Legalização')   // admin vê todos
     : (userSetor ? [userSetor] : []);                   // usuário normal: só o seu setor
   setoresVerif.forEach(s => {
     const temTemplates = obrigacoesTemplates.some(t => norm2(t.setor_nome) === norm2(s) && t.ativo !== false);
@@ -1876,9 +1874,10 @@ function renderTarefas() {
   const today = new Date(); today.setHours(0,0,0,0);
 
   const normS = s => (s||'').trim().toLowerCase();
+  const adminNome = currentFuncionario?.nome ? normS(currentFuncionario.nome) : null;
   let data = filterByAccess(tarefas).filter(t => {
-    // Filtro explícito de setor (dupla garantia além do canSee)
-    if (userSetor && t.setor && normS(t.setor) !== normS(userSetor)) {
+    // Dupla garantia de setor apenas para não-admins
+    if (!isAdmin && userSetor && t.setor && normS(t.setor) !== normS(userSetor)) {
       const vis = t.setores_visibilidade;
       if (!Array.isArray(vis) || !vis.some(v => normS(v) === normS(userSetor))) return false;
     }
@@ -1895,6 +1894,17 @@ function renderTarefas() {
     return true;
   });
 
+  // Admin: tarefas próprias (responsável ou criada por) sobem ao topo
+  if (isAdmin && adminNome) {
+    data.sort((a, b) => {
+      const aOwn = normS(a.responsavel||'') === adminNome || normS(a.criado_por||'') === adminNome;
+      const bOwn = normS(b.responsavel||'') === adminNome || normS(b.criado_por||'') === adminNome;
+      if (aOwn && !bOwn) return -1;
+      if (!aOwn && bOwn) return 1;
+      return 0;
+    });
+  }
+
   document.getElementById('tar-tbody').innerHTML = data.length ? data.map(t => {
     const diff = t.prazo ? Math.round((new Date(t.prazo+'T00:00:00') - today)/86400000) : null;
     const isLongo = diff !== null && diff > 30 && t.status !== 'Concluída';
@@ -1902,9 +1912,12 @@ function renderTarefas() {
     const pr = {Alta:'badge-red',Média:'badge-orange',Baixa:'badge-teal'}[t.prioridade]||'badge-gray';
     const cli = clientes.find(c => c.id === t.cliente_id);
     const docIcon = t.documento_enviado ? '✅' : (t.cliente_id ? '📤' : '—');
-    const rowStyle = isLongo ? 'opacity:0.65' : '';
-    return `<tr style="${rowStyle}">
-      <td><strong>${t.titulo}</strong>${isLongo?'<span class="badge badge-gray" style="margin-left:4px;font-size:10px">longo prazo</span>':''}${t.descricao?`<div style="font-size:11px;color:var(--text3)">${t.descricao}</div>`:''}</td>
+    const isOwn = isAdmin && adminNome && (normS(t.responsavel||'') === adminNome || normS(t.criado_por||'') === adminNome);
+    const rowStyle = isOwn
+      ? 'border-left:3px solid #f59e0b;background:rgba(245,158,11,0.06)'
+      : isLongo ? 'opacity:0.65' : '';
+    return `<tr style="${rowStyle}" title="${isOwn ? '⭐ Sua tarefa' : ''}">
+      <td><strong>${t.titulo}</strong>${isOwn?'<span style="margin-left:6px;font-size:11px;background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:10px;font-weight:700">⭐ Minha</span>':''}${isLongo?'<span class="badge badge-gray" style="margin-left:4px;font-size:10px">longo prazo</span>':''}${t.descricao?`<div style="font-size:11px;color:var(--text3)">${t.descricao}</div>`:''}</td>
       <td><span class="chip">${t.setor||'—'}</span></td>
       <td>${t.responsavel||'—'}</td>
       <td style="font-size:12px">${cli?cli.nome:'—'}</td>
