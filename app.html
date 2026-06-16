@@ -446,7 +446,68 @@
   .mta-kpi-mini { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:14px 16px; text-align:center; }
   .mta-kpi-mini-val { font-size:26px; font-weight:800; color:#e2e8f0; }
   .mta-kpi-mini-label { font-size:11px; color:#64748b; margin-top:4px; }
-  @media(max-width:768px) { #page-minhas-tarefas-admin { padding:16px; } }
+  /* ═══ MINHAS TAREFAS ADMIN — DASHBOARD ═══════════════════════════════════ */
+  #page-minhas-tarefas-admin { background:linear-gradient(160deg,#0f172a 0%,#0f1f3d 50%,#1a0f2e 100%); min-height:100vh; padding:28px 28px 40px; }
+
+  /* Hero */
+  .mta-hero { display:flex; align-items:center; justify-content:space-between; background:linear-gradient(135deg,rgba(99,102,241,0.2) 0%,rgba(139,92,246,0.12) 50%,rgba(59,130,246,0.08) 100%); border:1px solid rgba(99,102,241,0.25); border-radius:20px; padding:28px 32px; margin-bottom:28px; gap:24px; position:relative; overflow:hidden; }
+  .mta-hero::before { content:''; position:absolute; top:-40px; right:160px; width:200px; height:200px; background:radial-gradient(circle,rgba(99,102,241,0.15) 0%,transparent 70%); pointer-events:none; }
+  .mta-hero-greeting { font-size:26px; font-weight:800; color:#f1f5f9; letter-spacing:-0.02em; }
+  .mta-hero-sub { font-size:13px; color:#64748b; margin-top:5px; }
+  .mta-hero-ring-wrap { position:relative; width:120px; height:120px; flex-shrink:0; }
+  .mta-ring { width:120px; height:120px; }
+  .mta-ring-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .mta-ring-pct { font-size:22px; font-weight:800; color:#e2e8f0; line-height:1; }
+  .mta-ring-label { font-size:9px; color:#64748b; text-transform:uppercase; letter-spacing:.08em; margin-top:2px; }
+
+  /* Buttons */
+  .mta-btn-primary { background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; border:none; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; transition:all .2s; box-shadow:0 4px 15px rgba(99,102,241,0.4); }
+  .mta-btn-primary:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(99,102,241,0.55); }
+  .mta-btn-secondary { background:rgba(255,255,255,0.06); color:#cbd5e1; border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:10px 16px; font-size:13px; font-weight:600; cursor:pointer; transition:all .2s; }
+  .mta-btn-secondary:hover { background:rgba(255,255,255,0.1); color:#f1f5f9; }
+
+  /* KPI Grid */
+  .mta-kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+  .mta-kpi-card { border-radius:16px; padding:20px; position:relative; overflow:hidden; cursor:default; transition:transform .2s; }
+  .mta-kpi-card:hover { transform:translateY(-2px); }
+  .mta-kpi-card::after { content:''; position:absolute; top:-20px; right:-20px; width:80px; height:80px; border-radius:50%; background:rgba(255,255,255,0.06); }
+  .mta-kpi-icon { font-size:24px; margin-bottom:10px; }
+  .mta-kpi-val { font-size:36px; font-weight:900; color:#fff; line-height:1; letter-spacing:-0.02em; }
+  .mta-kpi-lbl { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.07em; margin-top:5px; opacity:.8; }
+  .mta-kpi-sub { font-size:10px; opacity:.6; margin-top:3px; }
+
+  /* Context grid */
+  .mta-context-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .mta-context-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:16px; padding:18px 20px; }
+  .mta-context-header { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+  .mta-context-icon { font-size:18px; }
+  .mta-context-title { font-size:12px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.07em; }
+  .mta-context-count { margin-left:auto; font-size:20px; font-weight:800; color:#e2e8f0; }
+  .mta-context-item { display:flex; align-items:flex-start; gap:8px; padding:7px 0; border-top:1px solid rgba(255,255,255,0.05); }
+  .mta-context-item:first-of-type { border-top:none; }
+  .mta-context-item-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; margin-top:5px; }
+  .mta-context-item-text { font-size:12px; color:#cbd5e1; line-height:1.4; flex:1; }
+  .mta-context-item-sub { font-size:10px; color:#475569; margin-top:1px; }
+  .mta-context-empty { font-size:12px; color:#334155; text-align:center; padding:16px 0; }
+
+  /* Section title */
+  .mta-section-title { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; border-bottom:1px solid rgba(255,255,255,0.07); padding-bottom:12px; }
+  .mta-section-title > span { font-size:13px; font-weight:700; color:#818cf8; text-transform:uppercase; letter-spacing:.08em; border-left:3px solid #6366f1; padding-left:10px; }
+
+  /* Filters */
+  .mta-filter-input { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:7px 12px; color:#e2e8f0; font-size:12px; width:160px; outline:none; }
+  .mta-filter-input:focus { border-color:#6366f1; }
+  .mta-filter-select { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:7px 10px; color:#e2e8f0; font-size:12px; cursor:pointer; outline:none; }
+
+  /* Urgentes banner */
+  .mta-urgentes-banner { background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(245,158,11,0.1)); border:1px solid rgba(239,68,68,0.3); border-radius:14px; padding:14px 20px; margin-bottom:20px; display:flex; align-items:center; gap:14px; }
+
+  @media(max-width:900px) {
+    .mta-kpi-grid { grid-template-columns:repeat(2,1fr); }
+    .mta-context-grid { grid-template-columns:1fr; }
+    .mta-hero { flex-direction:column; align-items:flex-start; }
+    #page-minhas-tarefas-admin { padding:16px; }
+  }
   /* Timeline de eventos de tarefa */
   .task-timeline { position:relative; padding-left:24px; margin:10px 0; }
   .task-timeline::before { content:''; position:absolute; left:7px; top:0; bottom:0; width:2px; background:rgba(255,255,255,0.08); }
@@ -516,6 +577,14 @@
     <div class="topbar-title" id="topbar-title">Dashboard</div>
   </div>
   <div class="topbar-actions">
+    <div class="notif-bell" id="admin-bell" onclick="toggleAdminBell()" title="Minhas tarefas — alertas exclusivos" style="display:none;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-color:#6366f1;color:#fff;position:relative">🛡️<span class="notif-dot" id="admin-bell-dot" style="display:none;background:#ef4444"></span><span id="admin-bell-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:9px;font-weight:700;border-radius:10px;padding:1px 5px;min-width:16px;text-align:center;border:2px solid #fff"></span></div>
+    <div id="admin-bell-dropdown" style="display:none;position:absolute;top:56px;right:80px;width:340px;background:#1e293b;border:1px solid rgba(255,255,255,0.1);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.5);z-index:999;overflow:hidden">
+      <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:13px;font-weight:700;color:#f1f5f9">🛡️ Alertas Admin</span>
+        <button onclick="document.getElementById('admin-bell-dropdown').style.display='none'" style="background:none;border:none;color:#475569;cursor:pointer;font-size:16px">✕</button>
+      </div>
+      <div id="admin-bell-list" style="max-height:360px;overflow-y:auto;padding:8px 0"></div>
+    </div>
     <div class="notif-bell" onclick="openNotif()" title="Alertas">🔔<span class="notif-dot" id="notif-dot"></span></div>
     <button class="btn btn-primary" onclick="openContextModal()">＋ Novo</button>
   </div>
@@ -619,40 +688,66 @@
 
 <!-- MINHAS TAREFAS ADMIN -->
 <div class="page" id="page-minhas-tarefas-admin">
-  <div class="admin-header-bar">
-    <div>
-      <h1>📌 Minhas Tarefas</h1>
-      <p>Tarefas pessoais e delegações sob sua gestão direta</p>
+
+  <!-- Hero Banner -->
+  <div class="mta-hero">
+    <div class="mta-hero-left">
+      <div class="mta-hero-greeting" id="mta-greeting">Bom dia, Silvio 👋</div>
+      <div class="mta-hero-sub" id="mta-hero-date"></div>
+      <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+        <button class="mta-btn-primary" onclick="openModalAdminDelegacao()">＋ Nova Tarefa</button>
+        <button class="mta-btn-secondary" onclick="renderMinhasTarefasAdmin()">🔄 Atualizar</button>
+        <button class="mta-btn-secondary" onclick="navigate('painel-admin')">🛡️ Painel Admin</button>
+      </div>
     </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" onclick="openModalAdminDelegacao()">＋ Nova Tarefa</button>
-      <button class="btn btn-primary" onclick="renderMinhasTarefasAdmin()">🔄 Atualizar</button>
+    <div class="mta-hero-ring-wrap">
+      <svg class="mta-ring" viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10"/>
+        <circle cx="60" cy="60" r="50" fill="none" stroke="url(#ringGrad)" stroke-width="10"
+          stroke-linecap="round" stroke-dasharray="314" id="mta-ring-dash" stroke-dashoffset="314"
+          transform="rotate(-90 60 60)" style="transition:stroke-dashoffset 1s ease"/>
+        <defs><linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#22c55e"/>
+        </linearGradient></defs>
+      </svg>
+      <div class="mta-ring-center">
+        <div class="mta-ring-pct" id="mta-ring-pct">0%</div>
+        <div class="mta-ring-label">Concluídas</div>
+      </div>
     </div>
   </div>
 
-  <!-- Filtros -->
-  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
-    <input type="text" id="mta-search" placeholder="🔍 Pesquisar tarefa..." oninput="renderMinhasTarefasAdmin()" style="flex:1;min-width:200px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#e2e8f0;font-size:13px">
-    <select id="mta-f-status" onchange="renderMinhasTarefasAdmin()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#e2e8f0;font-size:13px">
-      <option value="">Todos os status</option>
-      <option>Pendente</option><option>Em andamento</option><option>Concluída</option>
-    </select>
-    <select id="mta-f-setor" onchange="renderMinhasTarefasAdmin()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#e2e8f0;font-size:13px">
-      <option value="">Todos os setores</option>
-    </select>
-    <select id="mta-f-tipo" onchange="renderMinhasTarefasAdmin()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#e2e8f0;font-size:13px">
-      <option value="todas">Todas</option>
-      <option value="minhas">Sou responsável</option>
-      <option value="delegadas">Delegadas por mim</option>
-      <option value="acompanhar">Para acompanhar</option>
-    </select>
-  </div>
+  <!-- KPI Cards -->
+  <div class="mta-kpi-grid" id="mta-kpi"></div>
 
-  <!-- KPIs rápidos -->
-  <div id="mta-kpi" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
+  <!-- Alerta de urgentes -->
+  <div id="mta-urgentes-banner" style="display:none"></div>
+
+  <!-- Seção de contexto rápido: Hoje / Esta semana / Atrasadas -->
+  <div class="mta-context-grid" id="mta-context-grid"></div>
+
+  <!-- Separador com filtros -->
+  <div class="mta-section-title" style="margin-top:28px">
+    <span>📋 Todas as Tarefas</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input type="text" id="mta-search" placeholder="🔍 Pesquisar..." oninput="renderMinhasTarefasAdmin()" class="mta-filter-input">
+      <select id="mta-f-status" onchange="renderMinhasTarefasAdmin()" class="mta-filter-select">
+        <option value="">Todos os status</option>
+        <option>Pendente</option><option>Em andamento</option><option>Concluída</option>
+      </select>
+      <select id="mta-f-setor" onchange="renderMinhasTarefasAdmin()" class="mta-filter-select">
+        <option value="">Todos os setores</option>
+      </select>
+      <select id="mta-f-tipo" onchange="renderMinhasTarefasAdmin()" class="mta-filter-select">
+        <option value="todas">Todas</option>
+        <option value="minhas">Sou responsável</option>
+        <option value="delegadas">Delegadas por mim</option>
+      </select>
+    </div>
+  </div>
 
   <!-- Lista de tarefas -->
-  <div id="mta-lista" style="display:flex;flex-direction:column;gap:10px"></div>
+  <div id="mta-lista" style="display:flex;flex-direction:column;gap:10px;margin-top:14px"></div>
 </div>
 
 <!-- PARCELAMENTOS -->
@@ -1789,7 +1884,19 @@ function renderAll() {
   buildCalendar();
   if (calSelected) selectCalDay(calSelected.y, calSelected.m, calSelected.d);
   else renderAgendaDefault();
-  if (isAdmin) renderPainelAdmin();
+  if (isAdmin) { renderPainelAdmin(); _refreshAdminBell(); }
+}
+
+function _refreshAdminBell() {
+  if (!isAdmin) return;
+  const norm = s => (s||'').trim().toLowerCase();
+  const adminNome = currentFuncionario?.nome || '';
+  const today = new Date().toISOString().slice(0,10);
+  const universe = tarefas.filter(t => norm(t.criado_por)===norm(adminNome) || norm(t.responsavel)===norm(adminNome));
+  const abertas  = universe.filter(t => t.status !== 'Concluída');
+  const atrasadas = abertas.filter(t => t.prazo && t.prazo < today);
+  const hoje      = abertas.filter(t => t.prazo === today);
+  updateAdminBell(atrasadas, hoje);
 }
 
 // NAVIGATE
@@ -5041,10 +5148,88 @@ function openClienteFromTask(tarefaId) {
 
 function renderMinhasTarefasAdmin() {
   if (!isAdmin) return;
-  const adminNome = currentFuncionario?.nome || '';
+  const adminNome = currentFuncionario?.nome || 'Silvio';
   const norm = s => (s||'').trim().toLowerCase();
+  const today = new Date().toISOString().slice(0,10);
+  const todayDt = new Date(); todayDt.setHours(0,0,0,0);
+  const in7 = new Date(todayDt); in7.setDate(in7.getDate()+7);
 
-  // Populate setor filter
+  // — Hero greeting —
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+  const greetEl = document.getElementById('mta-greeting');
+  if (greetEl) greetEl.textContent = `${greet}, ${adminNome.split(' ')[0]} 👋`;
+  const dateEl = document.getElementById('mta-hero-date');
+  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  // — All admin tasks universe —
+  const universe = tarefas.filter(t => norm(t.criado_por) === norm(adminNome) || norm(t.responsavel) === norm(adminNome));
+  const concluidas = universe.filter(t => t.status === 'Concluída');
+  const abertas   = universe.filter(t => t.status !== 'Concluída');
+  const atrasadasAll = abertas.filter(t => t.prazo && t.prazo < today);
+  const hojeAll   = abertas.filter(t => t.prazo === today);
+  const semanaAll = abertas.filter(t => t.prazo && t.prazo > today && new Date(t.prazo+'T00:00:00') <= in7);
+  const pct = universe.length ? Math.round(concluidas.length / universe.length * 100) : 0;
+
+  // — Progress ring —
+  const ringDash = document.getElementById('mta-ring-dash');
+  if (ringDash) ringDash.style.strokeDashoffset = String(Math.round(314 * (1 - pct/100)));
+  const ringPct = document.getElementById('mta-ring-pct');
+  if (ringPct) ringPct.textContent = pct + '%';
+
+  // — KPI Cards —
+  const kpiEl = document.getElementById('mta-kpi');
+  if (kpiEl) kpiEl.innerHTML = [
+    { icon:'📋', val:universe.length, lbl:'Total Tarefas', sub:'criadas e delegadas', bg:'linear-gradient(135deg,#1e1b4b,#312e81)', accent:'#818cf8' },
+    { icon:'🔄', val:abertas.filter(t=>t.status==='Em andamento').length, lbl:'Em Andamento', sub:'executando agora', bg:'linear-gradient(135deg,#0c1445,#1e3a8a)', accent:'#60a5fa' },
+    { icon:'⚠️', val:atrasadasAll.length, lbl:'Atrasadas', sub:'prazo ultrapassado', bg:atrasadasAll.length?'linear-gradient(135deg,#450a0a,#7f1d1d)':'linear-gradient(135deg,#1a1a2e,#16213e)', accent:atrasadasAll.length?'#f87171':'#475569' },
+    { icon:'✅', val:concluidas.length, lbl:'Concluídas', sub:`${pct}% do total`, bg:'linear-gradient(135deg,#052e16,#14532d)', accent:'#4ade80' }
+  ].map(k=>`<div class="mta-kpi-card" style="background:${k.bg};border:1px solid rgba(255,255,255,0.07)">
+    <div class="mta-kpi-icon">${k.icon}</div>
+    <div class="mta-kpi-val" style="color:${k.accent}">${k.val}</div>
+    <div class="mta-kpi-lbl" style="color:${k.accent}">${k.lbl}</div>
+    <div class="mta-kpi-sub">${k.sub}</div>
+  </div>`).join('');
+
+  // — Urgentes banner —
+  const urgBanner = document.getElementById('mta-urgentes-banner');
+  if (urgBanner) {
+    if (atrasadasAll.length) {
+      urgBanner.style.display = 'flex';
+      urgBanner.innerHTML = `<span style="font-size:24px">🚨</span>
+        <div style="flex:1"><div style="font-size:13px;font-weight:700;color:#fca5a5">${atrasadasAll.length} tarefa${atrasadasAll.length>1?'s':''} atrasada${atrasadasAll.length>1?'s':''}</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:2px">${atrasadasAll.slice(0,2).map(t=>t.titulo).join(' · ')}</div></div>
+        <button class="mta-btn-secondary" style="font-size:12px;padding:7px 12px" onclick="document.getElementById('mta-f-status').value='';document.getElementById('mta-f-tipo').value='delegadas';renderMinhasTarefasAdmin()">Ver atrasadas</button>`;
+    } else { urgBanner.style.display = 'none'; }
+  }
+
+  // — Context cards: Hoje / Esta semana / Alta prioridade —
+  const altaPri = abertas.filter(t => t.prioridade === 'Alta').sort((a,b)=>(a.prazo||'')-(b.prazo||''));
+  const contextEl = document.getElementById('mta-context-grid');
+  if (contextEl) {
+    const ctxCard = (icon, title, count, items, dotColor, emptyMsg) => `
+      <div class="mta-context-card">
+        <div class="mta-context-header">
+          <span class="mta-context-icon">${icon}</span>
+          <span class="mta-context-title">${title}</span>
+          <span class="mta-context-count" style="color:${dotColor}">${count}</span>
+        </div>
+        ${items.length ? items.slice(0,4).map(t=>`<div class="mta-context-item">
+          <div class="mta-context-item-dot" style="background:${dotColor}"></div>
+          <div><div class="mta-context-item-text">${t.titulo||'—'}</div>
+          <div class="mta-context-item-sub">${t.responsavel||'sem resp.'} ${t.setor?'· '+t.setor:''}</div></div>
+        </div>`).join('') : `<div class="mta-context-empty">${emptyMsg}</div>`}
+      </div>`;
+    contextEl.innerHTML =
+      ctxCard('📅','Vencem Hoje', hojeAll.length, hojeAll, '#f59e0b','Nenhuma para hoje ✓') +
+      ctxCard('📆','Esta Semana', semanaAll.length, semanaAll, '#60a5fa','Semana tranquila ✓') +
+      ctxCard('🔥','Alta Prioridade', altaPri.length, altaPri, '#ef4444','Nenhuma urgente ✓');
+  }
+
+  // — Admin Bell —
+  updateAdminBell(atrasadasAll, hojeAll);
+
+  // — Populate setor filter —
   const setorSel = document.getElementById('mta-f-setor');
   if (setorSel && setorSel.options.length <= 1) {
     setores.filter(s => s.ativo !== false).forEach(s => {
@@ -5052,77 +5237,55 @@ function renderMinhasTarefasAdmin() {
     });
   }
 
-  const search = (document.getElementById('mta-search')?.value || '').toLowerCase();
+  // — Filtered list —
+  const search  = (document.getElementById('mta-search')?.value  || '').toLowerCase();
   const fStatus = document.getElementById('mta-f-status')?.value || '';
-  const fSetor = document.getElementById('mta-f-setor')?.value || '';
-  const fTipo = document.getElementById('mta-f-tipo')?.value || 'todas';
-  const today = new Date().toISOString().slice(0,10);
+  const fSetor  = document.getElementById('mta-f-setor')?.value  || '';
+  const fTipo   = document.getElementById('mta-f-tipo')?.value   || 'todas';
 
-  // Filter logic
   let data = tarefas.filter(t => {
-    const tituloMatch = !search || (t.titulo||'').toLowerCase().includes(search) || (t.responsavel||'').toLowerCase().includes(search);
-    const statusMatch = !fStatus || t.status === fStatus;
-    const setorMatch = !fSetor || norm(t.setor) === norm(fSetor);
-
-    const isAdmin_ = norm(t.criado_por) === norm(adminNome);
+    const tMatch = !search || (t.titulo||'').toLowerCase().includes(search) || (t.responsavel||'').toLowerCase().includes(search);
+    const sMatch = !fStatus || t.status === fStatus;
+    const seMatch= !fSetor  || norm(t.setor) === norm(fSetor);
+    const isAdm  = norm(t.criado_por) === norm(adminNome);
     const isResp = norm(t.responsavel) === norm(adminNome);
-    const isAcomp = !!(t.acompanhar_admin);
-
     let tipoMatch = true;
-    if (fTipo === 'minhas') tipoMatch = isResp;
-    else if (fTipo === 'delegadas') tipoMatch = isAdmin_ && !isResp;
-    else if (fTipo === 'acompanhar') tipoMatch = isAcomp;
-    else tipoMatch = isAdmin_ || isResp || isAcomp;
-
-    return tituloMatch && statusMatch && setorMatch && tipoMatch;
+    if (fTipo === 'minhas')    tipoMatch = isResp;
+    else if (fTipo==='delegadas') tipoMatch = isAdm && !isResp;
+    else tipoMatch = isAdm || isResp;
+    return tMatch && sMatch && seMatch && tipoMatch;
   });
 
-  // Sort: atrasadas primeiro, depois por prazo
-  data.sort((a, b) => {
+  data.sort((a,b) => {
     const aAt = a.prazo && a.prazo < today && a.status !== 'Concluída';
     const bAt = b.prazo && b.prazo < today && b.status !== 'Concluída';
     if (aAt && !bAt) return -1; if (!aAt && bAt) return 1;
-    if (a.status === 'Concluída' && b.status !== 'Concluída') return 1;
-    if (b.status === 'Concluída' && a.status !== 'Concluída') return -1;
+    if (a.status==='Concluída' && b.status!=='Concluída') return 1;
+    if (b.status==='Concluída' && a.status!=='Concluída') return -1;
     return (a.prazo||'') < (b.prazo||'') ? -1 : 1;
   });
 
-  // KPIs
-  const total = data.length;
-  const pend = data.filter(t => t.status === 'Pendente').length;
-  const emAnd = data.filter(t => t.status === 'Em andamento').length;
-  const atrasadas = data.filter(t => t.prazo && t.prazo < today && t.status !== 'Concluída').length;
-  const kpiEl = document.getElementById('mta-kpi');
-  if (kpiEl) kpiEl.innerHTML = [
-    {val:total, label:'Total no filtro', color:'#e2e8f0'},
-    {val:pend, label:'Pendentes', color:'#f59e0b'},
-    {val:emAnd, label:'Em andamento', color:'#3b82f6'},
-    {val:atrasadas, label:'Atrasadas', color:'#ef4444'}
-  ].map(k => `<div class="mta-kpi-mini"><div class="mta-kpi-mini-val" style="color:${k.color}">${k.val}</div><div class="mta-kpi-mini-label">${k.label}</div></div>`).join('');
-
-  // List
   const listEl = document.getElementById('mta-lista');
   if (!listEl) return;
   if (!data.length) {
-    listEl.innerHTML = `<div style="text-align:center;padding:40px;color:#475569;font-size:14px">Nenhuma tarefa encontrada com os filtros selecionados.</div>`;
+    listEl.innerHTML = `<div style="text-align:center;padding:48px;color:#334155;font-size:14px">Nenhuma tarefa neste filtro.</div>`;
     return;
   }
 
-  const prColor = {Alta:'#ef4444', Média:'#f59e0b', Baixa:'#22c55e'};
-  const cli = id => clientes.find(c => c.id === id);
+  const prColor = {Alta:'#ef4444',Média:'#f59e0b',Baixa:'#22c55e'};
+  const cliNome = id => clientes.find(c=>c.id===id)?.nome;
 
   listEl.innerHTML = data.map(t => {
     const atrasada = t.prazo && t.prazo < today && t.status !== 'Concluída';
     const concluida = t.status === 'Concluída';
-    const emAndamento = t.status === 'Em andamento';
+    const emAnd = t.status === 'Em andamento';
+    const isDeleg = norm(t.criado_por)===norm(adminNome) && norm(t.responsavel)!==norm(adminNome);
+    const isResp  = norm(t.responsavel)===norm(adminNome);
+    const cl = cliNome(t.cliente_id);
     let cardClass = 'mta-card';
     if (concluida) cardClass += ' status-concluida';
-    else if (emAndamento) cardClass += ' status-em-andamento';
+    else if (emAnd) cardClass += ' status-em-andamento';
     else if (atrasada) cardClass += ' status-atrasada';
-
-    const isMinhaDelegacao = norm(t.criado_por) === norm(adminNome) && norm(t.responsavel) !== norm(adminNome);
-    const isMinhaResp = norm(t.responsavel) === norm(adminNome);
-    const cliente = cli(t.cliente_id);
 
     return `<div class="${cardClass}" onclick="openAdminTarefaDetail('${t.id}')">
       <div class="mta-card-check ${concluida?'done':''}" onclick="event.stopPropagation();toggleAdminTarefaStatus('${t.id}','${t.status}')">${concluida?'✓':''}</div>
@@ -5133,22 +5296,64 @@ function renderMinhasTarefasAdmin() {
           ${t.responsavel?`<span style="font-size:12px;color:#94a3b8">👤 ${t.responsavel}</span>`:''}
           ${t.prazo?`<span style="font-size:12px;color:${atrasada?'#ef4444':'#64748b'}">📅 ${fmtDate(t.prazo)}${atrasada?' ⚠️':''}</span>`:''}
           ${t.prioridade?`<span style="font-size:11px;font-weight:700;color:${prColor[t.prioridade]||'#64748b'}">${t.prioridade}</span>`:''}
-          ${cliente?`<span style="font-size:11px;color:#64748b">🏢 ${cliente.nome}</span>`:''}
-          ${isMinhaDelegacao?`<span style="font-size:10px;background:rgba(245,158,11,0.2);color:#f59e0b;padding:2px 7px;border-radius:6px">Delegada</span>`:''}
-          ${isMinhaResp && !isMinhaDelegacao?`<span style="font-size:10px;background:rgba(99,102,241,0.2);color:#a5b4fc;padding:2px 7px;border-radius:6px">Minha</span>`:''}
+          ${cl?`<span style="font-size:11px;color:#64748b">🏢 ${cl}</span>`:''}
+          ${isDeleg?`<span style="font-size:10px;background:rgba(245,158,11,0.2);color:#f59e0b;padding:2px 7px;border-radius:6px">Delegada</span>`:''}
+          ${isResp&&!isDeleg?`<span style="font-size:10px;background:rgba(99,102,241,0.2);color:#a5b4fc;padding:2px 7px;border-radius:6px">Minha</span>`:''}
         </div>
-        ${t.descricao?`<div style="font-size:12px;color:#475569;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:600px">${t.descricao}</div>`:''}
+        ${t.descricao?`<div style="font-size:11px;color:#475569;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:500px">${t.descricao}</div>`:''}
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0">
-        <span style="font-size:11px;padding:3px 10px;border-radius:8px;font-weight:600;background:${concluida?'rgba(34,197,94,0.15)':emAndamento?'rgba(59,130,246,0.15)':atrasada?'rgba(239,68,68,0.15)':'rgba(255,255,255,0.06)'};color:${concluida?'#22c55e':emAndamento?'#60a5fa':atrasada?'#ef4444':'#94a3b8'}">${t.status}</span>
-        <button onclick="event.stopPropagation();openTaskEventoModal('${t.id}')" style="font-size:11px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:6px;padding:3px 8px;cursor:pointer">📝 Andamento</button>
-        <button onclick="event.stopPropagation();openEditTarefaAdmin('${t.id}')" style="font-size:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;border-radius:6px;padding:3px 8px;cursor:pointer">✏️ Editar</button>
-        ${isAberturaTask(t)&&!t.cliente_id?`<button onclick="event.stopPropagation();openClienteFromTask('${t.id}')" style="font-size:11px;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:#c4b5fd;border-radius:6px;padding:3px 8px;cursor:pointer">🏢 Abertura</button>`:''}
-
+      <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0">
+        <span style="font-size:11px;padding:3px 10px;border-radius:8px;font-weight:600;background:${concluida?'rgba(34,197,94,0.15)':emAnd?'rgba(59,130,246,0.15)':atrasada?'rgba(239,68,68,0.15)':'rgba(255,255,255,0.06)'};color:${concluida?'#4ade80':emAnd?'#60a5fa':atrasada?'#f87171':'#94a3b8'}">${t.status}</span>
+        <button onclick="event.stopPropagation();openTaskEventoModal('${t.id}')" class="btn-progresso" style="font-size:11px;padding:3px 10px">📝 Andamento</button>
+        <button onclick="event.stopPropagation();openEditTarefaAdmin('${t.id}')" style="font-size:11px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:#64748b;border-radius:6px;padding:3px 10px;cursor:pointer">✏️</button>
+        ${isAberturaTask(t)&&!t.cliente_id?`<button onclick="event.stopPropagation();openClienteFromTask('${t.id}')" class="btn-abertura" style="font-size:11px;padding:3px 10px">🏢</button>`:''}
       </div>
     </div>`;
   }).join('');
 }
+
+function updateAdminBell(atrasadas, hoje) {
+  const bell = document.getElementById('admin-bell');
+  const badge = document.getElementById('admin-bell-badge');
+  const dot = document.getElementById('admin-bell-dot');
+  if (!bell) return;
+  bell.style.display = 'flex';
+  const total = atrasadas.length + hoje.length;
+  if (badge) { badge.textContent = total; badge.style.display = total ? '' : 'none'; }
+  if (dot)   { dot.style.display = total ? '' : 'none'; }
+  // Render dropdown list
+  const list = document.getElementById('admin-bell-list');
+  if (!list) return;
+  const items = [];
+  atrasadas.slice(0,5).forEach(t => items.push({ icon:'⚠️', color:'#f87171', label:t.titulo, sub:`Atrasada · ${fmtDate(t.prazo)} · ${t.responsavel||'—'}`, id:t.id }));
+  hoje.slice(0,5).forEach(t => items.push({ icon:'📅', color:'#fbbf24', label:t.titulo, sub:`Vence hoje · ${t.responsavel||'—'}`, id:t.id }));
+  if (!items.length) {
+    list.innerHTML = `<div style="padding:24px;text-align:center;color:#475569;font-size:13px">✅ Tudo em dia!</div>`;
+  } else {
+    list.innerHTML = items.map(it=>`<div onclick="document.getElementById('admin-bell-dropdown').style.display='none';openAdminTarefaDetail('${it.id}')"
+      style="padding:10px 18px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;gap:10px;align-items:flex-start;transition:background .15s"
+      onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background=''">
+      <span style="font-size:16px;flex-shrink:0;margin-top:1px">${it.icon}</span>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:#e2e8f0;line-height:1.3">${it.label}</div>
+        <div style="font-size:10px;color:${it.color};margin-top:2px">${it.sub}</div>
+      </div>
+    </div>`).join('');
+  }
+}
+
+function toggleAdminBell() {
+  const dd = document.getElementById('admin-bell-dropdown');
+  if (!dd) return;
+  dd.style.display = dd.style.display === 'none' || !dd.style.display ? 'block' : 'none';
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+  const bell = document.getElementById('admin-bell');
+  const dd = document.getElementById('admin-bell-dropdown');
+  if (dd && bell && !bell.contains(e.target) && !dd.contains(e.target)) dd.style.display = 'none';
+});
 
 async function toggleAdminTarefaStatus(tarefaId, currentStatus) {
   const newStatus = currentStatus === 'Concluída' ? 'Pendente' : 'Concluída';
