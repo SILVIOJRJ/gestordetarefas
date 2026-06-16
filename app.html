@@ -990,33 +990,33 @@ let calSelected = null; // {y,m,d} dia selecionado
 
 // Verifica se usuário pode ver um item conforme regras de visibilidade
 function canSee(item) {
-  if (isAdmin || !currentFuncionario) return true;
+  // Admin SEM setor definido = super-admin, vê tudo
+  if (!currentFuncionario) return true;
+  if (isAdmin && !userSetor) return true;
+
   const norm = s => (s||'').trim().toLowerCase();
   const vis = item.setores_visibilidade;
   const hasVis = Array.isArray(vis) && vis.length > 0;
 
   // Itens com campo `setor` (tarefas): lógica de setor nativo
   if (item.setor && userSetor) {
-    // Mesmo setor: visível
     if (norm(item.setor) === norm(userSetor)) return true;
-    // Setor diferente: só visível se o userSetor estiver explicitamente em setores_visibilidade
+    // Setor diferente: só visível se userSetor estiver em setores_visibilidade
     return hasVis && vis.some(v => norm(v) === norm(userSetor));
   }
 
-  // Itens com setor mas usuário sem setor definido: respeita setores_visibilidade normal
-  if (item.setor && !userSetor) {
-    if (!hasVis) return true;
-    return vis.some(v => norm(v) === norm(item.setor));
-  }
+  // Usuário sem setor: vê tudo (compatibilidade com registros antigos)
+  if (!userSetor) return true;
 
   // Itens sem setor (parcelamentos, inss_pf, etc.): comportamento legado
   if (!hasVis) return true;
-  if (userSetor && vis.some(v => norm(v) === norm(userSetor))) return true;
+  if (vis.some(v => norm(v) === norm(userSetor))) return true;
   if (item.responsavel && currentFuncionario.nome && item.responsavel === currentFuncionario.nome) return true;
   return false;
 }
 function filterByAccess(items) {
-  if (isAdmin || !currentFuncionario) return items;
+  if (!currentFuncionario) return items;
+  if (isAdmin && !userSetor) return items;
   return (items || []).filter(canSee);
 }
 
@@ -1086,14 +1086,18 @@ function applyRoleUI() {
     }
   }
 
-  // Admin ou usuário sem vínculo: vê tudo
-  const verTudo = isAdmin || !currentFuncionario;
+  // Super-admin (sem setor): vê tudo. Admin com setor ou usuário normal: filtrado.
+  const superAdmin = (isAdmin && !userSetor) || !currentFuncionario;
+  const verTudo = superAdmin;
   const norm = s => (s||'').toLowerCase();
   const isLegUser = norm(userSetor).includes('legaliza');
-  const podeGerencial = verTudo || ['fiscal','contábil','contabil'].includes(norm(userSetor));
+  const podeGerencial = superAdmin || ['fiscal','contábil','contabil'].includes(norm(userSetor));
+
+  // Badge: admin com setor mostra o setor, super-admin mostra "Admin"
+  const badgeEl = document.getElementById('user-setor-badge');
+  if (badgeEl) badgeEl.textContent = (isAdmin && !userSetor) ? 'Admin' : (userSetor || 'Admin');
 
   document.querySelectorAll('.nav-item').forEach(n => {
-    // reset
     n.style.display = '';
     const onclick = n.getAttribute('onclick') || '';
     const navMatch = onclick.match(/navigate\('([^']+)'(?:,'([^']+)')?\)/);
@@ -1101,7 +1105,7 @@ function applyRoleUI() {
     const page = navMatch[1];
     const setorArg = navMatch[2] || n.dataset.setor;
 
-    if (verTudo) return; // admin vê tudo
+    if (verTudo) return; // super-admin vê tudo
 
     // Configurações: não-admin vê apenas a aba Obrigações (esconde Setores/Funcionários)
     if (page === 'configuracoes') {
