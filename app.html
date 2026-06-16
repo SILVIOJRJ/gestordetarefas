@@ -319,6 +319,15 @@
 <div class="page" id="page-parcelamentos">
   <div class="page-title">Parcelamentos</div>
   <div class="page-sub">Todas as modalidades, instâncias e regiões</div>
+  <div id="banner-parc-renovacao" style="display:none;background:#fef3c7;border:1px solid #f59e0b;border-radius:10px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+    <span style="font-size:20px">📋</span>
+    <div style="flex:1">
+      <div id="banner-parc-msg" style="font-weight:600;font-size:13px"></div>
+      <div style="font-size:12px;color:#92400e;margin-top:2px">Clique para avançar as parcelas para o mês atual e atualizar o vencimento.</div>
+    </div>
+    <button class="btn btn-primary" style="white-space:nowrap" onclick="avancarParcelamentos()">⬆ Avançar Parcelas</button>
+    <button class="btn btn-ghost" style="white-space:nowrap" onclick="document.getElementById('banner-parc-renovacao').style.display='none'">Dispensar</button>
+  </div>
   <div class="kpi-grid" id="kpi-parc"></div>
   <div class="card">
     <div class="toolbar">
@@ -345,6 +354,14 @@
 <div class="page" id="page-inss-pf">
   <div class="page-title">INSS Pessoa Física</div>
   <div class="page-sub">Carnês de contribuintes individuais, facultativos e especiais</div>
+  <div id="banner-inss-renovacao" style="display:none;background:#d1fae5;border:1px solid #34d399;border-radius:10px;padding:12px 18px;margin-bottom:16px;align-items:center;gap:12px">
+    <span style="font-size:20px">🧾</span>
+    <div style="flex:1">
+      <div id="banner-inss-msg" style="font-weight:600;font-size:13px"></div>
+      <div style="font-size:12px;color:#065f46;margin-top:2px">Carnês renovados automaticamente para a nova competência com status Pendente.</div>
+    </div>
+    <button class="btn btn-ghost" style="white-space:nowrap" onclick="document.getElementById('banner-inss-renovacao').style.display='none'">OK</button>
+  </div>
   <div class="kpi-grid" id="kpi-inss"></div>
   <div class="card">
     <div class="toolbar">
@@ -1296,7 +1313,10 @@ async function loadAll() {
     const { data: rotData } = await sb.from('rotinas').select('*').order('created_at', { ascending: false });
     rotinas = rotData || [];
   } catch(e) { rotinas = []; }
+  // Auto-renovação mensal (silenciosa para INSS, banner para Parcelamentos)
+  await checkInssAutoRenovacao();
   renderAll();
+  checkParcelamentosVencidos();
 }
 
 function renderAll() {
@@ -2253,6 +2273,121 @@ function toggleDocEnvio() {
 function toggleParcEnvio() {
   document.getElementById('p-envio-wrap').style.display =
     document.getElementById('p-enviado-cliente').checked ? '' : 'none';
+}
+
+// ─── AUTO-RENOVAÇÃO MENSAL ────────────────────────────────────────────────
+
+async function checkInssAutoRenovacao() {
+  const compAtual = currentMonthStr();
+  const compAnterior = addMonthsToComp(compAtual, -1);
+
+  // Registros do mês anterior que foram Pagos
+  const pagosAnt = inss.filter(i => i.competencia === compAnterior && i.status === 'Pago');
+  if (!pagosAnt.length) return;
+
+  // Verifica quais ainda não têm registro no mês atual (por NIT ou nome)
+  const renovar = pagosAnt.filter(i => {
+    return !inss.some(x =>
+      x.competencia === compAtual &&
+      ((i.nit && x.nit === i.nit) || (!i.nit && x.nome === i.nome))
+    );
+  });
+  if (!renovar.length) return;
+
+  // Cria registros pendentes para o mês atual
+  const novos = renovar.map(({ id, created_at, updated_at, ...rest }) => ({
+    ...rest,
+    competencia: compAtual,
+    vencimento: rest.vencimento ? addMonthsToDate(rest.vencimento, 1) : null,
+    status: 'Pendente',
+    criado_por: 'Auto-renovação',
+    updated_at: new Date().toISOString()
+  }));
+
+  const { error } = await sb.from('inss_pf').insert(novos);
+  if (!error) {
+    // Atualiza lista local
+    const { data } = await sb.from('inss_pf').select('*').order('vencimento', { ascending: true });
+    inss = data || [];
+    // Mostra banner informativo
+    const mes = new Date(compAtual + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    const banner = document.getElementById('banner-inss-renovacao');
+    const msg = document.getElementById('banner-inss-msg');
+    if (banner && msg) {
+      msg.textContent = `${novos.length} carnê(s) renovado(s) automaticamente para ${mes}`;
+      banner.style.display = 'flex';
+    }
+  }
+}
+
+function checkParcelamentosVencidos() {
+  const compAtual = currentMonthStr();
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Parcelamentos ativos com vencimento em mês anterior e parcela ainda não concluída
+  const atrasados = filterByAccess(parcelamentos).filter(p => {
+    if (['Concluído','Cancelado'].includes(p.status)) return false;
+    if (!p.vencimento || !p.total_parcelas) return false;
+    const d = new Date(p.vencimento + 'T00:00:00');
+    const compVenc = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    return compVenc < compAtual; // vencimento em mês passado
+  });
+
+  const banner = document.getElementById('banner-parc-renovacao');
+  const msg = document.getElementById('banner-parc-msg');
+  if (!banner || !msg) return;
+
+  if (atrasados.length) {
+    const mes = new Date(compAtual + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    msg.textContent = `${atrasados.length} parcelamento(s) com vencimento em meses anteriores — avançar para ${mes}?`;
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+async function avancarParcelamentos() {
+  const compAtual = currentMonthStr();
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const atrasados = parcelamentos.filter(p => {
+    if (['Concluído','Cancelado'].includes(p.status)) return false;
+    if (!p.vencimento || !p.total_parcelas) return false;
+    const d = new Date(p.vencimento + 'T00:00:00');
+    const compVenc = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    return compVenc < compAtual;
+  });
+
+  if (!atrasados.length) return;
+  if (!confirm(`Avançar ${atrasados.length} parcelamento(s) para a competência atual?\n\nIsso irá incrementar a parcela atual e atualizar o vencimento para o mês corrente.`)) return;
+
+  let erros = 0;
+  for (const p of atrasados) {
+    const parcelaAtual = parseInt(p.parcela) || 0;
+    const totalParcelas = parseInt(p.total_parcelas) || 0;
+    const novasParcelas = Math.min(parcelaAtual + 1, totalParcelas);
+    // Avança vencimento mês a mês até atingir o mês atual
+    let novoVenc = p.vencimento;
+    let compVenc = novoVenc.substring(0,7);
+    while (compVenc < compAtual) {
+      novoVenc = addMonthsToDate(novoVenc, 1);
+      compVenc = novoVenc.substring(0,7);
+    }
+    const novoStatus = novasParcelas >= totalParcelas ? 'Concluído' : p.status;
+    const { error } = await sb.from('parcelamentos').update({
+      parcela: novasParcelas,
+      vencimento: novoVenc,
+      competencia: compAtual,
+      status: novoStatus,
+      updated_at: new Date().toISOString()
+    }).eq('id', p.id);
+    if (error) erros++;
+  }
+
+  toast(erros ? 'Parcial' : 'Atualizado!',
+    erros ? `${atrasados.length - erros} avançados, ${erros} com erro` : `${atrasados.length} parcelamento(s) avançados com sucesso`,
+    erros ? 'warning' : 'success');
+  await loadAll();
 }
 
 // ─── ROTINAS ──────────────────────────────────────────────────────────────
