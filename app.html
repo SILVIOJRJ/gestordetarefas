@@ -1647,14 +1647,15 @@ function canSee(item) {
   const vis = item.setores_visibilidade;
   const hasVis = Array.isArray(vis) && vis.length > 0;
 
-  // Itens com campo `setor` (tarefas): lógica estrita de setor
+  // Itens com campo `setor` (tarefas): setor é soberano, não cruza via setores_visibilidade
   if ('setor' in item) {
-    if (!userSetor) return true; // usuário sem setor vê tudo (compatibilidade)
-    if (!item.setor && !hasVis) return false; // sem setor + sem vis = só admin vê
-    if (!item.setor && hasVis) return vis.some(v => norm(v) === norm(userSetor));
-    if (norm(item.setor) === norm(userSetor)) return true; // mesmo setor
-    // Setor diferente: só via setores_visibilidade explícita
-    return hasVis && vis.some(v => norm(v) === norm(userSetor));
+    if (!userSetor) return true; // usuário sem setor vê tudo
+    if (!item.setor) {
+      // Tarefa sem setor: só via setores_visibilidade explícita, ou só admin
+      return hasVis && vis.some(v => norm(v) === norm(userSetor));
+    }
+    // Tarefa com setor: apenas o setor exato pode ver (sem cruzamento)
+    return norm(item.setor) === norm(userSetor);
   }
 
   // Itens sem campo `setor` (parcelamentos, inss_pf, etc.)
