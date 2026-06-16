@@ -454,10 +454,14 @@
   <div class="page-title">Office Boy</div>
   <div class="page-sub">Entregas e documentos para protocolo presencial</div>
   <div class="ob-tabs tabs">
-    <button class="tab-btn active" onclick="switchObTab('pendentes')">🕐 Pendentes</button>
-    <button class="tab-btn" onclick="switchObTab('concluidas')">✅ Concluídas</button>
+    <button class="tab-btn active" id="ob-btn-guias" onclick="switchObTab('guias')">📋 Guias Recebidas</button>
+    <button class="tab-btn" id="ob-btn-pendentes" onclick="switchObTab('pendentes')">🚚 Pendentes de Entrega</button>
+    <button class="tab-btn" id="ob-btn-concluidas" onclick="switchObTab('concluidas')">✅ Concluídas</button>
   </div>
-  <div id="ob-tab-pendentes" class="tab-panel active">
+  <div id="ob-tab-guias" class="tab-panel active">
+    <div id="ob-cards-guias"></div>
+  </div>
+  <div id="ob-tab-pendentes" class="tab-panel">
     <div id="ob-cards-pendentes"></div>
   </div>
   <div id="ob-tab-concluidas" class="tab-panel">
@@ -1370,9 +1374,12 @@ function updateBadges() {
   document.getElementById('badge-tar').textContent = tPend;
   const hasAlert = buildAlerts().length > 0;
   document.getElementById('notif-dot').style.display = hasAlert ? '' : 'none';
-  const obPend = entregas.filter(e => e.status === 'Pendente').length;
+  // Badge Office Boy: soma guias não conferidas + pendentes de entrega
+  const obGuias = entregas.filter(e => e.status === 'Pendente').length;
+  const obConf  = entregas.filter(e => e.status === 'Conferido').length;
+  const obTotal = obGuias + obConf;
   const obBadge = document.getElementById('badge-ob');
-  if (obBadge) { obBadge.textContent = obPend; obBadge.style.display = obPend > 0 ? '' : 'none'; }
+  if (obBadge) { obBadge.textContent = obTotal; obBadge.style.display = obTotal > 0 ? '' : 'none'; }
 }
 
 // DASHBOARD
@@ -3475,41 +3482,78 @@ let entCtx = null;
 
 function switchObTab(tab) {
   document.querySelectorAll('.ob-tabs .tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('#ob-tab-pendentes, #ob-tab-concluidas').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#ob-tab-guias, #ob-tab-pendentes, #ob-tab-concluidas').forEach(p => p.classList.remove('active'));
   document.getElementById('ob-tab-'+tab).classList.add('active');
-  event.target.classList.add('active');
+  document.getElementById('ob-btn-'+tab).classList.add('active');
 }
 
 function renderEntregas() {
+  const gEl = document.getElementById('ob-cards-guias');
   const pEl = document.getElementById('ob-cards-pendentes');
   const cEl = document.getElementById('ob-cards-concluidas');
-  if (!pEl || !cEl) return;
-  const pend = entregas.filter(e => e.status === 'Pendente');
-  const conc = entregas.filter(e => e.status === 'Entregue');
-  pEl.innerHTML = pend.length ? pend.map(e => obCard(e)).join('')
-    : '<div class="empty-state"><div class="es-icon">📦</div><p>Nenhuma entrega pendente</p></div>';
-  cEl.innerHTML = conc.length ? conc.map(e => obCard(e)).join('')
+  if (!gEl || !pEl || !cEl) return;
+
+  const guias = entregas.filter(e => e.status === 'Pendente');
+  const pend  = entregas.filter(e => e.status === 'Conferido');
+  const conc  = entregas.filter(e => e.status === 'Entregue');
+
+  // Badge dinâmico na aba Guias Recebidas
+  document.getElementById('ob-btn-guias').innerHTML =
+    `📋 Guias Recebidas${guias.length ? ` <span style="background:#ef4444;color:#fff;border-radius:999px;padding:1px 7px;font-size:11px;margin-left:4px">${guias.length}</span>` : ''}`;
+
+  gEl.innerHTML = guias.length ? guias.map(e => obCard(e,'guia')).join('')
+    : '<div class="empty-state"><div class="es-icon">📋</div><p>Nenhuma guia aguardando conferência</p></div>';
+  pEl.innerHTML = pend.length ? pend.map(e => obCard(e,'pendente')).join('')
+    : '<div class="empty-state"><div class="es-icon">🚚</div><p>Nenhuma entrega pendente</p></div>';
+  cEl.innerHTML = conc.length ? conc.map(e => obCard(e,'concluida')).join('')
     : '<div class="empty-state"><div class="es-icon">✅</div><p>Nenhuma entrega concluída</p></div>';
 }
 
-function obCard(e) {
-  const entregue = e.status === 'Entregue';
+function obCard(e, tipo) {
   const dataStr = e.criado_em ? new Date(e.criado_em).toLocaleDateString('pt-BR') : '—';
-  return `<div class="ob-card">
+  const confStr = e.conferido_em ? new Date(e.conferido_em).toLocaleDateString('pt-BR') : null;
+
+  const badgeMap = { guia:'badge-orange', pendente:'badge-blue', concluida:'badge-green' };
+  const labelMap = { guia:'Aguardando Conferência', pendente:'Conferido — Pendente de Entrega', concluida:'Entregue' };
+
+  return `<div class="ob-card" style="${tipo==='guia'?'border-left:4px solid #f59e0b':tipo==='pendente'?'border-left:4px solid #3b82f6':'border-left:4px solid #22c55e'}">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
       <div style="flex:1">
         <div class="ob-card-title">${e.referencia_nome||'—'}</div>
-        <div class="ob-card-sub">${e.cliente_nome ? e.cliente_nome+' · ' : ''}Solicitado em ${dataStr}</div>
-        ${entregue ? `<div style="font-size:12px;color:var(--text3);margin-top:4px">
+        <div class="ob-card-sub">${e.cliente_nome ? e.cliente_nome+' · ' : ''}Solicitado em ${dataStr}${confStr?' &nbsp;·&nbsp; Conferido em '+confStr:''}</div>
+        ${tipo==='concluida' ? `<div style="font-size:12px;color:var(--text3);margin-top:4px">
           📅 ${e.data_entrega?fmtDate(e.data_entrega):'—'} &nbsp;|&nbsp;
           👤 Recebido por: <strong>${e.entregue_para||'—'}</strong>
-          ${e.entregue_por ? ` &nbsp;|&nbsp; Por: <strong>${e.entregue_por}</strong>` : ''}
+          ${e.entregue_por ? ` &nbsp;|&nbsp; Entregue por: <strong>${e.entregue_por}</strong>` : ''}
         </div>` : ''}
+        ${e.obs ? `<div style="font-size:12px;color:var(--text3);margin-top:2px">💬 ${e.obs}</div>` : ''}
       </div>
-      <span class="badge ${entregue?'badge-green':'badge-orange'}">${entregue?'Entregue':'Pendente'}</span>
+      <span class="badge ${badgeMap[tipo]}" style="white-space:nowrap;font-size:10px">${labelMap[tipo]}</span>
     </div>
-    ${!entregue ? `<button class="ob-card-btn entrega" onclick='abrirConfirmarEntrega("${e.id}")'>🚚 Registrar Entrega</button>` : ''}
+    <div style="display:flex;gap:8px;margin-top:10px">
+      ${tipo==='guia' ? `<button class="ob-card-btn" style="background:#f59e0b;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;flex:1" onclick='conferirGuia("${e.id}")'>✓ Conferido — Pronto para Entrega</button>` : ''}
+      ${tipo==='pendente' ? `<button class="ob-card-btn entrega" onclick='abrirConfirmarEntrega("${e.id}")' style="flex:1">🚚 Registrar Entrega</button>` : ''}
+    </div>
   </div>`;
+}
+
+async function conferirGuia(id) {
+  const e = entregas.find(x => x.id === id);
+  if (!e) return;
+  const obj = {
+    status: 'Conferido',
+    conferido_por: currentFuncionario?.nome || userEmail,
+    conferido_em: new Date().toISOString()
+  };
+  const { error } = await sb.from('entregas').update(obj).eq('id', id);
+  if (error) { toast('Erro', error.message, 'error'); return; }
+  toast('Conferido!', `"${e.referencia_nome}" movido para Pendentes de Entrega`, 'success');
+  const { data } = await sb.from('entregas').select('*').order('criado_em', { ascending: false });
+  entregas = data || [];
+  renderEntregas();
+  updateBadges();
+  // Vai automaticamente para a aba Pendentes de Entrega
+  switchObTab('pendentes');
 }
 
 async function criarEntrega(tipo, referenciaId, referenciaNome, clienteNome) {
