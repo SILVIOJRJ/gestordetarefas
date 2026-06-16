@@ -1333,9 +1333,13 @@
     <div class="modal-body">
       <div class="form-grid">
         <div class="form-group form-full"><label class="form-label">Nome *</label><input type="text" class="form-control" id="f-nome" placeholder="Nome do funcionário"></div>
-        <div class="form-group"><label class="form-label">Setor</label>
+        <div class="form-group"><label class="form-label">Setor primário</label>
           <select class="form-control" id="f-setor"><option value="">Selecione…</option></select></div>
         <div class="form-group"><label class="form-label">Cargo</label><input type="text" class="form-control" id="f-cargo" placeholder="Ex: Contador, Analista"></div>
+        <div class="form-group form-full">
+          <label class="form-label">Setores adicionais <span style="font-weight:400;font-size:11px;color:var(--text3)">— além do primário</span></label>
+          <div id="func-setores-extras" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;padding:8px;background:var(--bg2);border-radius:8px;min-height:36px"></div>
+        </div>
         <div class="form-group form-full"><label class="form-label">Email</label><input type="email" class="form-control" id="f-email" placeholder="funcionario@empresa.com"></div>
         <div class="form-group form-full"><label class="form-label">User ID (Supabase)</label><input type="text" class="form-control" id="f-user-id" placeholder="UUID do usuário Supabase Auth"></div>
         <div class="form-group form-full">
@@ -1632,7 +1636,8 @@ let gmCtx = null;   // {cliente_id, competencia, registroId}
 // HIERARQUIA
 let currentFuncionario = null; // registro do funcionario logado
 let isAdmin = false;           // se é admin
-let userSetor = null;          // nome do setor do usuário logado
+let userSetor = null;          // nome do setor primário do usuário logado
+let userSetores = [];          // todos os setores do usuário (primário + adicionais)
 
 // CALENDÁRIO
 let calMonth = new Date().getMonth(), calYear = new Date().getFullYear();
@@ -1654,13 +1659,14 @@ function canSee(item) {
       // Tarefa sem setor: só via setores_visibilidade explícita, ou só admin
       return hasVis && vis.some(v => norm(v) === norm(userSetor));
     }
-    // Tarefa com setor: apenas o setor exato pode ver (sem cruzamento)
-    return norm(item.setor) === norm(userSetor);
+    // Tarefa com setor: apenas usuários do mesmo setor podem ver
+    const inSetor = s => userSetores.length > 0 ? userSetores.some(u => norm(u) === norm(s)) : norm(s) === norm(userSetor);
+    return inSetor(item.setor);
   }
 
   // Itens sem campo `setor` (parcelamentos, inss_pf, etc.)
-  if (!userSetor) return true;
-  if (hasVis) return vis.some(v => norm(v) === norm(userSetor));
+  if (!userSetor && userSetores.length === 0) return true;
+  if (hasVis) return vis.some(v => userSetores.length > 0 ? userSetores.some(u => norm(u) === norm(v)) : norm(v) === norm(userSetor));
 
   // Sem vis: infere pelo criador
   if (item.criado_por) {
@@ -1669,7 +1675,7 @@ function canSee(item) {
     );
     if (criador) {
       const setorCriador = setores.find(s => s.id === criador.setor_id);
-      if (setorCriador) return norm(setorCriador.nome) === norm(userSetor);
+      if (setorCriador) return userSetores.length > 0 ? userSetores.some(u => norm(u) === norm(setorCriador.nome)) : norm(setorCriador.nome) === norm(userSetor);
       return true; // criador sem setor = item global (parcelamentos/INSS antigos)
     }
   }
@@ -1743,6 +1749,14 @@ async function init() {
 
   applyRoleUI();
   await loadAll();
+  // Recalcula userSetores agora que setores[] foi carregado
+  userSetores = userSetor ? [userSetor] : [];
+  if (Array.isArray(currentFuncionario?.setores_ids)) {
+    currentFuncionario.setores_ids.forEach(sid => {
+      const s = setores.find(x => x.id === sid);
+      if (s && !userSetores.some(n => n.toLowerCase() === s.nome.toLowerCase())) userSetores.push(s.nome);
+    });
+  }
   // Verifica se a coluna valor_consignado já existe (migration_consignado.sql)
   checkConsignadoMigration();
   document.getElementById('loading-screen').style.display = 'none';
@@ -1778,7 +1792,7 @@ function applyRoleUI() {
       badge.id = 'user-setor-badge';
       badge.className = 'setor-badge';
       badge.style.marginLeft = '6px';
-      badge.textContent = isAdmin ? 'Admin' : userSetor;
+      badge.textContent = isAdmin ? 'Admin' : (userSetores.length > 1 ? userSetores.join(' · ') : userSetor);
       emailEl.appendChild(badge);
     }
   }
@@ -1786,8 +1800,8 @@ function applyRoleUI() {
   const superAdmin = isAdmin || !currentFuncionario; // admin sempre é super-admin
   const verTudo = superAdmin;
   const norm = s => (s||'').toLowerCase();
-  const isLegUser = norm(userSetor).includes('legaliza');
-  const podeGerencial = superAdmin || ['fiscal','contábil','contabil'].includes(norm(userSetor));
+  const isLegUser = userSetores.length > 0 ? userSetores.some(s => norm(s).includes('legaliza')) : norm(userSetor).includes('legaliza');
+  const podeGerencial = superAdmin || (userSetores.length > 0 ? userSetores.some(s => ['fiscal','contábil','contabil'].includes(norm(s))) : ['fiscal','contábil','contabil'].includes(norm(userSetor)));
 
   // Badge: admin com setor mostra o setor, super-admin mostra "Admin"
   const badgeEl = document.getElementById('user-setor-badge');
@@ -2803,13 +2817,21 @@ function populateClienteSelects() {
   });
 }
 
-function populateFuncSelects() {
+function populateFuncSelects(setoresIdsExtras) {
   const setorSel = document.getElementById('f-setor');
   setorSel.innerHTML = '<option value="">Selecione…</option>';
   setores.forEach(s => {
     const o = document.createElement('option'); o.value = s.id; o.textContent = s.nome;
     setorSel.appendChild(o);
   });
+  // Renderiza checkboxes de setores adicionais
+  const extrasEl = document.getElementById('func-setores-extras');
+  if (extrasEl) {
+    extrasEl.innerHTML = setores.length ? setores.map(s =>
+      `<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:6px">
+        <input type="checkbox" value="${s.id}"${Array.isArray(setoresIdsExtras) && setoresIdsExtras.includes(s.id) ? ' checked' : ''}> ${s.nome}
+      </label>`).join('') : '<span style="font-size:12px;color:var(--text3)">Nenhum setor cadastrado</span>';
+  }
 }
 
 // TOGGLE FIELDS
@@ -3321,11 +3343,13 @@ async function saveFuncionario() {
   const nome = gv('f-nome');
   if (!nome) { toast('Atenção','Informe o nome do funcionário','warning'); return; }
   setBusy('btn-save-func', true);
+  const setoresExtras = [...(document.querySelectorAll('#func-setores-extras input[type=checkbox]:checked')||[])].map(cb => cb.value).filter(Boolean);
   const obj = {
     nome, setor_id:gv('f-setor')||null, cargo:gv('f-cargo'), email:gv('f-email'),
     user_id: gv('f-user-id') || null,
     is_admin: document.getElementById('f-is-admin').checked,
-    ativo:document.getElementById('f-ativo').checked
+    ativo:document.getElementById('f-ativo').checked,
+    setores_ids: setoresExtras.length ? setoresExtras : null
   };
   const id = editingId.funcionario;
   const { error } = id
@@ -3445,7 +3469,7 @@ function editFuncionario(id) {
   const f = funcionarios.find(x => x.id === id);
   if (!f) return;
   editingId.funcionario = id;
-  populateFuncSelects();
+  populateFuncSelects(f.setores_ids || []);
   document.getElementById('modal-func-title').textContent = 'Editar Funcionário';
   setV('f-nome',f.nome); setV('f-setor',f.setor_id||''); setV('f-cargo',f.cargo); setV('f-email',f.email);
   setV('f-user-id', f.user_id||'');
@@ -3528,7 +3552,7 @@ function openModal(type) {
     clearFormPadr(['f-nome','f-cargo','f-email','f-user-id']);
     document.getElementById('f-is-admin').checked = false;
     document.getElementById('f-ativo').checked = true;
-    populateFuncSelects();
+    populateFuncSelects([]);
     document.getElementById('modal-func-title').textContent = 'Novo Funcionário';
     document.getElementById('modal-funcionario').classList.add('open');
   } else if (type === 'processo') {
