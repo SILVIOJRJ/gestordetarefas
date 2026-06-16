@@ -1434,10 +1434,22 @@ async function init() {
   document.getElementById('user-name').textContent = user.user_metadata?.nome || user.email.split('@')[0];
   // Busca o funcionario vinculado ao usuário logado
   try {
-    const { data: funcData } = await sb.from('funcionarios')
+    let { data: funcData } = await sb.from('funcionarios')
       .select('*, setores(nome)')
       .eq('user_id', user.id)
       .single();
+    // Fallback: tenta pelo email se não achou pelo user_id
+    if (!funcData) {
+      const { data: funcByEmail } = await sb.from('funcionarios')
+        .select('*, setores(nome)')
+        .eq('email', user.email)
+        .single();
+      if (funcByEmail) {
+        // Vincula o user_id automaticamente para próximas sessões
+        await sb.from('funcionarios').update({ user_id: user.id }).eq('email', user.email);
+        funcData = { ...funcByEmail, user_id: user.id };
+      }
+    }
     currentFuncionario = funcData;
     isAdmin = funcData?.is_admin === true;
     userSetor = funcData?.setores?.nome || null;
