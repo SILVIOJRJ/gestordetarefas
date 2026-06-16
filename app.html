@@ -991,19 +991,26 @@ let calSelected = null; // {y,m,d} dia selecionado
 // Verifica se usuário pode ver um item conforme regras de visibilidade
 function canSee(item) {
   if (isAdmin || !currentFuncionario) return true;
-  const vis = item.setores_visibilidade;
   const norm = s => (s||'').trim().toLowerCase();
+  const vis = item.setores_visibilidade;
+  const hasVis = Array.isArray(vis) && vis.length > 0;
 
-  // Itens com campo `setor` (tarefas, obrigações setoriais) seguem lógica de setor nativo
+  // Itens com campo `setor` (tarefas): lógica de setor nativo
   if (item.setor && userSetor) {
-    // Mesmo setor: sempre visível
+    // Mesmo setor: visível
     if (norm(item.setor) === norm(userSetor)) return true;
-    // Setor diferente: só visível se houver flag explícita em setores_visibilidade
-    return Array.isArray(vis) && vis.some(v => norm(v) === norm(userSetor));
+    // Setor diferente: só visível se o userSetor estiver explicitamente em setores_visibilidade
+    return hasVis && vis.some(v => norm(v) === norm(userSetor));
   }
 
-  // Itens sem setor definido (parcelamentos, inss_pf, etc.): comportamento legado
-  if (!vis || vis.length === 0) return true;
+  // Itens com setor mas usuário sem setor definido: respeita setores_visibilidade normal
+  if (item.setor && !userSetor) {
+    if (!hasVis) return true;
+    return vis.some(v => norm(v) === norm(item.setor));
+  }
+
+  // Itens sem setor (parcelamentos, inss_pf, etc.): comportamento legado
+  if (!hasVis) return true;
   if (userSetor && vis.some(v => norm(v) === norm(userSetor))) return true;
   if (item.responsavel && currentFuncionario.nome && item.responsavel === currentFuncionario.nome) return true;
   return false;
@@ -3383,28 +3390,42 @@ function openGerencial(clienteId) {
   const g = gerData.find(x => x.cliente_id === clienteId && x.competencia === comp);
   gmCtx = { cliente_id: clienteId, competencia: comp, registroId: g ? g.id : null };
   document.getElementById('gm-sub').textContent = `${cli?cli.nome:''} · ${fmtMonth(comp)}`;
-  setV('gm-fgts', g?.fgts); setV('gm-inss', g?.inss); setV('gm-das', g?.das);
-  setV('gm-irpj', g?.irpj); setV('gm-csll', g?.csll); setV('gm-pis', g?.pis_cofins);
-  setV('gm-recserv', g?.receita_servicos); setV('gm-recvend', g?.receita_vendas);
-  setV('gm-despesas', g?.despesas_total); setV('gm-folha', g?.folha_pagamento);
-  setV('gm-caixa', g?.caixa_atual); setV('gm-obs', g?.obs);
+  // Formata valores ao abrir (parseNum lida com formato BR e decimal do banco)
+  const setNum = (id, v) => setV(id, v != null ? fmtBR(parseNum(String(v))) : '');
+  setNum('gm-fgts', g?.fgts); setNum('gm-inss', g?.inss); setNum('gm-das', g?.das);
+  setNum('gm-irpj', g?.irpj); setNum('gm-csll', g?.csll); setNum('gm-pis', g?.pis_cofins);
+  setNum('gm-recserv', g?.receita_servicos); setNum('gm-recvend', g?.receita_vendas);
+  setNum('gm-despesas', g?.despesas_total); setNum('gm-folha', g?.folha_pagamento);
+  setNum('gm-caixa', g?.caixa_atual); setV('gm-obs', g?.obs||'');
   document.getElementById('modal-gerencial').classList.add('open');
 }
 
 async function saveGerencial() {
   if (!gmCtx) return;
   setBusy('btn-save-gm', true);
+  // Converte formato BR para número antes de salvar no banco
+  const pn = id => { const v = gv(id); return v ? parseNum(v) : null; };
   const obj = {
     cliente_id: gmCtx.cliente_id, competencia: gmCtx.competencia,
-    fgts: gv('gm-fgts')||null, inss: gv('gm-inss')||null, das: gv('gm-das')||null,
-    irpj: gv('gm-irpj')||null, csll: gv('gm-csll')||null, pis_cofins: gv('gm-pis')||null,
-    receita_servicos: gv('gm-recserv')||null, receita_vendas: gv('gm-recvend')||null,
-    despesas_total: gv('gm-despesas')||null, folha_pagamento: gv('gm-folha')||null,
-    caixa_atual: gv('gm-caixa')||null, obs: gv('gm-obs')||null,
+    fgts: pn('gm-fgts'), inss: pn('gm-inss'), das: pn('gm-das'),
+    irpj: pn('gm-irpj'), csll: pn('gm-csll'), pis_cofins: pn('gm-pis'),
+    receita_servicos: pn('gm-recserv'), receita_vendas: pn('gm-recvend'),
+    despesas_total: pn('gm-despesas'), folha_pagamento: pn('gm-folha'),
+    caixa_atual: pn('gm-caixa'), obs: gv('gm-obs')||null,
     atualizado_por: currentFuncionario?.nome || userEmail,
     updated_at: new Date().toISOString()
   };
-  const { error } = await sb.from('gerencial_mensal').upsert(obj, { onConflict: 'cliente_id,competencia' });
+  // Tenta upsert; se falhar por constraint ausente, faz select+update/insert manual
+  let { error } = await sb.from('gerencial_mensal').upsert(obj, { onConflict: 'cliente_id,competencia' });
+  if (error) {
+    // Fallback: busca existente e decide entre update e insert
+    const { data: exist } = await sb.from('gerencial_mensal')
+      .select('id').eq('cliente_id', gmCtx.cliente_id).eq('competencia', gmCtx.competencia).maybeSingle();
+    const res = exist
+      ? await sb.from('gerencial_mensal').update(obj).eq('id', exist.id)
+      : await sb.from('gerencial_mensal').insert(obj);
+    error = res.error;
+  }
   setBusy('btn-save-gm', false);
   if (error) { toast('Erro', error.message, 'error'); return; }
   closeModal('gerencial');
@@ -3579,9 +3600,15 @@ async function syncGerencialFromCM(clienteId, competencia) {
     updated_at:       new Date().toISOString()
   };
 
-  const { error } = await sb.from('gerencial_mensal').upsert(obj, { onConflict: 'cliente_id,competencia' });
+  let { error } = await sb.from('gerencial_mensal').upsert(obj, { onConflict: 'cliente_id,competencia' });
+  if (error) {
+    // Fallback sem constraint: update se existe, insert se não existe
+    const res = existing
+      ? await sb.from('gerencial_mensal').update(obj).eq('id', existing.id)
+      : await sb.from('gerencial_mensal').insert(obj);
+    error = res.error;
+  }
   if (!error) {
-    // Atualiza gerData local se estiver carregado
     const idx = gerData.findIndex(g => g.cliente_id === clienteId && g.competencia === competencia);
     if (idx >= 0) Object.assign(gerData[idx], obj); else gerData.push(obj);
   }
