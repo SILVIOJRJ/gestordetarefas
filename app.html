@@ -627,6 +627,13 @@
           <select class="form-control" id="i-status"><option>Pendente</option><option>Gerado</option><option>Pago</option><option>Em Atraso</option></select></div>
         <div class="form-group form-full"><label class="form-label">Observação</label><input type="text" class="form-control" id="i-obs"></div>
         <div class="form-group form-full"><label class="form-label">Visível para (setores)</label><div class="checkbox-grid" id="i-visibilidade"></div></div>
+        <div class="form-group form-full" id="i-recorrente-wrap">
+          <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="i-recorrente">
+            <span>🔄 Repetir mensalmente até Janeiro (ciclo anual)</span>
+          </label>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">Auto-gera registros para cada mês restante até a competência Dezembro (vencimento Janeiro do próximo ano)</div>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1047,6 +1054,22 @@ function currentMonthStr() {
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
 }
 
+// Avança n meses em uma data "YYYY-MM-DD", mantendo o dia (clamped ao último dia do mês)
+function addMonthsToDate(dateStr, n) {
+  const [y, m, day] = dateStr.split('-').map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, lastDay));
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+// Avança n meses em uma competência "YYYY-MM"
+function addMonthsToComp(compStr, n) {
+  const [y, m] = compStr.split('-').map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+
 // AUTH
 async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -1299,8 +1322,8 @@ function buildAlerts() {
     const diff = Math.round((d - today) / 86400000);
     if (diff < 0 && !['Concluído','Cancelado'].includes(p.status))
       list.push({ type:'error', icon:'🚨', title:'Parcelamento ATRASADO', msg:`${p.empresa} — ${p.tipo} — ${Math.abs(diff)}d atraso` });
-    else if (diff <= 2 && diff >= 0 && !['Concluído','Cancelado'].includes(p.status))
-      list.push({ type:'warning', icon:'⚠️', title:`Vence em ${diff}d`, msg:`${p.empresa} — ${p.tipo}` });
+    else if (diff <= 5 && diff >= 0 && !['Concluído','Cancelado'].includes(p.status))
+      list.push({ type:'warning', icon:'⚠️', title:`Parcela vence em ${diff}d`, msg:`${p.empresa} — ${p.tipo} — Parcela ${p.parcela||'?'}/${p.total_parcelas||'?'}` });
     // Alertas de envio ao cliente
     if (!p.enviado_cliente && p.cliente_id && p.vencimento) {
       const dv = new Date(p.vencimento + 'T00:00:00');
@@ -1309,6 +1332,19 @@ function buildAlerts() {
         const cli = clientes.find(c => c.id === p.cliente_id);
         const nomeEnt = cli ? cli.nome : (p.empresa || 'Empresa');
         list.push({ type:'info', icon:'📬', title:'Parcela não enviada ao cliente', msg:`Parcela de ${nomeEnt} não enviada — vence em ${dif2 < 0 ? Math.abs(dif2)+'d atraso' : dif2+'d'}` });
+      }
+    }
+    // Alertas projetados para próximas parcelas (recorrência automática)
+    const parcelaAtual = parseInt(p.parcela) || 0;
+    const totalParcelas = parseInt(p.total_parcelas) || 0;
+    if (parcelaAtual > 0 && totalParcelas > 0 && parcelaAtual < totalParcelas && !['Concluído','Cancelado'].includes(p.status)) {
+      for (let i = 1; i <= Math.min(2, totalParcelas - parcelaAtual); i++) {
+        const proxVenc = addMonthsToDate(p.vencimento, i);
+        const dp = new Date(proxVenc + 'T00:00:00');
+        const dp_diff = Math.round((dp - today) / 86400000);
+        if (dp_diff >= 0 && dp_diff <= 45) {
+          list.push({ type:'info', icon:'📅', title:`Próxima parcela em ${dp_diff}d`, msg:`${p.empresa} — ${p.tipo} — Parcela ${parcelaAtual + i}/${totalParcelas}` });
+        }
       }
     }
   });
@@ -2118,14 +2154,36 @@ async function saveInss() {
     updated_at: new Date().toISOString()
   };
   const id = editingId.inss;
+  const recorrente = !id && document.getElementById('i-recorrente').checked;
   if (!id) obj.criado_por = currentFuncionario?.nome || userEmail;
   const { error } = id
     ? await sb.from('inss_pf').update(obj).eq('id', id)
     : await sb.from('inss_pf').insert(obj);
   setBusy('btn-save-inss', false);
   if (error) { toast('Erro', error.message, 'error'); return; }
+
+  // Auto-gera registros mensais até competência Dezembro (vencimento Janeiro seguinte)
+  if (recorrente && obj.competencia && obj.vencimento) {
+    const [anoComp, mesComp] = obj.competencia.split('-').map(Number);
+    const metaComp = `${anoComp}-12`; // último mês do ciclo anual
+    const registros = [];
+    let n = 1;
+    while (true) {
+      const novaComp = addMonthsToComp(obj.competencia, n);
+      if (novaComp > metaComp) break;
+      const novoVenc = addMonthsToDate(obj.vencimento, n);
+      registros.push({ ...obj, competencia: novaComp, vencimento: novoVenc, status: 'Pendente' });
+      n++;
+    }
+    if (registros.length) {
+      const { error: err2 } = await sb.from('inss_pf').insert(registros);
+      if (err2) toast('Aviso', `Registros recorrentes: ${err2.message}`, 'warning');
+      else toast('Recorrência', `${registros.length} mês(es) gerado(s) até Dezembro`, 'info');
+    }
+  }
+
   closeModal('inss');
-  toast('Salvo!', id ? 'Atualizado' : 'Contribuinte cadastrado', 'success');
+  if (!recorrente) toast('Salvo!', id ? 'Atualizado' : 'Contribuinte cadastrado', 'success');
   await loadAll();
 }
 
@@ -2249,6 +2307,7 @@ function editInss(id) {
   setV('i-valor',i.valor); setV('i-competencia',i.competencia); setV('i-vencimento',i.vencimento);
   setV('i-envio',i.envio); setV('i-status',i.status); setV('i-obs',i.obs);
   renderVisibilidadeCheckboxes('i-visibilidade', i.setores_visibilidade, null);
+  document.getElementById('i-recorrente-wrap').style.display = 'none';
   document.getElementById('modal-inss').classList.add('open');
 }
 
@@ -2356,6 +2415,8 @@ function openModal(type) {
     setV('i-competencia', currentMonthStr());
     renderVisibilidadeCheckboxes('i-visibilidade', null, userSetor);
     document.getElementById('modal-inss-title').textContent = 'Novo INSS PF';
+    document.getElementById('i-recorrente').checked = false;
+    document.getElementById('i-recorrente-wrap').style.display = '';
     document.getElementById('modal-inss').classList.add('open');
   } else if (type === 'tarefa') {
     clearFormPadr(['t-titulo','t-prazo','t-desc','t-data-envio']);
