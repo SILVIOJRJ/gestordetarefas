@@ -430,6 +430,23 @@
   .admin-coment-time { font-size:10px; color:#475569; margin-top:4px; }
   .admin-coment-ajuda { border-left-color:#f59e0b; background:rgba(245,158,11,0.08); }
   .empresa-nova-badge { background:#10b981; color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; margin-left:6px; }
+  #page-minhas-tarefas-admin { background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%); min-height:100vh; padding:28px 24px; }
+  .mta-card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-left:4px solid #6366f1; border-radius:12px; padding:16px 20px; display:flex; align-items:flex-start; gap:14px; cursor:pointer; transition:background 0.15s; }
+  .mta-card:hover { background:rgba(255,255,255,0.07); }
+  .mta-card.status-concluida { opacity:0.6; border-left-color:#22c55e; }
+  .mta-card.status-em-andamento { border-left-color:#3b82f6; }
+  .mta-card.status-atrasada { border-left-color:#ef4444; }
+  .mta-card-check { width:20px; height:20px; border-radius:50%; border:2px solid rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px; cursor:pointer; transition:all 0.2s; }
+  .mta-card-check:hover { border-color:#22c55e; background:rgba(34,197,94,0.15); }
+  .mta-card-check.done { background:#22c55e; border-color:#22c55e; color:#fff; font-size:12px; }
+  .mta-card-body { flex:1; min-width:0; }
+  .mta-card-title { font-size:14px; font-weight:600; color:#e2e8f0; margin-bottom:4px; }
+  .mta-card-title.riscado { text-decoration:line-through; color:#64748b; }
+  .mta-card-meta { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .mta-kpi-mini { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:14px 16px; text-align:center; }
+  .mta-kpi-mini-val { font-size:26px; font-weight:800; color:#e2e8f0; }
+  .mta-kpi-mini-label { font-size:11px; color:#64748b; margin-top:4px; }
+  @media(max-width:768px) { #page-minhas-tarefas-admin { padding:16px; } }
 </style>
 </head>
 <body>
@@ -578,6 +595,44 @@
 
   <div class="admin-section-title">Calendário de Delegações</div>
   <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:20px" id="admin-cal"></div>
+</div>
+
+<!-- MINHAS TAREFAS ADMIN -->
+<div class="page" id="page-minhas-tarefas-admin">
+  <div class="admin-header-bar">
+    <div>
+      <h1>📌 Minhas Tarefas</h1>
+      <p>Tarefas pessoais e delegações sob sua gestão direta</p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="openModalAdminDelegacao()">＋ Nova Tarefa</button>
+      <button class="btn btn-primary" onclick="renderMinhasTarefasAdmin()">🔄 Atualizar</button>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+    <input type="text" id="mta-search" placeholder="🔍 Pesquisar tarefa..." oninput="renderMinhasTarefasAdmin()" style="flex:1;min-width:200px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#e2e8f0;font-size:13px">
+    <select id="mta-f-status" onchange="renderMinhasTarefasAdmin()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#e2e8f0;font-size:13px">
+      <option value="">Todos os status</option>
+      <option>Pendente</option><option>Em andamento</option><option>Concluída</option>
+    </select>
+    <select id="mta-f-setor" onchange="renderMinhasTarefasAdmin()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#e2e8f0;font-size:13px">
+      <option value="">Todos os setores</option>
+    </select>
+    <select id="mta-f-tipo" onchange="renderMinhasTarefasAdmin()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#e2e8f0;font-size:13px">
+      <option value="todas">Todas</option>
+      <option value="minhas">Sou responsável</option>
+      <option value="delegadas">Delegadas por mim</option>
+      <option value="acompanhar">Para acompanhar</option>
+    </select>
+  </div>
+
+  <!-- KPIs rápidos -->
+  <div id="mta-kpi" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
+
+  <!-- Lista de tarefas -->
+  <div id="mta-lista" style="display:flex;flex-direction:column;gap:10px"></div>
 </div>
 
 <!-- PARCELAMENTOS -->
@@ -1587,7 +1642,8 @@ function applyRoleUI() {
     const dashItem = sidebarNav.querySelector('.nav-item[onclick*="dashboard"]');
     const adminSection = document.createElement('div');
     adminSection.innerHTML = `<div class="nav-section-title" id="nav-admin-section-title">Administração</div>
-<div class="nav-item" id="nav-painel-admin" onclick="navigate('painel-admin')"><span class="nav-icon">🛡️</span> Painel Admin <span class="nav-badge" id="badge-admin" style="display:none">0</span></div>`;
+<div class="nav-item" id="nav-painel-admin" onclick="navigate('painel-admin')"><span class="nav-icon">🛡️</span> Painel Admin <span class="nav-badge" id="badge-admin" style="display:none">0</span></div>
+<div class="nav-item" id="nav-minhas-tarefas-admin" onclick="navigate('minhas-tarefas-admin')"><span class="nav-icon">📌</span> Minhas Tarefas</div>`;
     dashItem.insertAdjacentElement('afterend', adminSection);
   }
 
@@ -1701,7 +1757,7 @@ function navigate(page, setorNome) {
     rotinas:'Rotinas',
     tarefas:'Tarefas', clientes:'Clientes', configuracoes:'Configurações',
     'controle-mensal':'Controle Mensal', gerencial:'Gerencial', legalizacao:'Legalização',
-    officeboy:'Office Boy' };
+    officeboy:'Office Boy', 'painel-admin':'Painel Admin', 'minhas-tarefas-admin':'Minhas Tarefas' };
   document.getElementById('topbar-title').textContent = titles[page] || page;
   closeSidebar();
   if (page === 'dashboard') { buildCalendar(); if (calSelected) { selectCalDay(calSelected.y, calSelected.m, calSelected.d); } else { renderAgendaDefault(); } }
@@ -1711,6 +1767,7 @@ function navigate(page, setorNome) {
   if (page === 'officeboy') renderEntregas();
   if (page === 'configuracoes') initConfiguracoes();
   if (page === 'painel-admin') loadPainelAdmin();
+  if (page === 'minhas-tarefas-admin') renderMinhasTarefasAdmin();
 }
 
 function renderSidebarSetores() {
@@ -4815,6 +4872,138 @@ function renderPainelAdmin() {
     html += `</div>`;
     calEl.innerHTML = html;
   }
+}
+
+// ─── MINHAS TAREFAS ADMIN ─────────────────────────────────────────────────────
+
+function renderMinhasTarefasAdmin() {
+  if (!isAdmin) return;
+  const adminNome = currentFuncionario?.nome || '';
+  const norm = s => (s||'').trim().toLowerCase();
+
+  // Populate setor filter
+  const setorSel = document.getElementById('mta-f-setor');
+  if (setorSel && setorSel.options.length <= 1) {
+    setores.filter(s => s.ativo !== false).forEach(s => {
+      const o = document.createElement('option'); o.value = s.nome; o.textContent = s.nome; setorSel.appendChild(o);
+    });
+  }
+
+  const search = (document.getElementById('mta-search')?.value || '').toLowerCase();
+  const fStatus = document.getElementById('mta-f-status')?.value || '';
+  const fSetor = document.getElementById('mta-f-setor')?.value || '';
+  const fTipo = document.getElementById('mta-f-tipo')?.value || 'todas';
+  const today = new Date().toISOString().slice(0,10);
+
+  // Filter logic
+  let data = tarefas.filter(t => {
+    const tituloMatch = !search || (t.titulo||'').toLowerCase().includes(search) || (t.responsavel||'').toLowerCase().includes(search);
+    const statusMatch = !fStatus || t.status === fStatus;
+    const setorMatch = !fSetor || norm(t.setor) === norm(fSetor);
+
+    const isAdmin_ = norm(t.criado_por) === norm(adminNome);
+    const isResp = norm(t.responsavel) === norm(adminNome);
+    const isAcomp = !!(t.acompanhar_admin);
+
+    let tipoMatch = true;
+    if (fTipo === 'minhas') tipoMatch = isResp;
+    else if (fTipo === 'delegadas') tipoMatch = isAdmin_ && !isResp;
+    else if (fTipo === 'acompanhar') tipoMatch = isAcomp;
+    else tipoMatch = isAdmin_ || isResp || isAcomp;
+
+    return tituloMatch && statusMatch && setorMatch && tipoMatch;
+  });
+
+  // Sort: atrasadas primeiro, depois por prazo
+  data.sort((a, b) => {
+    const aAt = a.prazo && a.prazo < today && a.status !== 'Concluída';
+    const bAt = b.prazo && b.prazo < today && b.status !== 'Concluída';
+    if (aAt && !bAt) return -1; if (!aAt && bAt) return 1;
+    if (a.status === 'Concluída' && b.status !== 'Concluída') return 1;
+    if (b.status === 'Concluída' && a.status !== 'Concluída') return -1;
+    return (a.prazo||'') < (b.prazo||'') ? -1 : 1;
+  });
+
+  // KPIs
+  const total = data.length;
+  const pend = data.filter(t => t.status === 'Pendente').length;
+  const emAnd = data.filter(t => t.status === 'Em andamento').length;
+  const atrasadas = data.filter(t => t.prazo && t.prazo < today && t.status !== 'Concluída').length;
+  const kpiEl = document.getElementById('mta-kpi');
+  if (kpiEl) kpiEl.innerHTML = [
+    {val:total, label:'Total no filtro', color:'#e2e8f0'},
+    {val:pend, label:'Pendentes', color:'#f59e0b'},
+    {val:emAnd, label:'Em andamento', color:'#3b82f6'},
+    {val:atrasadas, label:'Atrasadas', color:'#ef4444'}
+  ].map(k => `<div class="mta-kpi-mini"><div class="mta-kpi-mini-val" style="color:${k.color}">${k.val}</div><div class="mta-kpi-mini-label">${k.label}</div></div>`).join('');
+
+  // List
+  const listEl = document.getElementById('mta-lista');
+  if (!listEl) return;
+  if (!data.length) {
+    listEl.innerHTML = `<div style="text-align:center;padding:40px;color:#475569;font-size:14px">Nenhuma tarefa encontrada com os filtros selecionados.</div>`;
+    return;
+  }
+
+  const prColor = {Alta:'#ef4444', Média:'#f59e0b', Baixa:'#22c55e'};
+  const cli = id => clientes.find(c => c.id === id);
+
+  listEl.innerHTML = data.map(t => {
+    const atrasada = t.prazo && t.prazo < today && t.status !== 'Concluída';
+    const concluida = t.status === 'Concluída';
+    const emAndamento = t.status === 'Em andamento';
+    let cardClass = 'mta-card';
+    if (concluida) cardClass += ' status-concluida';
+    else if (emAndamento) cardClass += ' status-em-andamento';
+    else if (atrasada) cardClass += ' status-atrasada';
+
+    const isMinhaDelegacao = norm(t.criado_por) === norm(adminNome) && norm(t.responsavel) !== norm(adminNome);
+    const isMinhaResp = norm(t.responsavel) === norm(adminNome);
+    const cliente = cli(t.cliente_id);
+
+    return `<div class="${cardClass}" onclick="openAdminTarefaDetail('${t.id}')">
+      <div class="mta-card-check ${concluida?'done':''}" onclick="event.stopPropagation();toggleAdminTarefaStatus('${t.id}','${t.status}')">${concluida?'✓':''}</div>
+      <div class="mta-card-body">
+        <div class="mta-card-title ${concluida?'riscado':''}">${t.titulo||'—'}</div>
+        <div class="mta-card-meta" style="margin-top:6px">
+          ${t.setor?`<span style="background:rgba(99,102,241,0.2);color:#a5b4fc;padding:2px 8px;border-radius:8px;font-size:11px">${t.setor}</span>`:''}
+          ${t.responsavel?`<span style="font-size:12px;color:#94a3b8">👤 ${t.responsavel}</span>`:''}
+          ${t.prazo?`<span style="font-size:12px;color:${atrasada?'#ef4444':'#64748b'}">📅 ${fmtDate(t.prazo)}${atrasada?' ⚠️':''}</span>`:''}
+          ${t.prioridade?`<span style="font-size:11px;font-weight:700;color:${prColor[t.prioridade]||'#64748b'}">${t.prioridade}</span>`:''}
+          ${cliente?`<span style="font-size:11px;color:#64748b">🏢 ${cliente.nome}</span>`:''}
+          ${isMinhaDelegacao?`<span style="font-size:10px;background:rgba(245,158,11,0.2);color:#f59e0b;padding:2px 7px;border-radius:6px">Delegada</span>`:''}
+          ${isMinhaResp && !isMinhaDelegacao?`<span style="font-size:10px;background:rgba(99,102,241,0.2);color:#a5b4fc;padding:2px 7px;border-radius:6px">Minha</span>`:''}
+        </div>
+        ${t.descricao?`<div style="font-size:12px;color:#475569;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:600px">${t.descricao}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0">
+        <span style="font-size:11px;padding:3px 10px;border-radius:8px;font-weight:600;background:${concluida?'rgba(34,197,94,0.15)':emAndamento?'rgba(59,130,246,0.15)':atrasada?'rgba(239,68,68,0.15)':'rgba(255,255,255,0.06)'};color:${concluida?'#22c55e':emAndamento?'#60a5fa':atrasada?'#ef4444':'#94a3b8'}">${t.status}</span>
+        <button onclick="event.stopPropagation();openEditTarefaAdmin('${t.id}')" style="font-size:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;border-radius:6px;padding:3px 8px;cursor:pointer">✏️ Editar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleAdminTarefaStatus(tarefaId, currentStatus) {
+  const newStatus = currentStatus === 'Concluída' ? 'Pendente' : 'Concluída';
+  await sb.from('tarefas').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', tarefaId);
+  const t = tarefas.find(x => x.id === tarefaId);
+  if (t) t.status = newStatus;
+  renderMinhasTarefasAdmin();
+}
+
+function openEditTarefaAdmin(tarefaId) {
+  const t = tarefas.find(x => x.id === tarefaId);
+  if (!t) return;
+  editingId.tarefa = tarefaId;
+  // populate and open tarefa modal
+  populateTarefaSelects && populateTarefaSelects();
+  document.getElementById('modal-tar-title').textContent = 'Editar Tarefa';
+  setV('t-titulo', t.titulo); setV('t-setor', t.setor||''); setV('t-responsavel', t.responsavel||'');
+  setV('t-prazo', t.prazo||''); setV('t-prioridade', t.prioridade||'Média');
+  setV('t-status', t.status||'Pendente'); setV('t-descricao', t.descricao||'');
+  setV('t-competencia', t.competencia||''); setV('t-cliente', t.cliente_id||'');
+  document.getElementById('modal-tarefa').classList.add('open');
 }
 
 // ─── ADMIN PANEL EXTRAS ───────────────────────────────────────────────────────
