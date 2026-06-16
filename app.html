@@ -1353,10 +1353,13 @@ function buildAlerts() {
     }
   });
 
-  // Verificar templates faltando por setor
-  const setoresAtivos = setoresList().filter(s => s !== 'Legalização');
-  setoresAtivos.forEach(s => {
-    const temTemplates = obrigacoesTemplates.some(t => t.setor_nome === s && t.ativo !== false);
+  // Verificar templates faltando — apenas para o setor do usuário (ou todos se admin sem setor)
+  const norm2 = s => (s||'').trim().toLowerCase();
+  const setoresVerif = (!currentFuncionario || (isAdmin && !userSetor))
+    ? setoresList().filter(s => s !== 'Legalização')   // super-admin vê todos
+    : (userSetor ? [userSetor] : []);                   // usuário normal: só o seu setor
+  setoresVerif.forEach(s => {
+    const temTemplates = obrigacoesTemplates.some(t => norm2(t.setor_nome) === norm2(s) && t.ativo !== false);
     if (!temTemplates) {
       list.push({ type:'warning', icon:'📋', title:`Templates faltando — ${s}`, msg:`Crie os templates em Configurações → Obrigações` });
     }
