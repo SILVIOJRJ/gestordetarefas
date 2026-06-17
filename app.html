@@ -1829,9 +1829,12 @@ function applyRoleUI() {
     if (page === 'gerencial' && !podeGerencial) { n.style.display = 'none'; return; }
     // Legalização (processos): apenas setor Legalização
     if (page === 'legalizacao' && !isLegUser) { n.style.display = 'none'; return; }
-    // Páginas de setor dinâmicas (data-setor): só o setor do usuário
-    if (page === 'setor' && setorArg && norm(setorArg) !== norm(userSetor)) {
-      n.style.display = 'none';
+    // Páginas de setor dinâmicas (data-setor): só os setores do usuário
+    if (page === 'setor' && setorArg) {
+      const inUserSetores = userSetores.length > 0
+        ? userSetores.some(s => norm(s) === norm(setorArg))
+        : norm(setorArg) === norm(userSetor);
+      if (!inUserSetores) { n.style.display = 'none'; }
     }
     // Dashboard, Parcelamentos, INSS PF, Tarefas, Clientes, Controle Mensal: todos veem
   });
