@@ -5614,25 +5614,42 @@ async function criarTarefasEmpresaNova(clienteId, clienteNome, regime) {
   const prazoStr = prazoBase.toISOString().split('T')[0];
   const compAtual = currentMonthStr();
 
+  // Encontra responsável pelo setor (primeiro funcionário ativo do setor)
+  const respPorSetor = (sNome) => {
+    const norm = s => (s||'').trim().toLowerCase();
+    const setor = setores.find(s => norm(s.nome) === norm(sNome));
+    if (!setor) return '';
+    const func = funcionarios.find(f => f.setor_id === setor.id && f.ativo !== false);
+    return func?.nome || '';
+  };
+
   const tarefasNova = [
     { titulo:`[EMPRESA NOVA] Parametrização Contábil — ${clienteNome}`, setor:'Contábil',
+      responsavel: respPorSetor('Contábil'),
       descricao:`Cadastrar empresa no sistema Domínio (ERP). Configurar plano de contas, centros de custo e regime tributário (${regime||'a definir'}). Ativar obrigações no Controle Mensal e Gerencial.`, prioridade:'Alta' },
     { titulo:`[EMPRESA NOVA] Parametrização DP — ${clienteNome}`, setor:'DP',
+      responsavel: respPorSetor('DP'),
       descricao:`Configurar parâmetros de folha de pagamento. Cadastrar parâmetros INSS, FGTS e tabelas. Realizar teste de funcionamento com eSocial e DCTFWeb (enviar sem movimento se necessário).`, prioridade:'Alta' },
     { titulo:`[EMPRESA NOVA] Legalização — ${clienteNome}`, setor:'Legalização',
+      responsavel: respPorSetor('Legalização'),
       descricao:`Solicitar licenças: sanitária, bombeiro, prefeitura. Protocolar registro no órgão competente. Preencher número de processo/registro e dados do responsável técnico no cadastro do cliente.`, prioridade:'Alta' },
     { titulo:`[EMPRESA NOVA] Parametrização Fiscal — ${clienteNome}`, setor:'Fiscal',
+      responsavel: respPorSetor('Fiscal'),
       descricao:`Configurar obrigações fiscais padrão conforme regime tributário (${regime||'a definir'}). Ativar DAS, DCTF, EFD, NF-e e demais obrigações aplicáveis no Controle Mensal.`, prioridade:'Alta' }
   ];
 
+  let criadas = 0, erros = 0;
   for (const t of tarefasNova) {
-    await sb.from('tarefas').insert({
-      ...t, responsavel:'', status:'Pendente', prazo:prazoStr,
+    const { error } = await sb.from('tarefas').insert({
+      ...t, status:'Pendente', prazo:prazoStr,
       competencia:compAtual, cliente_id:clienteId, criado_por:adminNome,
       documento_enviado:false, updated_at:new Date().toISOString()
     });
+    if (error) { console.error('Erro ao criar tarefa empresa nova:', error); erros++; }
+    else criadas++;
   }
-  toast('Empresa Nova', `4 tarefas de parametrização criadas para ${clienteNome}`, 'success');
+  if (erros > 0) toast('Atenção', `${criadas} tarefas criadas, ${erros} com erro — verifique o console`, 'warning');
+  else toast('Empresa Nova', `${criadas} tarefas de parametrização criadas para ${clienteNome}`, 'success');
   await loadAll();
 }
 
