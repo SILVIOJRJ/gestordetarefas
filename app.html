@@ -962,11 +962,25 @@
 <div class="page" id="page-legalizacao">
   <div class="page-title">Legalização</div>
   <div class="page-sub">Processos de legalização e tarefas do setor</div>
-  <div class="tabs">
-    <button class="tab-btn active" onclick="switchLegTab('processos')">📑 Processos</button>
-    <button class="tab-btn" onclick="switchLegTab('tarefas')">✅ Tarefas do Setor</button>
+
+  <!-- SEÇÃO 1: TAREFAS -->
+  <div style="margin-bottom:8px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="width:4px;height:28px;background:linear-gradient(180deg,#6366f1,#8b5cf6);border-radius:4px"></div>
+      <span style="font-size:15px;font-weight:700;color:var(--text1)">✅ Tarefas do Setor</span>
+    </div>
+    <div id="leg-content-setor"></div>
   </div>
-  <div class="tab-panel active" id="legtab-processos">
+
+  <!-- DIVISOR -->
+  <div style="display:flex;align-items:center;gap:12px;margin:24px 0 20px">
+    <div style="flex:1;height:1px;background:var(--border)"></div>
+    <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap">📑 Processos de Legalização</span>
+    <div style="flex:1;height:1px;background:var(--border)"></div>
+  </div>
+
+  <!-- SEÇÃO 2: PROCESSOS -->
+  <div id="leg-section-processos">
     <div class="card">
       <div class="toolbar">
         <div class="search-box">🔍<input type="text" id="proc-search" placeholder="Pesquisar..." oninput="renderProcessos()"></div>
@@ -984,9 +998,6 @@
         <thead><tr><th>Cliente</th><th>Tipo</th><th>Descrição</th><th>Status</th><th>Abertura</th><th>Previsão</th><th>Renovação</th><th>Responsável</th><th></th></tr></thead>
         <tbody id="proc-tbody"></tbody></table></div>
     </div>
-  </div>
-  <div class="tab-panel" id="legtab-tarefas">
-    <div id="leg-content-setor"></div>
   </div>
 </div>
 
@@ -1961,7 +1972,7 @@ function navigate(page, setorNome) {
   if (page === 'dashboard') { buildCalendar(); if (calSelected) { selectCalDay(calSelected.y, calSelected.m, calSelected.d); } else { renderAgendaDefault(); } }
   if (page === 'controle-mensal') initControleMensal();
   if (page === 'gerencial') initGerencial();
-  if (page === 'legalizacao') { switchLegTab('processos'); renderProcessos(); renderLegTarefas(); }
+  if (page === 'legalizacao') { renderLegTarefas(); renderProcessos(); }
   if (page === 'officeboy') renderEntregas();
   if (page === 'configuracoes') initConfiguracoes();
   if (page === 'painel-admin') loadPainelAdmin();
@@ -3884,14 +3895,7 @@ async function deleteAnexo(id, nome, tipo, refId) {
 // ═══════════════════════════════════════════════════════════
 // PROCESSOS DE LEGALIZAÇÃO
 // ═══════════════════════════════════════════════════════════
-function switchLegTab(tab) {
-  document.querySelectorAll('#page-legalizacao .tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('#page-legalizacao .tab-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('legtab-'+tab).classList.add('active');
-  const idx = tab === 'processos' ? 0 : 1;
-  document.querySelectorAll('#page-legalizacao .tab-btn')[idx].classList.add('active');
-  if (tab === 'tarefas') renderLegTarefas();
-}
+function switchLegTab() { /* tabs removidas — página agora exibe tudo em tela única */ }
 
 function populateProcessoSelects() {
   const sel = document.getElementById('pr-cliente');
