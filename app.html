@@ -1655,9 +1655,14 @@ function canSee(item) {
   // Itens com campo `setor` (tarefas)
   if ('setor' in item) {
     if (!userSetor) return true; // usuário sem setor vê tudo
+    // Match exato ou parcial para setores que contêm o nome (ex: "Legalização e Abertura" vs "Legalização")
+    const sectorMatch = (a, b) => {
+      const na = norm(a), nb = norm(b);
+      return na === nb || na.includes(nb) || nb.includes(na);
+    };
     const inUserSetores = s => userSetores.length > 0
-      ? userSetores.some(u => norm(u) === norm(s))
-      : norm(s) === norm(userSetor);
+      ? userSetores.some(u => sectorMatch(u, s))
+      : sectorMatch(userSetor, s);
 
     if (!item.setor) {
       // Tarefa sem setor: só via setores_visibilidade explícita
@@ -5619,28 +5624,39 @@ async function criarTarefasEmpresaNova(clienteId, clienteNome, regime) {
   prazoBase.setDate(prazoBase.getDate() + 15);
   const prazoStr = prazoBase.toISOString().split('T')[0];
   const compAtual = currentMonthStr();
+  const norm = s => (s||'').trim().toLowerCase();
+
+  // Encontra o nome exato do setor no banco por match parcial (evita hardcode diferente do DB)
+  const nomeSetor = (chave) => {
+    const s = setores.find(x => norm(x.nome).includes(norm(chave)));
+    return s?.nome || chave;
+  };
 
   // Encontra responsável pelo setor (primeiro funcionário ativo do setor)
   const respPorSetor = (sNome) => {
-    const norm = s => (s||'').trim().toLowerCase();
     const setor = setores.find(s => norm(s.nome) === norm(sNome));
     if (!setor) return '';
     const func = funcionarios.find(f => f.setor_id === setor.id && f.ativo !== false);
     return func?.nome || '';
   };
 
+  const setorContabil   = nomeSetor('Contábil');
+  const setorDP         = nomeSetor('DP');
+  const setorLeg        = nomeSetor('Legaliza');
+  const setorFiscal     = nomeSetor('Fiscal');
+
   const tarefasNova = [
-    { titulo:`[EMPRESA NOVA] Parametrização Contábil — ${clienteNome}`, setor:'Contábil',
-      responsavel: respPorSetor('Contábil'),
+    { titulo:`[EMPRESA NOVA] Parametrização Contábil — ${clienteNome}`, setor: setorContabil,
+      responsavel: respPorSetor(setorContabil),
       descricao:`Cadastrar empresa no sistema Domínio (ERP). Configurar plano de contas, centros de custo e regime tributário (${regime||'a definir'}). Ativar obrigações no Controle Mensal e Gerencial.`, prioridade:'Alta' },
-    { titulo:`[EMPRESA NOVA] Parametrização DP — ${clienteNome}`, setor:'DP',
-      responsavel: respPorSetor('DP'),
+    { titulo:`[EMPRESA NOVA] Parametrização DP — ${clienteNome}`, setor: setorDP,
+      responsavel: respPorSetor(setorDP),
       descricao:`Configurar parâmetros de folha de pagamento. Cadastrar parâmetros INSS, FGTS e tabelas. Realizar teste de funcionamento com eSocial e DCTFWeb (enviar sem movimento se necessário).`, prioridade:'Alta' },
-    { titulo:`[EMPRESA NOVA] Legalização — ${clienteNome}`, setor:'Legalização',
-      responsavel: respPorSetor('Legalização'),
+    { titulo:`[EMPRESA NOVA] Legalização — ${clienteNome}`, setor: setorLeg,
+      responsavel: respPorSetor(setorLeg),
       descricao:`Solicitar licenças: sanitária, bombeiro, prefeitura. Protocolar registro no órgão competente. Preencher número de processo/registro e dados do responsável técnico no cadastro do cliente.`, prioridade:'Alta' },
-    { titulo:`[EMPRESA NOVA] Parametrização Fiscal — ${clienteNome}`, setor:'Fiscal',
-      responsavel: respPorSetor('Fiscal'),
+    { titulo:`[EMPRESA NOVA] Parametrização Fiscal — ${clienteNome}`, setor: setorFiscal,
+      responsavel: respPorSetor(setorFiscal),
       descricao:`Configurar obrigações fiscais padrão conforme regime tributário (${regime||'a definir'}). Ativar DAS, DCTF, EFD, NF-e e demais obrigações aplicáveis no Controle Mensal.`, prioridade:'Alta' }
   ];
 
