@@ -2263,8 +2263,9 @@ function renderSetores() {
 }
 
 function renderSetorPage(sNome) {
+  const normS = s => (s||'').trim().toLowerCase();
   const accTarefas = filterByAccess(tarefas);
-  const t = accTarefas.filter(x => x.setor === sNome);
+  const t = accTarefas.filter(x => x.setor && (normS(x.setor) === normS(sNome) || normS(x.setor).includes(normS(sNome)) || normS(sNome).includes(normS(x.setor))));
   const today = new Date(); today.setHours(0,0,0,0);
   const funcs = funcionarios.filter(f => {
     const s = setores.find(x => x.id === f.setor_id);
@@ -3990,8 +3991,14 @@ async function saveProcesso() {
 
 function renderLegTarefas() {
   const sNome = (setores.find(s => (s.nome||'').toLowerCase().includes('legaliza'))?.nome) || 'Legalização';
+  const normS = s => (s||'').trim().toLowerCase();
   const accTarefas = filterByAccess(tarefas);
-  const t = accTarefas.filter(x => x.setor === sNome);
+  // Match flexível: setor exato OU setor que contém 'legaliza' (cobre variantes de nome)
+  const t = accTarefas.filter(x => {
+    if (!x.setor) return false;
+    const ns = normS(x.setor);
+    return ns === normS(sNome) || ns.includes('legaliza') || normS(sNome).includes(ns);
+  });
   const today = new Date(); today.setHours(0,0,0,0);
   document.getElementById('leg-content-setor').innerHTML = `
     <div class="card">
