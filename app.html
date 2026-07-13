@@ -1527,7 +1527,7 @@
            ondrop="handleAnexosDrop(event)">
         <div style="font-size:28px;margin-bottom:8px">📁</div>
         <div style="font-size:13px;font-weight:600;color:var(--text2)">Clique ou arraste arquivos aqui</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px">PDF, imagens, documentos — até 20MB</div>
+        <div id="anexos-hint" style="font-size:11px;color:var(--text3);margin-top:4px">PDF, imagens, documentos — até 20MB</div>
       </div>
       <input type="file" id="anexos-file-input" multiple style="display:none" onchange="uploadAnexos(this.files)">
       <div id="anexos-upload-progress" style="display:none;margin-bottom:12px">
@@ -3800,12 +3800,21 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
 });
 
 // ── ANEXOS ────────────────────────────────────────────────
-let anexosCtx = { tipo: null, id: null };
+let anexosCtx = { tipo: null, id: null, allowedTypes: null };
 
-async function openAnexos(tipo, id, titulo) {
-  anexosCtx = { tipo, id };
+async function openAnexos(tipo, id, titulo, allowedTypes = null) {
+  anexosCtx = { tipo, id, allowedTypes };
   document.getElementById('anexos-titulo').textContent = '📎 Anexos';
   document.getElementById('anexos-subtitulo').textContent = titulo;
+  const fileInput = document.getElementById('anexos-file-input');
+  const hint = document.getElementById('anexos-hint');
+  if (allowedTypes) {
+    fileInput.accept = 'application/pdf,image/*';
+    hint.textContent = 'Apenas PDF e imagens (JPG, PNG, etc.) — até 20MB';
+  } else {
+    fileInput.accept = '';
+    hint.textContent = 'PDF, imagens, documentos — até 20MB';
+  }
   document.getElementById('modal-anexos').classList.add('open');
   await loadAnexos();
 }
@@ -3844,6 +3853,14 @@ async function loadAnexos() {
 
 async function uploadAnexos(files) {
   if (!files.length) return;
+  if (anexosCtx.allowedTypes) {
+    const invalidos = Array.from(files).filter(f => !f.type.startsWith('image/') && f.type !== 'application/pdf');
+    if (invalidos.length) {
+      toast('Tipo não permitido', `Apenas PDFs e imagens são aceitos neste contexto. Arquivo(s) rejeitado(s): ${invalidos.map(f=>f.name).join(', ')}`, 'error');
+      document.getElementById('anexos-file-input').value = '';
+      return;
+    }
+  }
   const progress = document.getElementById('anexos-upload-progress');
   const progressBar = document.getElementById('anexos-progress-bar');
   const progressText = document.getElementById('anexos-progress-text');
@@ -4019,6 +4036,7 @@ function renderLegTarefas() {
             <td><span class="badge ${pr}">${x.prioridade||'—'}</span></td>
             <td class="${pc}">${fmtDate(x.prazo)}</td><td>${tBadge(x.status)}</td>
             <td><div class="td-actions">
+              <button class="icon-btn" onclick='openAnexos("tarefa","${x.id}","${x.titulo.replace(/'/g,"\\'")}","pdf-image")' title="Anexos (PDF/Imagem)">📎</button>
               <button class="icon-btn" onclick='editTarefa("${x.id}")'>✏️</button>
               <button class="icon-btn del" onclick='deleteItem("tarefa","${x.id}")'>🗑️</button>
             </div></td></tr>`;
