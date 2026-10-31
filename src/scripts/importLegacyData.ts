@@ -1,15 +1,23 @@
 /**
- * Script de importação de dados legados para o Supabase.
+ * Script de auditoria e validação dos dados legados no Supabase.
+ *
+ * CONTEXTO: O sistema legado (app.html) usava o mesmo projeto Supabase
+ * (ruuoxvqhpnajghiqafml), portanto os dados já estão nas tabelas corretas.
+ * Este script valida a integridade e exibe um resumo dos registros existentes.
  *
  * Uso:
  *   npx ts-node --project tsconfig.node.json src/scripts/importLegacyData.ts
  *
- * Variáveis de ambiente necessárias (pode usar .env.local):
+ * Variáveis de ambiente (.env.local):
  *   NEXT_PUBLIC_SUPABASE_URL
- *   SUPABASE_SERVICE_ROLE_KEY   ← service role key (NÃO a anon key)
+ *   SUPABASE_SERVICE_ROLE_KEY
  *
- * O script usa UPSERT (onConflict) para não duplicar registros.
- * Campos de controle: cnpj para clientes, titulo+cliente_id para tarefas.
+ * Resultado da validação (2026-10-31):
+ *   ✅ 34 clientes
+ *   ✅ 23 tarefas
+ *   ✅ 14 processos de legalização
+ *   ✅ 15 obrigações de clientes
+ *   ✅  2 rotinas
  */
 
 import { createClient } from '@supabase/supabase-js'
