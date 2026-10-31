@@ -21,6 +21,31 @@ export type StatusProcesso =
   | 'Concluído'
   | 'Cancelado';
 
+export type TipoAtoProcesso =
+  | 'Abertura'
+  | 'Alteração Contratual'
+  | 'Consolidação'
+  | 'Baixa'
+  | 'Licenciamento Isolado'
+  | 'Outro';
+
+export type EtapaProcesso =
+  | 'Viabilidade'
+  | 'DBE / Redesim'
+  | 'Junta Comercial'
+  | 'Insc. Municipal/Estadual'
+  | 'Licenciamento'
+  | 'Concluído';
+
+export interface Exigencia {
+  id: string;
+  descricao: string;
+  data_limite: string | null;
+  responsavel: string | null;
+  sanado: boolean;
+  sanado_em: string | null;
+}
+
 export type StatusRotina = 'ativa' | 'pausada' | 'encerrada';
 
 export type FrequenciaRotina =
@@ -90,6 +115,7 @@ export interface Tarefa {
   titulo: string;
   setor: Setor | null;
   responsavel: string | null;
+  responsaveis_conjuntos: string[];
   prioridade: Prioridade;
   prazo: string | null; // date ISO
   status: StatusTarefa;
@@ -129,11 +155,23 @@ export interface ProcessoLegalizacao {
   id: string;
   cliente_id: string | null;
   tipo: string | null;
+  tipo_ato: TipoAtoProcesso | null;
   descricao: string | null;
   status: StatusProcesso;
   prazo: string | null;
   responsavel: string | null;
+  responsaveis_conjuntos: string[];
   protocolo: string | null;
+  protocolo_viabilidade: string | null;
+  protocolo_dbe_redesim: string | null;
+  protocolo_junta: string | null;
+  inscricao_municipal: string | null;
+  inscricao_estadual: string | null;
+  protocolo_vigilancia: string | null;
+  protocolo_bombeiros: string | null;
+  protocolo_meio_ambiente: string | null;
+  exigencias: Exigencia[];
+  etapa_atual: EtapaProcesso;
   lembrar_antes_dias: number;
   retorno_confirmado: boolean;
   obs: string | null;
