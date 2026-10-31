@@ -8,6 +8,9 @@ import {
   Repeat, Lock, TrendingUp, ArrowRightLeft, BarChart2, Activity,
 } from 'lucide-react'
 import type { Setor, TaskEvento } from '@/types/database.types'
+import SmartCalendarWidget from '@/components/dashboard/SmartCalendarWidget'
+import type { CalendarEvent } from '@/components/dashboard/SmartCalendarWidget'
+import AnalyticsCharts, { montarStatusData, montarRegimeData } from '@/components/dashboard/AnalyticsCharts'
 
 // ─── Tipos ────────────────────────────────────────────────────
 
@@ -53,10 +56,15 @@ const SETORES_PROD: Setor[] = ['Legalização', 'Fiscal', 'RH', 'Office Boy', 'G
 // ─── Componente ───────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const [isAdmin, setIsAdmin]     = useState(false)
-  const [kpi, setKpi]             = useState<KpiAdmin | null>(null)
-  const [feed, setFeed]           = useState<FeedEvento[]>([])
-  const [loadingKpi, setLoadingKpi] = useState(false)
+  const [isAdmin, setIsAdmin]         = useState(false)
+  const [kpi, setKpi]                 = useState<KpiAdmin | null>(null)
+  const [feed, setFeed]               = useState<FeedEvento[]>([])
+  const [loadingKpi, setLoadingKpi]   = useState(false)
+  const [calEventos, setCalEventos]   = useState<CalendarEvent[]>([])
+  const [statusData, setStatusData]   = useState<ReturnType<typeof montarStatusData>>([])
+  const [regimeData, setRegimeData]   = useState<ReturnType<typeof montarRegimeData>>([])
+  const mesAtual = new Date().getMonth() + 1
+  const anoAtual = new Date().getFullYear()
 
   useEffect(() => {
     async function init() {
@@ -111,6 +119,30 @@ export default function DashboardPage() {
           urgentes,
           porSetor,
         })
+
+        // Dados para gráficos de rosca
+        const statusContagens: Record<string, number> = {}
+        lista.forEach(t => { statusContagens[t.status] = (statusContagens[t.status] ?? 0) + 1 })
+        setStatusData(montarStatusData(statusContagens))
+
+        const { data: clientes } = await (supabase.from('clientes') as any).select('regime')
+        const regimeContagens: Record<string, number> = {}
+        ;(clientes ?? []).forEach((c: { regime: string | null }) => {
+          if (c.regime) regimeContagens[c.regime] = (regimeContagens[c.regime] ?? 0) + 1
+        })
+        setRegimeData(montarRegimeData(regimeContagens))
+
+        // Eventos de calendário: prazos ativos como "prazo"
+        const evts: CalendarEvent[] = lista
+          .filter(t => t.prazo)
+          .reduce<CalendarEvent[]>((acc, t) => {
+            const d = new Date(t.prazo! + 'T00:00:00')
+            if (d.getMonth() + 1 === mesAtual && d.getFullYear() === anoAtual) {
+              acc.push({ dia: d.getDate(), titulo: 'Tarefa com prazo', tipo: 'prazo' })
+            }
+            return acc
+          }, [])
+        setCalEventos(evts)
 
         // Feed de transferências (task_eventos tipo situacao/progresso recentes)
         const { data: eventos } = await (supabase.from('task_eventos') as any)
@@ -265,6 +297,25 @@ export default function DashboardPage() {
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Gráficos colorimétricos + Calendário inteligente */}
+        {isAdmin && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2">
+              <AnalyticsCharts
+                tarefasPorStatus={statusData}
+                faturamentoPorRegime={regimeData}
+              />
+            </div>
+            <div>
+              <SmartCalendarWidget
+                mes={mesAtual}
+                ano={anoAtual}
+                eventos={calEventos}
+              />
             </div>
           </div>
         )}

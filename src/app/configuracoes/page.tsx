@@ -3,12 +3,29 @@
 import { useEffect, useState, useCallback } from 'react'
 import Shell from '@/components/layout/Shell'
 import { supabase } from '@/lib/supabase'
-import type { PerfilUsuario, AcessoLog, RoleUsuario } from '@/types/database.types'
-import { Settings, Users, Shield, ClipboardList, Search, RefreshCw, ChevronDown } from 'lucide-react'
+import type { PerfilUsuario, AcessoLog, RoleUsuario, PermissoesModulos } from '@/types/database.types'
+import { PERMISSOES_DEFAULT as PERM_DEFAULT } from '@/types/database.types'
+import { Settings, Users, Shield, ClipboardList, Search, RefreshCw, ChevronDown, ChevronUp, Clock } from 'lucide-react'
+
+// ─── Config de módulos ────────────────────────────────────────
+
+const MODULOS: Array<{ key: keyof PermissoesModulos; label: string; desc: string }> = [
+  { key: 'modulo_pessoal',    label: 'Depto. Pessoal',     desc: 'Acesso às tarefas e rotinas de RH' },
+  { key: 'modulo_fiscal',     label: 'Depto. Fiscal',      desc: 'Rotinas fiscais e obrigações tributárias' },
+  { key: 'modulo_contabil',   label: 'Depto. Contábil',    desc: 'Clientes, contratos e lançamentos contábeis' },
+  { key: 'modulo_societario', label: 'Depto. Societário',  desc: 'Legalização e processos empresariais' },
+  { key: 'modulo_financeiro', label: 'Financeiro Interno', desc: 'Painel gerencial e relatórios financeiros' },
+  { key: 'acoes_financeiras', label: 'Ações Financeiras',  desc: 'Criar/editar faturas e ver extratos' },
+]
 
 // ─── Tipos internos ───────────────────────────────────────────
 
 type Aba = 'usuarios' | 'seguranca' | 'auditoria'
+
+function fmtTs(ts: string | null | undefined) {
+  if (!ts) return '—'
+  return new Date(ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
 
 const ROLE_CONFIG: Record<RoleUsuario, { label: string; cor: string; desc: string }> = {
   admin:              { label: 'Admin',       cor: 'bg-rose-100 text-rose-800',    desc: 'Acesso total a todos os módulos e clientes' },
@@ -83,6 +100,23 @@ export default function ConfiguracoesPage() {
       setEditandoRole(null)
     } finally {
       setSalvandoRole(false)
+    }
+  }
+
+  // ─── Permissões modulares ─────────────────────────────────────
+
+  const [expandindoPerm, setExpandindoPerm] = useState<string | null>(null)
+  const [salvandoPerm, setSalvandoPerm]     = useState(false)
+
+  async function salvarPermissoes(userId: string, perm: PermissoesModulos) {
+    setSalvandoPerm(true)
+    try {
+      await (supabase.from('perfis_usuarios') as any)
+        .update({ permissoes_modulos: perm, updated_at: new Date().toISOString() })
+        .eq('id', userId)
+      setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, permissoes_modulos: perm } : u))
+    } finally {
+      setSalvandoPerm(false)
     }
   }
 
@@ -200,7 +234,61 @@ export default function ConfiguracoesPage() {
                         <span className={`text-xs ${u.ativo ? 'text-emerald-600' : 'text-brand-400'}`}>
                           {u.ativo ? 'Ativo' : 'Inativo'}
                         </span>
+
+                        {/* Último acesso */}
+                        {u.ultimo_acesso && (
+                          <span className="hidden lg:flex items-center gap-1 text-[10px] text-brand-400">
+                            <Clock size={10} /> {fmtTs(u.ultimo_acesso)}
+                          </span>
+                        )}
+
+                        {/* Expandir permissões (não-admin) */}
+                        {u.role !== 'admin' && (
+                          <button
+                            onClick={() => setExpandindoPerm(expandindoPerm === u.id ? null : u.id)}
+                            className="text-xs text-brand-400 hover:text-brand-700 flex items-center gap-0.5"
+                            title="Permissões modulares"
+                          >
+                            {expandindoPerm === u.id ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                          </button>
+                        )}
                       </div>
+
+                      {/* Painel de permissões modulares */}
+                      {expandindoPerm === u.id && u.role !== 'admin' && (
+                        <div className="mt-3 bg-brand-50 rounded-xl p-3 space-y-2">
+                          <p className="text-xs font-semibold text-brand-600 mb-2">Módulos acessíveis</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {MODULOS.map(({ key, label, desc }) => {
+                              const perm = u.permissoes_modulos ?? PERM_DEFAULT
+                              const ativo = perm[key] ?? false
+                              return (
+                                <button
+                                  key={key}
+                                  onClick={() => {
+                                    const novo = { ...(u.permissoes_modulos ?? PERM_DEFAULT), [key]: !ativo }
+                                    salvarPermissoes(u.id, novo)
+                                  }}
+                                  disabled={salvandoPerm}
+                                  className={`flex items-start gap-2 text-left p-2 rounded-lg border transition ${
+                                    ativo ? 'bg-white border-accent-300' : 'bg-brand-100 border-brand-200 opacity-60'
+                                  }`}
+                                >
+                                  <span className={`mt-0.5 w-3.5 h-3.5 rounded border-2 flex-shrink-0 flex items-center justify-center ${
+                                    ativo ? 'bg-accent-500 border-accent-500' : 'border-brand-300 bg-white'
+                                  }`}>
+                                    {ativo && <span className="w-1.5 h-1.5 bg-white rounded-sm" />}
+                                  </span>
+                                  <div>
+                                    <p className="text-xs font-medium text-brand-800">{label}</p>
+                                    <p className="text-[10px] text-brand-400">{desc}</p>
+                                  </div>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

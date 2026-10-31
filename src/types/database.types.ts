@@ -314,6 +314,26 @@ export interface Contrato {
   updated_at: string;
 }
 
+// ─── Permissões modulares ─────────────────────────────────────
+
+export interface PermissoesModulos {
+  modulo_pessoal:    boolean;
+  modulo_fiscal:     boolean;
+  modulo_contabil:   boolean;
+  modulo_societario: boolean;
+  modulo_financeiro: boolean;
+  acoes_financeiras: boolean; // criar/editar faturas, ver extratos
+}
+
+export const PERMISSOES_DEFAULT: PermissoesModulos = {
+  modulo_pessoal:    true,
+  modulo_fiscal:     true,
+  modulo_contabil:   true,
+  modulo_societario: true,
+  modulo_financeiro: false,
+  acoes_financeiras: false,
+}
+
 // ─── Multi-tenant / Auth ──────────────────────────────────────
 
 export interface PerfilUsuario {
@@ -325,6 +345,8 @@ export interface PerfilUsuario {
   funcionario_id: string | null; // preenchido para admin/escritório
   cpf: string | null; // preenchido para colaborador_cliente
   ativo: boolean;
+  permissoes_modulos: PermissoesModulos | null;
+  ultimo_acesso: string | null; // timestamptz
   created_at: string;
   updated_at: string;
 }
