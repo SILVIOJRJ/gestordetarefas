@@ -98,7 +98,8 @@ export default function CofrePage() {
       const enc = await encryptSecret(novoSegredo, masterKey)
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Não autenticado.')
-      const { error } = await supabase.from('cofre_credenciais').insert({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('cofre_credenciais') as any).insert({
         cliente_id:  clienteId,
         titulo:      novoTitulo.trim(),
         payload_enc: JSON.stringify(enc),
