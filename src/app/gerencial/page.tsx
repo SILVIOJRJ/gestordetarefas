@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from 'react'
 import Shell from '@/components/layout/Shell'
 import { supabase } from '@/lib/supabase'
 import type { Cliente, Contrato, RegimeTributario } from '@/types/database.types'
-import { BarChart2, TrendingUp, AlertTriangle, DollarSign, ChevronLeft, ChevronRight, FileText } from 'lucide-react'
+import { BarChart2, TrendingUp, AlertTriangle, DollarSign, ChevronLeft, ChevronRight, FileText, Printer, ArrowUpCircle, ArrowDownCircle } from 'lucide-react'
+import { buscarLancamentosDoMes, imprimirRelatorioGerencial, type LancamentoFinanceiro } from '@/services/reports'
 
 // ─── Tipos ────────────────────────────────────────────────────
 
@@ -56,6 +57,7 @@ export default function GerencialPage() {
   const [kpis, setKpis] = useState<KPIs>({ mrr: 0, faturadoMes: 0, adicionais: 0, inadimplentes: 0 })
   const [porRegime, setPorRegime] = useState<FaturamentoPorRegime[]>([])
   const [adicionais, setAdicionais] = useState<ServicoAdicional[]>([])
+  const [lancamentos, setLancamentos] = useState<LancamentoFinanceiro[]>([])
   const [loading, setLoading] = useState(true)
 
   const carregar = useCallback(async () => {
@@ -100,6 +102,10 @@ export default function GerencialPage() {
       setKpis({ mrr, faturadoMes: mrr, adicionais: extras.length * 150, inadimplentes })
       setPorRegime(Object.values(regimeMap).sort((a, b) => b.mrr - a.mrr))
       setAdicionais(extras.slice(0, 20))
+
+      // Lançamentos financeiros do mês
+      const lanc = await buscarLancamentosDoMes(mes, ano)
+      setLancamentos(lanc)
     } finally {
       setLoading(false)
     }
@@ -128,6 +134,12 @@ export default function GerencialPage() {
               <p className="text-xs text-brand-400">Honorários, faturamento e adicionais extracontratuais</p>
             </div>
           </div>
+          <button
+            onClick={() => imprimirRelatorioGerencial(mes, ano, lancamentos)}
+            className="flex items-center gap-2 border border-brand-200 hover:bg-brand-50 text-brand-600 text-sm font-medium px-3 py-2 rounded-lg transition"
+          >
+            <Printer size={15} /> Imprimir Relatório
+          </button>
           <div className="flex items-center gap-2 bg-white border border-brand-100 rounded-xl px-3 py-2">
             <button onClick={() => navMes(-1)} className="p-1 hover:bg-brand-50 rounded">
               <ChevronLeft size={16} className="text-brand-500" />
@@ -268,6 +280,66 @@ export default function GerencialPage() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Tabela de Lançamentos Financeiros */}
+        <div className="bg-white border border-brand-100 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-brand-50 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-brand-700">Entradas & Saídas — {MESES[mes - 1]}/{ano}</h2>
+            <div className="flex gap-4 text-xs">
+              <span className="flex items-center gap-1 text-emerald-600">
+                <ArrowUpCircle size={13} />
+                Entradas: {fmt(lancamentos.filter(l => l.tipo === 'entrada').reduce((a, l) => a + l.valor, 0))}
+              </span>
+              <span className="flex items-center gap-1 text-red-500">
+                <ArrowDownCircle size={13} />
+                Saídas: {fmt(lancamentos.filter(l => l.tipo === 'saida').reduce((a, l) => a + l.valor, 0))}
+              </span>
+            </div>
+          </div>
+          {lancamentos.length === 0 ? (
+            <div className="py-8 text-center text-brand-300 text-sm">Nenhum lançamento registrado para o período.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-brand-400 bg-brand-50/60 border-b border-brand-100">
+                    <th className="px-4 py-2 font-medium">Data</th>
+                    <th className="px-3 py-2 font-medium">Descrição</th>
+                    <th className="px-3 py-2 font-medium">Cliente</th>
+                    <th className="px-3 py-2 font-medium">Forma</th>
+                    <th className="px-3 py-2 font-medium text-right">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lancamentos.map((l, i) => (
+                    <tr key={i} className="border-b border-brand-50 hover:bg-brand-50/40">
+                      <td className="px-4 py-2 text-brand-500 text-xs whitespace-nowrap">
+                        {new Date(l.data + 'T00:00:00').toLocaleDateString('pt-BR')}
+                      </td>
+                      <td className="px-3 py-2 text-brand-700 text-xs">{l.descricao}</td>
+                      <td className="px-3 py-2 text-brand-400 text-xs">{l.cliente ?? '—'}</td>
+                      <td className="px-3 py-2 text-brand-400 text-xs">{l.forma}</td>
+                      <td className={`px-3 py-2 text-right font-semibold text-xs ${l.tipo === 'entrada' ? 'text-emerald-600' : 'text-red-500'}`}>
+                        {l.tipo === 'saida' ? '−' : '+'}{fmt(l.valor)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-brand-50 border-t-2 border-brand-200">
+                    <td colSpan={4} className="px-4 py-2 text-xs font-semibold text-brand-600">Saldo do mês</td>
+                    <td className={`px-3 py-2 text-right font-bold text-sm ${
+                      lancamentos.reduce((a, l) => a + (l.tipo === 'entrada' ? l.valor : -l.valor), 0) >= 0
+                        ? 'text-emerald-600' : 'text-red-500'
+                    }`}>
+                      {fmt(lancamentos.reduce((a, l) => a + (l.tipo === 'entrada' ? l.valor : -l.valor), 0))}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Adicionais extracontratuais */}
