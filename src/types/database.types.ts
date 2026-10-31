@@ -268,8 +268,50 @@ export interface AcessoLog {
   id: string;
   funcionario_nome: string | null;
   funcionario_email: string | null;
+  user_id: string | null;
   setor: string | null;
+  ip: string | null;
   acessado_em: string;
+}
+
+export interface CofreCredencial {
+  id: string;
+  cliente_id: string;
+  titulo: string;
+  payload_enc: string; // JSON cifrado AES-GCM (E2EE)
+  criado_por: string;  // uuid → auth.users.id
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrdemServico {
+  id: string;
+  cliente_id: string | null;
+  numero: string | null;
+  descricao: string;
+  status: string;
+  responsavel_id: string | null;
+  valor: number | null;
+  data_abertura: string;
+  data_conclusao: string | null;
+  obs: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Contrato {
+  id: string;
+  cliente_id: string;
+  titulo: string;
+  descricao: string | null;
+  valor_mensal: number | null;
+  inicio: string;
+  termino: string | null;
+  renovacao_auto: boolean;
+  status: string;
+  criado_por: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // ─── Multi-tenant / Auth ──────────────────────────────────────
@@ -333,6 +375,9 @@ export interface Database {
       entregas: { Row: Entrega; Insert: Omit<Entrega, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Entrega> };
       acessos_log: { Row: AcessoLog; Insert: Omit<AcessoLog, 'id' | 'acessado_em'>; Update: never };
       perfis_usuarios: { Row: PerfilUsuario; Insert: Omit<PerfilUsuario, 'id' | 'created_at' | 'updated_at'>; Update: Partial<PerfilUsuario> };
+      cofre_credenciais: { Row: CofreCredencial; Insert: Omit<CofreCredencial, 'id' | 'created_at' | 'updated_at'>; Update: Partial<CofreCredencial> };
+      ordens_servico: { Row: OrdemServico; Insert: Omit<OrdemServico, 'id' | 'created_at' | 'updated_at'>; Update: Partial<OrdemServico> };
+      contratos: { Row: Contrato; Insert: Omit<Contrato, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Contrato> };
     };
   };
 }
