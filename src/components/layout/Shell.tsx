@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import BroadcastNoticeModal from '@/components/admin/BroadcastNoticeModal'
 import {
   LayoutDashboard,
   CheckSquare,
@@ -175,6 +176,9 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
           {children}
         </main>
       </div>
+
+      {/* ── Modal de recados obrigatórios ───────────────────── */}
+      <BroadcastNoticeModal />
 
       {/* ── Bottom Navigation (mobile) ───────────────────────── */}
       <nav className="fixed bottom-0 inset-x-0 z-20 flex lg:hidden bg-white border-t border-brand-200 h-16">

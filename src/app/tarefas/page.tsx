@@ -12,6 +12,7 @@ import type { Setor, StatusTarefa, Prioridade } from '@/types/database.types'
 import {
   Plus, Search, LayoutList, LayoutGrid, Loader2,
   AlertTriangle, X, ChevronRight, User, Clock,
+  CheckSquare, Square, Users, Tag, ChevronDown,
 } from 'lucide-react'
 
 const SETORES: Setor[] = ['Legalização', 'Fiscal', 'RH', 'Office Boy', 'Gerencial', 'Administrativo']
@@ -35,6 +36,8 @@ const PRIO_COLOR: Record<Prioridade, string> = {
 
 const KANBAN_COLS: StatusTarefa[] = ['Pendente', 'Em andamento', 'Aguardando', 'Concluída']
 
+// ─── Componente ───────────────────────────────────────────────
+
 export default function TarefasPage() {
   const [tarefas, setTarefas]           = useState<TarefaComCliente[]>([])
   const [loading, setLoading]           = useState(true)
@@ -49,6 +52,15 @@ export default function TarefasPage() {
   const [tarefaSel, setTarefaSel]       = useState<TarefaComCliente | null>(null)
   const [resumo, setResumo]             = useState<ResumoContratual | null>(null)
   const [autorNome, setAutorNome]       = useState('Usuário')
+  const [isAdmin, setIsAdmin]           = useState(false)
+
+  // Seleção em lote
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
+  const [showLoteMenu, setShowLoteMenu] = useState(false)
+  const [loteResp, setLoteResp]         = useState('')
+  const [lotePrio, setLotePrio]         = useState<Prioridade | ''>('')
+  const [salvandoLote, setSalvandoLote] = useState(false)
+  const [msgLote, setMsgLote]           = useState<string | null>(null)
 
   // Form nova tarefa
   const [form, setForm] = useState({
@@ -57,10 +69,16 @@ export default function TarefasPage() {
   })
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.email) setAutorNome(data.user.email)
-    })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user?.email) setAutorNome(user.email)
+      if (user) {
+        const { data: p } = await (supabase.from('perfis_usuarios') as any)
+          .select('role').eq('id', user.id).single()
+        if (p?.role === 'admin') setIsAdmin(true)
+      }
+    }
+    init()
     ;(supabase.from('clientes') as any).select('id, nome').order('nome').then(({ data }: { data: Array<{ id: string; nome: string }> | null }) => {
       setClientes(data ?? [])
     })
@@ -76,6 +94,7 @@ export default function TarefasPage() {
         busca: busca || undefined,
       })
       setTarefas(data)
+      setSelecionadas(new Set()) // limpa seleção ao recarregar
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao carregar tarefas.')
     } finally {
@@ -91,13 +110,13 @@ export default function TarefasPage() {
     setErro(null)
     try {
       await criarTarefa({
-        titulo:       form.titulo.trim(),
-        setor:        (form.setor || null) as Setor | null,
-        responsavel:  form.responsavel || null,
-        prioridade:   form.prioridade,
-        prazo:        form.prazo || null,
-        descricao:    form.descricao || null,
-        cliente_id:   form.cliente_id || null,
+        titulo:      form.titulo.trim(),
+        setor:       (form.setor || null) as Setor | null,
+        responsavel: form.responsavel || null,
+        prioridade:  form.prioridade,
+        prazo:       form.prazo || null,
+        descricao:   form.descricao || null,
+        cliente_id:  form.cliente_id || null,
       }, autorNome)
       setForm({ titulo: '', setor: '', responsavel: '', prioridade: 'Média', prazo: '', descricao: '', cliente_id: '' })
       setShowAdd(false)
@@ -119,7 +138,51 @@ export default function TarefasPage() {
     }
   }
 
-  const tarefasFiltradas = tarefas
+  function toggleSel(id: string) {
+    setSelecionadas(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleTodos() {
+    if (selecionadas.size === tarefas.length) {
+      setSelecionadas(new Set())
+    } else {
+      setSelecionadas(new Set(tarefas.map(t => t.id)))
+    }
+  }
+
+  async function aplicarLote() {
+    if (!selecionadas.size) return
+    if (!loteResp && !lotePrio) { setMsgLote('Escolha responsável ou prioridade para alterar.'); return }
+    setSalvandoLote(true)
+    setMsgLote(null)
+    try {
+      const updates: Record<string, string> = {}
+      if (loteResp.trim())  updates.responsavel = loteResp.trim()
+      if (lotePrio)         updates.prioridade  = lotePrio
+
+      const ids = Array.from(selecionadas)
+      const { error } = await (supabase.from('tarefas') as any)
+        .update(updates)
+        .in('id', ids)
+
+      if (error) throw error
+      setMsgLote(`${ids.length} tarefa${ids.length !== 1 ? 's' : ''} atualizada${ids.length !== 1 ? 's' : ''}.`)
+      setSelecionadas(new Set())
+      setLoteResp('')
+      setLotePrio('')
+      setShowLoteMenu(false)
+      await carregar()
+    } catch (e) {
+      setMsgLote(e instanceof Error ? e.message : 'Erro ao atualizar.')
+    } finally {
+      setSalvandoLote(false)
+    }
+  }
 
   return (
     <Shell>
@@ -160,6 +223,97 @@ export default function TarefasPage() {
             {STATUS_LIST.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
+
+        {/* Barra de ações em lote (admin, somente na view lista) */}
+        {isAdmin && view === 'lista' && (
+          <div className="flex items-center gap-3 bg-brand-50 border border-brand-200 rounded-xl px-4 py-2.5">
+            <button
+              onClick={toggleTodos}
+              className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-900 font-medium transition"
+            >
+              {selecionadas.size === tarefas.length && tarefas.length > 0
+                ? <CheckSquare size={14} className="text-accent-600" />
+                : <Square size={14} />
+              }
+              {selecionadas.size > 0 ? `${selecionadas.size} selecionada${selecionadas.size !== 1 ? 's' : ''}` : 'Selecionar todas'}
+            </button>
+
+            {selecionadas.size > 0 && (
+              <>
+                <span className="text-brand-300">|</span>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowLoteMenu(v => !v)}
+                    className="flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-900 bg-white border border-brand-200 px-3 py-1.5 rounded-lg transition"
+                  >
+                    <Users size={13} /> Alterar em lote <ChevronDown size={12} />
+                  </button>
+
+                  {showLoteMenu && (
+                    <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-brand-200 rounded-xl shadow-lg p-4 space-y-3 w-72">
+                      <p className="text-xs font-semibold text-brand-700">
+                        Alterar {selecionadas.size} tarefa{selecionadas.size !== 1 ? 's' : ''}
+                      </p>
+                      <div>
+                        <label className="text-xs text-brand-500 block mb-1 flex items-center gap-1">
+                          <Users size={11} /> Novo responsável
+                        </label>
+                        <input
+                          className="input text-sm"
+                          placeholder="Nome do responsável"
+                          value={loteResp}
+                          onChange={e => setLoteResp(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-brand-500 block mb-1 flex items-center gap-1">
+                          <Tag size={11} /> Nova prioridade
+                        </label>
+                        <select
+                          className="input text-sm"
+                          value={lotePrio}
+                          onChange={e => setLotePrio(e.target.value as Prioridade | '')}
+                        >
+                          <option value="">Manter atual</option>
+                          {PRIORIDADES.map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                      </div>
+                      {msgLote && (
+                        <p className={`text-xs ${msgLote.includes('Erro') || msgLote.includes('Escolha') ? 'text-danger-600' : 'text-accent-700'}`}>
+                          {msgLote}
+                        </p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={aplicarLote}
+                          disabled={salvandoLote}
+                          className="btn-primary flex-1 text-xs py-1.5"
+                        >
+                          {salvandoLote ? <Loader2 size={13} className="animate-spin" /> : null}
+                          Aplicar
+                        </button>
+                        <button
+                          onClick={() => { setShowLoteMenu(false); setMsgLote(null) }}
+                          className="btn-secondary text-xs py-1.5"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Feedback lote fora do menu */}
+        {msgLote && !showLoteMenu && (
+          <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${msgLote.includes('Erro') || msgLote.includes('Escolha') ? 'text-danger-600 bg-danger-100' : 'text-accent-700 bg-accent-100'}`}>
+            {msgLote}
+            <button onClick={() => setMsgLote(null)} className="ml-auto"><X size={14} /></button>
+          </div>
+        )}
 
         {/* Erro */}
         {erro && (
@@ -224,9 +378,15 @@ export default function TarefasPage() {
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin text-brand-300" /></div>
         ) : view === 'lista' ? (
-          <ListView tarefas={tarefasFiltradas} onSelect={abrirTarefa} />
+          <ListView
+            tarefas={tarefas}
+            onSelect={abrirTarefa}
+            isAdmin={isAdmin}
+            selecionadas={selecionadas}
+            onToggleSel={toggleSel}
+          />
         ) : (
-          <KanbanView tarefas={tarefasFiltradas} onSelect={abrirTarefa} />
+          <KanbanView tarefas={tarefas} onSelect={abrirTarefa} />
         )}
       </div>
 
@@ -262,7 +422,15 @@ export default function TarefasPage() {
 
 // ── Visualização Lista ────────────────────────────────────────
 
-function ListView({ tarefas, onSelect }: { tarefas: TarefaComCliente[]; onSelect: (t: TarefaComCliente) => void }) {
+interface ListViewProps {
+  tarefas: TarefaComCliente[]
+  onSelect: (t: TarefaComCliente) => void
+  isAdmin: boolean
+  selecionadas: Set<string>
+  onToggleSel: (id: string) => void
+}
+
+function ListView({ tarefas, onSelect, isAdmin, selecionadas, onToggleSel }: ListViewProps) {
   if (tarefas.length === 0) return (
     <div className="text-center py-16 text-brand-400">
       <LayoutList size={32} className="mx-auto mb-3 opacity-40" />
@@ -275,6 +443,7 @@ function ListView({ tarefas, onSelect }: { tarefas: TarefaComCliente[]; onSelect
       <table className="w-full text-sm">
         <thead className="bg-brand-50 text-xs text-brand-500 uppercase">
           <tr>
+            {isAdmin && <th className="px-3 py-3 w-8" />}
             <th className="text-left px-4 py-3">Tarefa</th>
             <th className="text-left px-4 py-3 hidden sm:table-cell">Empresa</th>
             <th className="text-left px-4 py-3 hidden md:table-cell">Setor</th>
@@ -285,20 +454,34 @@ function ListView({ tarefas, onSelect }: { tarefas: TarefaComCliente[]; onSelect
         </thead>
         <tbody className="divide-y divide-brand-100">
           {tarefas.map((t) => (
-            <tr key={t.id} className="hover:bg-brand-50 cursor-pointer" onClick={() => onSelect(t)}>
-              <td className="px-4 py-3">
+            <tr
+              key={t.id}
+              className={`hover:bg-brand-50 cursor-pointer ${selecionadas.has(t.id) ? 'bg-accent-50' : ''}`}
+            >
+              {isAdmin && (
+                <td
+                  className="px-3 py-3"
+                  onClick={(e) => { e.stopPropagation(); onToggleSel(t.id) }}
+                >
+                  {selecionadas.has(t.id)
+                    ? <CheckSquare size={15} className="text-accent-600" />
+                    : <Square size={15} className="text-brand-300" />
+                  }
+                </td>
+              )}
+              <td className="px-4 py-3" onClick={() => onSelect(t)}>
                 <p className="font-medium text-brand-900 line-clamp-1">{t.titulo}</p>
                 <p className={`text-xs ${PRIO_COLOR[t.prioridade]}`}>{t.prioridade}</p>
               </td>
-              <td className="px-4 py-3 hidden sm:table-cell text-brand-600 text-xs">{t.clientes?.nome ?? '—'}</td>
-              <td className="px-4 py-3 hidden md:table-cell text-brand-600 text-xs">{t.setor ?? '—'}</td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-3 hidden sm:table-cell text-brand-600 text-xs" onClick={() => onSelect(t)}>{t.clientes?.nome ?? '—'}</td>
+              <td className="px-4 py-3 hidden md:table-cell text-brand-600 text-xs" onClick={() => onSelect(t)}>{t.setor ?? '—'}</td>
+              <td className="px-4 py-3" onClick={() => onSelect(t)}>
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLOR[t.status]}`}>{t.status}</span>
               </td>
-              <td className="px-4 py-3 hidden sm:table-cell text-brand-500 text-xs">
+              <td className="px-4 py-3 hidden sm:table-cell text-brand-500 text-xs" onClick={() => onSelect(t)}>
                 {t.prazo ? new Date(t.prazo).toLocaleDateString('pt-BR') : '—'}
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-3" onClick={() => onSelect(t)}>
                 <ChevronRight size={15} className="text-brand-400" />
               </td>
             </tr>
@@ -318,7 +501,7 @@ function KanbanView({ tarefas, onSelect }: { tarefas: TarefaComCliente[]; onSele
         const items = tarefas.filter((t) => t.status === col)
         return (
           <div key={col} className="flex-shrink-0 w-64 sm:w-72">
-            <div className={`flex items-center justify-between mb-2 px-1`}>
+            <div className="flex items-center justify-between mb-2 px-1">
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLOR[col]}`}>{col}</span>
               <span className="text-xs text-brand-400">{items.length}</span>
             </div>
