@@ -9,10 +9,12 @@ import { obterResumoContratualCliente, BADGE_LABEL } from '@/services/contracts'
 import type { TarefaComCliente } from '@/services/tasks'
 import type { ResumoContratual } from '@/services/contracts'
 import type { Setor, StatusTarefa, Prioridade } from '@/types/database.types'
+import { calendarioCompleto } from '@/services/smartCalendar'
+import type { EventoCalendario } from '@/services/smartCalendar'
 import {
   Plus, Search, LayoutList, LayoutGrid, Loader2,
   AlertTriangle, X, ChevronRight, User, Clock,
-  CheckSquare, Square, Users, Tag, ChevronDown,
+  CheckSquare, Square, Users, Tag, ChevronDown, Calendar,
 } from 'lucide-react'
 
 const SETORES: Setor[] = ['Legalização', 'Fiscal', 'RH', 'Office Boy', 'Gerencial', 'Administrativo']
@@ -42,7 +44,10 @@ export default function TarefasPage() {
   const [tarefas, setTarefas]           = useState<TarefaComCliente[]>([])
   const [loading, setLoading]           = useState(true)
   const [erro, setErro]                 = useState<string | null>(null)
-  const [view, setView]                 = useState<'lista' | 'kanban'>('lista')
+  const [view, setView]                 = useState<'lista' | 'kanban' | 'calendario'>('lista')
+  const [calMes, setCalMes]             = useState(() => new Date().getMonth())
+  const [calAno, setCalAno]             = useState(() => new Date().getFullYear())
+  const [calEventos, setCalEventos]     = useState<EventoCalendario[]>([])
   const [busca, setBusca]               = useState('')
   const [filtroSetor, setFiltroSetor]   = useState<Setor | ''>('')
   const [filtroStatus, setFiltroStatus] = useState<StatusTarefa | ''>('')
@@ -83,6 +88,25 @@ export default function TarefasPage() {
       setClientes(data ?? [])
     })
   }, [])
+
+  useEffect(() => {
+    const base = calendarioCompleto(calAno, calMes + 1)
+    const tarefaEvts: EventoCalendario[] = tarefas
+      .filter(t => {
+        if (!t.prazo) return false
+        const d = new Date(t.prazo + 'T00:00:00')
+        return d.getMonth() === calMes && d.getFullYear() === calAno
+      })
+      .map(t => ({
+        data: t.prazo!,
+        titulo: t.titulo,
+        tipo: 'tarefa' as const,
+        setor: t.setor ?? undefined,
+        urgente: t.prioridade === 'Urgente',
+      }))
+    const merged = [...base, ...tarefaEvts].sort((a, b) => a.data.localeCompare(b.data))
+    setCalEventos(merged)
+  }, [calMes, calAno, tarefas])
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -195,13 +219,26 @@ export default function TarefasPage() {
             <p className="text-xs text-brand-500 mt-0.5">{tarefas.length} tarefa{tarefas.length !== 1 ? 's' : ''} encontrada{tarefas.length !== 1 ? 's' : ''}</p>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => setView(view === 'lista' ? 'kanban' : 'lista')}
-              className="btn-secondary"
-            >
-              {view === 'lista' ? <LayoutGrid size={15} /> : <LayoutList size={15} />}
-              {view === 'lista' ? 'Kanban' : 'Lista'}
-            </button>
+            <div className="flex rounded-lg border border-brand-200 overflow-hidden">
+              <button
+                onClick={() => setView('lista')}
+                className={`px-3 py-2 text-xs flex items-center gap-1.5 transition ${view === 'lista' ? 'bg-brand-700 text-white' : 'text-brand-500 hover:bg-brand-50'}`}
+              >
+                <LayoutList size={14} /> Lista
+              </button>
+              <button
+                onClick={() => setView('kanban')}
+                className={`px-3 py-2 text-xs flex items-center gap-1.5 transition ${view === 'kanban' ? 'bg-brand-700 text-white' : 'text-brand-500 hover:bg-brand-50'}`}
+              >
+                <LayoutGrid size={14} /> Kanban
+              </button>
+              <button
+                onClick={() => setView('calendario')}
+                className={`px-3 py-2 text-xs flex items-center gap-1.5 transition ${view === 'calendario' ? 'bg-brand-700 text-white' : 'text-brand-500 hover:bg-brand-50'}`}
+              >
+                <Calendar size={14} /> Calendário
+              </button>
+            </div>
             <button onClick={() => setShowAdd(true)} className="btn-primary">
               <Plus size={15} /> Nova Tarefa
             </button>
@@ -385,8 +422,22 @@ export default function TarefasPage() {
             selecionadas={selecionadas}
             onToggleSel={toggleSel}
           />
-        ) : (
+        ) : view === 'kanban' ? (
           <KanbanView tarefas={tarefas} onSelect={abrirTarefa} />
+        ) : (
+          <CalendarView
+            mes={calMes}
+            ano={calAno}
+            eventos={calEventos}
+            onPrevMes={() => {
+              if (calMes === 0) { setCalMes(11); setCalAno(a => a - 1) }
+              else setCalMes(m => m - 1)
+            }}
+            onNextMes={() => {
+              if (calMes === 11) { setCalMes(0); setCalAno(a => a + 1) }
+              else setCalMes(m => m + 1)
+            }}
+          />
         )}
       </div>
 
@@ -534,6 +585,165 @@ function KanbanView({ tarefas, onSelect }: { tarefas: TarefaComCliente[]; onSele
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// ── Visualização Calendário ───────────────────────────────────
+
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+
+const TIPO_COR: Record<EventoCalendario['tipo'], string> = {
+  tarefa:            'bg-blue-500',
+  obrigacao:         'bg-amber-500',
+  prazo_tributario:  'bg-orange-500',
+  reforma:           'bg-purple-500',
+  feriado_nacional:  'bg-red-500',
+  feriado_municipal: 'bg-pink-500',
+}
+
+const TIPO_LABEL: Record<EventoCalendario['tipo'], string> = {
+  tarefa:            'Tarefa',
+  obrigacao:         'Obrigação',
+  prazo_tributario:  'Prazo Tributário',
+  reforma:           'Reforma Tributária',
+  feriado_nacional:  'Feriado Nacional',
+  feriado_municipal: 'Feriado Municipal',
+}
+
+interface CalendarViewProps {
+  mes: number
+  ano: number
+  eventos: EventoCalendario[]
+  onPrevMes: () => void
+  onNextMes: () => void
+}
+
+function CalendarView({ mes, ano, eventos, onPrevMes, onNextMes }: CalendarViewProps) {
+  const hoje = new Date().toISOString().split('T')[0]
+  const primeiroDia = new Date(ano, mes, 1)
+  const ultimoDia = new Date(ano, mes + 1, 0).getDate()
+  const iniciaSemana = primeiroDia.getDay() // 0=Dom
+
+  const eventosPorDia = new Map<number, EventoCalendario[]>()
+  eventos.forEach(ev => {
+    const d = new Date(ev.data + 'T00:00:00')
+    if (d.getMonth() === mes && d.getFullYear() === ano) {
+      const dia = d.getDate()
+      const lista = eventosPorDia.get(dia) ?? []
+      lista.push(ev)
+      eventosPorDia.set(dia, lista)
+    }
+  })
+
+  const cells: Array<number | null> = [
+    ...Array(iniciaSemana).fill(null),
+    ...Array.from({ length: ultimoDia }, (_, i) => i + 1),
+  ]
+  while (cells.length % 7 !== 0) cells.push(null)
+
+  return (
+    <div className="space-y-4">
+      {/* Navegação */}
+      <div className="flex items-center justify-between">
+        <button onClick={onPrevMes} className="btn-secondary px-3 py-1.5 text-xs">← Anterior</button>
+        <h2 className="text-base font-bold text-brand-800">{MESES_PT[mes]} {ano}</h2>
+        <button onClick={onNextMes} className="btn-secondary px-3 py-1.5 text-xs">Próximo →</button>
+      </div>
+
+      {/* Grid */}
+      <div className="rounded-xl border border-brand-200 overflow-hidden">
+        {/* Cabeçalho dias da semana */}
+        <div className="grid grid-cols-7 bg-brand-50">
+          {DIAS_SEMANA.map(d => (
+            <div key={d} className="text-center text-xs font-semibold text-brand-500 py-2">{d}</div>
+          ))}
+        </div>
+
+        {/* Células */}
+        <div className="grid grid-cols-7 divide-x divide-y divide-brand-100">
+          {cells.map((dia, i) => {
+            const dataStr = dia ? `${ano}-${String(mes + 1).padStart(2,'0')}-${String(dia).padStart(2,'0')}` : ''
+            const isHoje = dataStr === hoje
+            const evsDia = dia ? (eventosPorDia.get(dia) ?? []) : []
+            const urgente = evsDia.some(e => e.urgente)
+
+            return (
+              <div
+                key={i}
+                className={`min-h-[72px] p-1.5 relative group ${dia ? 'bg-white hover:bg-brand-50' : 'bg-brand-50/40'}`}
+              >
+                {dia && (
+                  <>
+                    <span className={`text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full ${
+                      isHoje ? 'bg-blue-600 text-white' : urgente ? 'text-red-600 font-bold' : 'text-brand-600'
+                    }`}>
+                      {dia}
+                    </span>
+                    <div className="flex flex-wrap gap-0.5 mt-1">
+                      {evsDia.slice(0, 4).map((ev, j) => (
+                        <div
+                          key={j}
+                          className={`w-2 h-2 rounded-full flex-shrink-0 ${TIPO_COR[ev.tipo]}`}
+                          title={`${ev.titulo}${ev.setor ? ` (${ev.setor})` : ''}${ev.municipio ? ` — ${ev.municipio}` : ''}`}
+                        />
+                      ))}
+                      {evsDia.length > 4 && (
+                        <span className="text-[9px] text-brand-400">+{evsDia.length - 4}</span>
+                      )}
+                    </div>
+                    {/* Tooltip ao hover */}
+                    {evsDia.length > 0 && (
+                      <div className="absolute left-0 top-full z-50 hidden group-hover:block bg-white border border-brand-200 rounded-xl shadow-lg p-2 w-56 space-y-1">
+                        {evsDia.map((ev, j) => (
+                          <div key={j} className="flex items-start gap-1.5">
+                            <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${TIPO_COR[ev.tipo]}`} />
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-brand-800 leading-tight">{ev.titulo}</p>
+                              {ev.setor && <p className="text-[10px] text-brand-400">{ev.setor}</p>}
+                              {ev.municipio && <p className="text-[10px] text-brand-400">{ev.municipio}</p>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Legenda */}
+      <div className="flex flex-wrap gap-3">
+        {(Object.entries(TIPO_COR) as [EventoCalendario['tipo'], string][]).map(([tipo, cor]) => (
+          <div key={tipo} className="flex items-center gap-1.5 text-xs text-brand-600">
+            <div className={`w-2.5 h-2.5 rounded-full ${cor}`} />
+            {TIPO_LABEL[tipo]}
+          </div>
+        ))}
+      </div>
+
+      {/* Lista compacta de eventos do mês */}
+      {eventos.length > 0 && (
+        <div className="card space-y-2">
+          <h3 className="text-sm font-semibold text-brand-700">Eventos de {MESES_PT[mes]}</h3>
+          <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+            {eventos.map((ev, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs">
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${TIPO_COR[ev.tipo]}`} />
+                <span className="text-brand-400 flex-shrink-0 w-12">
+                  {new Date(ev.data + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                </span>
+                <span className={`font-medium ${ev.urgente ? 'text-red-700' : 'text-brand-700'}`}>{ev.titulo}</span>
+                {ev.setor && <span className="text-brand-400 ml-auto flex-shrink-0">({ev.setor})</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
