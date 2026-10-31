@@ -1,0 +1,15 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/cofre/layout,_N_T_/cofre/page,_N_T_/cofre"
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/3686abd671ff4a6f949c2fbf24133d4cf83382aba1517cb120ee688bb99de0e9/$/cofre",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/cofre/page"
+    },
+    "isFallback": false
+  }
+}

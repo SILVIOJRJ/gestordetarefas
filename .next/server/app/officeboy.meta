@@ -1,0 +1,15 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/officeboy/layout,_N_T_/officeboy/page,_N_T_/officeboy"
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/cc1c35e114ea02a279df59c880553675f2d9c20be26854750f023179d469e5e4/$/officeboy",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/officeboy/page"
+    },
+    "isFallback": false
+  }
+}

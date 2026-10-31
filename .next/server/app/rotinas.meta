@@ -1,0 +1,15 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/rotinas/layout,_N_T_/rotinas/page,_N_T_/rotinas"
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/a31285b6edfc992d9f87b3120cee791be7f6e090a60ef9d32b3be22ff206c226/$/rotinas",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/rotinas/page"
+    },
+    "isFallback": false
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/clientes/page": "/clientes",
+  "/configuracoes/page": "/configuracoes",
+  "/cofre/page": "/cofre",
+  "/dashboard/page": "/dashboard",
+  "/contratos/page": "/contratos",
+  "/gerencial/page": "/gerencial",
+  "/documentos/page": "/documentos",
+  "/login/page": "/login",
+  "/officeboy/page": "/officeboy",
+  "/page": "/",
+  "/processos/page": "/processos",
+  "/rotinas/page": "/rotinas",
+  "/tarefas/page": "/tarefas"
+}
