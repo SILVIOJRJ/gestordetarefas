@@ -46,8 +46,8 @@ export async function uploadDocumentoComIA(
   const dados = await analisarDocumentoComIA(blob, arquivo.type)
 
   // 5. Persiste metadados na tabela anexos
-  const { data: anexo, error: dbErr } = await supabase
-    .from('anexos')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: anexo, error: dbErr } = await (supabase.from('anexos') as any)
     .insert({
       referencia_tipo: 'cliente',
       referencia_id:   clienteId,

@@ -5,15 +5,21 @@
 const PBKDF2_ITERATIONS = 150_000
 const KEY_LENGTH = 256
 
-function bufferToBase64(buffer: ArrayBuffer): string {
-  return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+function bufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)
+  let binary = ''
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]!)
+  return btoa(binary)
 }
 
-function base64ToBuffer(b64: string): Uint8Array {
-  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+function base64ToBuffer(b64: string): ArrayBuffer {
+  const binary = atob(b64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return bytes.buffer as ArrayBuffer
 }
 
-async function deriveKey(masterKey: string, salt: Uint8Array): Promise<CryptoKey> {
+async function deriveKey(masterKey: string, salt: ArrayBuffer): Promise<CryptoKey> {
   const enc = new TextEncoder()
   const keyMaterial = await window.crypto.subtle.importKey(
     'raw',
@@ -45,8 +51,10 @@ export async function encryptSecret(
   masterKey: string,
 ): Promise<{ ciphertext: string; iv: string; salt: string }> {
   const enc = new TextEncoder()
-  const salt = window.crypto.getRandomValues(new Uint8Array(16))
-  const iv   = window.crypto.getRandomValues(new Uint8Array(12))
+  const saltBytes = window.crypto.getRandomValues(new Uint8Array(16))
+  const ivBytes   = window.crypto.getRandomValues(new Uint8Array(12))
+  const salt = saltBytes.buffer as ArrayBuffer
+  const iv   = ivBytes.buffer as ArrayBuffer
   const key  = await deriveKey(masterKey, salt)
 
   const encrypted = await window.crypto.subtle.encrypt(
@@ -57,8 +65,8 @@ export async function encryptSecret(
 
   return {
     ciphertext: bufferToBase64(encrypted),
-    iv:         bufferToBase64(iv.buffer),
-    salt:       bufferToBase64(salt.buffer),
+    iv:         bufferToBase64(iv),
+    salt:       bufferToBase64(salt),
   }
 }
 
@@ -79,6 +87,7 @@ export async function decryptSecret(
     key,
     base64ToBuffer(ciphertext),
   )
+
 
   return new TextDecoder().decode(decrypted)
 }
