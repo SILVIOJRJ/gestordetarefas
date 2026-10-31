@@ -35,7 +35,7 @@ interface QuickLink {
 }
 
 const QUICK_LINKS: QuickLink[] = [
-  { href: '/tarefas/nova',    label: 'Nova Tarefa',        desc: 'Criar tarefa em qualquer setor', icon: CheckSquare },
+  { href: '/tarefas',         label: 'Nova Tarefa',        desc: 'Criar tarefa em qualquer setor', icon: CheckSquare },
   { href: '/clientes',        label: 'Clientes',           desc: 'Gerenciar empresas e contratos', icon: Users },
   { href: '/processos',       label: 'Legalização',        desc: 'Processos e prazos',             icon: FileText },
   { href: '/rotinas',         label: 'Rotinas',            desc: 'Pendências recorrentes',         icon: Repeat },
