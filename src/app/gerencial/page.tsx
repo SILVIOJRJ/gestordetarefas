@@ -13,6 +13,7 @@ interface ClienteRow {
   id: string
   nome: string
   regime?: Regime
+  condicao?: string | null
 }
 
 interface ValoresGerenciais {
@@ -158,7 +159,7 @@ export default function GerencialPage() {
     // 1. Busca todos os clientes — captura erro para diagnóstico
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: clientes, error: erroQ } = await (supabase.from('clientes') as any)
-      .select('id, nome')
+      .select('id, nome, regime, condicao')
       .order('nome')
 
     if (erroQ) {
@@ -192,7 +193,7 @@ export default function GerencialPage() {
     // 3. Merge: todo cliente aparece, com ou sem valores no mês
     const rows: LinhaTabela[] = ((clientes ?? []) as ClienteRow[]).map(c => ({
       ...c,
-      valores: mapa[c.id] ?? vazioValores(c.id, competencia),
+      valores: mapa[c.id] ?? { ...vazioValores(c.id, competencia), condicao: c.condicao ?? 'Normal' },
     }))
 
     setLinhas(rows)

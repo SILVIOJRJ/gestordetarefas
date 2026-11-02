@@ -110,7 +110,7 @@ export default function ControleMensalPage() {
     // 1. Busca todos os clientes — sempre renderiza a grade completa
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: cData } = await (supabase.from('clientes') as any)
-      .select('id, nome')
+      .select('id, nome, regime')
       .order('nome')
 
     setClientes((cData ?? []) as ClienteRow[])
