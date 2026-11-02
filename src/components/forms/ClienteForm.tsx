@@ -16,10 +16,11 @@ interface Props {
 const REGIMES: RegimeTributario[] = ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI']
 const SETORES: Setor[] = ['Legalização', 'Fiscal', 'RH', 'Office Boy', 'Gerencial', 'Administrativo']
 
-const VAZIO: ClientePayload & { ie?: string; im?: string; limite_nfe?: number; limite_faturamento?: number; taxa_recalculo?: number } = {
+const VAZIO: ClientePayload = {
   nome: '', cnpj: '', regime: null, email: null, telefone: null,
   responsavel: null, responsavel_id: null, criado_por: null,
-  ie: '', im: '', limite_nfe: 50, limite_faturamento: 100000, taxa_recalculo: 150,
+  ie: '', im: '', cnae: '', limite_nfe: 50, limite_faturamento: 100000, taxa_recalculo: 150,
+  vinculo_atendimento: null, contatos_chave: null, manual_costumes: null,
 }
 
 export default function ClienteForm({ inicial, onSalvo, onCancelar }: Props) {
@@ -43,12 +44,12 @@ export default function ClienteForm({ inicial, onSalvo, onCancelar }: Props) {
         responsavel:         form.responsavel || null,
         responsavel_id:      form.responsavel_id || null,
         criado_por:          user?.id ?? null,
-        ie:                  (form as { ie?: string }).ie || null,
-        im:                  (form as { im?: string }).im || null,
-        cnae:                (form as { cnae?: string }).cnae || null,
-        limite_nfe:          (form as { limite_nfe?: number }).limite_nfe ?? 50,
-        limite_faturamento:  (form as { limite_faturamento?: number }).limite_faturamento ?? 100000,
-        taxa_recalculo:      (form as { taxa_recalculo?: number }).taxa_recalculo ?? 150,
+        ie:                  form.ie || null,
+        im:                  form.im || null,
+        cnae:                form.cnae || null,
+        limite_nfe:          form.limite_nfe ?? 50,
+        limite_faturamento:  form.limite_faturamento ?? 100000,
+        taxa_recalculo:      form.taxa_recalculo ?? 150,
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const q = inicial?.id
@@ -86,11 +87,15 @@ export default function ClienteForm({ inicial, onSalvo, onCancelar }: Props) {
         </div>
         <div>
           <label className="input-label">Inscrição Estadual</label>
-          <input className="input" placeholder="IE" value={(form as { ie?: string }).ie ?? ''} onChange={(e) => set('ie', e.target.value)} />
+          <input className="input" placeholder="IE" value={form.ie ?? ''} onChange={(e) => set('ie', e.target.value)} />
         </div>
         <div>
           <label className="input-label">Inscrição Municipal</label>
-          <input className="input" placeholder="IM" value={(form as { im?: string }).im ?? ''} onChange={(e) => set('im', e.target.value)} />
+          <input className="input" placeholder="IM" value={form.im ?? ''} onChange={(e) => set('im', e.target.value)} />
+        </div>
+        <div>
+          <label className="input-label">CNAE Principal</label>
+          <input className="input" placeholder="0000-0/00" value={form.cnae ?? ''} onChange={(e) => set('cnae', e.target.value)} />
         </div>
         <div>
           <label className="input-label">E-mail</label>
@@ -118,15 +123,15 @@ export default function ClienteForm({ inicial, onSalvo, onCancelar }: Props) {
         </div>
         <div>
           <label className="input-label">Limite NF-e / mês</label>
-          <input type="number" min={0} className="input" value={(form as { limite_nfe?: number }).limite_nfe ?? 50} onChange={(e) => set('limite_nfe', Number(e.target.value))} />
+          <input type="number" min={0} className="input" value={form.limite_nfe ?? 50} onChange={(e) => set('limite_nfe', Number(e.target.value))} />
         </div>
         <div>
           <label className="input-label">Teto de Faturamento Mensal (R$)</label>
-          <input type="number" min={0} className="input" value={(form as { limite_faturamento?: number }).limite_faturamento ?? 100000} onChange={(e) => set('limite_faturamento', Number(e.target.value))} />
+          <input type="number" min={0} className="input" value={form.limite_faturamento ?? 100000} onChange={(e) => set('limite_faturamento', Number(e.target.value))} />
         </div>
         <div>
           <label className="input-label">Taxa de Recálculo de Guia em Atraso (R$)</label>
-          <input type="number" min={0} className="input" value={(form as { taxa_recalculo?: number }).taxa_recalculo ?? 150} onChange={(e) => set('taxa_recalculo', Number(e.target.value))} />
+          <input type="number" min={0} className="input" value={form.taxa_recalculo ?? 150} onChange={(e) => set('taxa_recalculo', Number(e.target.value))} />
         </div>
       </div>
 
