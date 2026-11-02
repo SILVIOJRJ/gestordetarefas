@@ -110,9 +110,14 @@ CREATE POLICY "lanc_admin_all" ON lancamentos_financeiros
 CREATE POLICY "lanc_gestor_read" ON lancamentos_financeiros
   FOR SELECT TO authenticated USING (true);
 
+ALTER TABLE lancamentos_financeiros ADD COLUMN IF NOT EXISTS mes             INTEGER;
+ALTER TABLE lancamentos_financeiros ADD COLUMN IF NOT EXISTS ano             INTEGER;
+ALTER TABLE lancamentos_financeiros ADD COLUMN IF NOT EXISTS auto_classificado BOOLEAN DEFAULT FALSE;
+
 CREATE INDEX IF NOT EXISTS idx_lanc_data       ON lancamentos_financeiros(data DESC);
 CREATE INDEX IF NOT EXISTS idx_lanc_tipo       ON lancamentos_financeiros(tipo);
 CREATE INDEX IF NOT EXISTS idx_lanc_cliente_id ON lancamentos_financeiros(cliente_id);
+CREATE INDEX IF NOT EXISTS idx_lanc_mes_ano    ON lancamentos_financeiros(mes, ano);
 
 -- ─── 9. perfis_usuarios — permissoes_modulos + ultimo_acesso ─
 

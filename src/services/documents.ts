@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import { analisarDocumentoComIA, type DadosDocumentoExtraidos } from '@/lib/gemini'
+import { analisarDocumentoComIA, type DadosDocumentoExtraidos, type TipoDocumento } from '@/lib/gemini'
 
 const BUCKET = 'documentos-empresa'
 
@@ -7,6 +7,57 @@ export interface DocumentoUploadResult {
   caminho: string
   dados: DadosDocumentoExtraidos
   anexoId: string
+}
+
+// ─── Triagem Inteligente de Lote ─────────────────────────────
+
+export interface LancamentoClassificado {
+  origem: string
+  destino: 'LANCAMENTO_CAIXA' | 'OBRIGACAO_CLIENTE' | 'IGNORADO'
+  descricao: string
+  valor: number | null
+  tipo: 'entrada' | 'saida'
+  categoria: string
+  cliente?: string | null
+}
+
+type DestinoMap = Record<TipoDocumento, Omit<LancamentoClassificado, 'origem' | 'valor' | 'cliente'>>
+
+const DESTINO_POR_TIPO: DestinoMap = {
+  DAS:            { destino: 'OBRIGACAO_CLIENTE', descricao: 'DAS — Simples Nacional',    tipo: 'saida',   categoria: 'Imposto' },
+  DARF:           { destino: 'OBRIGACAO_CLIENTE', descricao: 'DARF',                       tipo: 'saida',   categoria: 'Imposto' },
+  HOLERITE:       { destino: 'LANCAMENTO_CAIXA',  descricao: 'Folha de Pagamento',         tipo: 'saida',   categoria: 'Pessoal' },
+  FATURA:         { destino: 'LANCAMENTO_CAIXA',  descricao: 'Fatura/Boleto',              tipo: 'saida',   categoria: 'Despesa' },
+  CONTRATO_SOCIAL:{ destino: 'IGNORADO',          descricao: 'Contrato Social (arquivo)',  tipo: 'entrada', categoria: 'Documento' },
+  NOTA_FISCAL:    { destino: 'LANCAMENTO_CAIXA',  descricao: 'Nota Fiscal de Serviço',    tipo: 'entrada', categoria: 'Receita' },
+  GUIA_FGTS:      { destino: 'OBRIGACAO_CLIENTE', descricao: 'Guia FGTS',                 tipo: 'saida',   categoria: 'Imposto' },
+  GUIA_INSS:      { destino: 'OBRIGACAO_CLIENTE', descricao: 'Guia INSS/GPS',             tipo: 'saida',   categoria: 'Imposto' },
+  OUTRO:          { destino: 'IGNORADO',          descricao: 'Documento não classificado', tipo: 'entrada', categoria: 'Outros' },
+}
+
+/**
+ * Classifica um lote de documentos já analisados pela IA e retorna
+ * o destino de cada um para inserção automática no fluxo de caixa
+ * ou como obrigação de cliente.
+ */
+export function classificarLotePorDestino(
+  docs: DadosDocumentoExtraidos[],
+  nomeOrigem = 'documento',
+): LancamentoClassificado[] {
+  return docs.map((doc, i) => {
+    const template = DESTINO_POR_TIPO[doc.tipo_documento]
+    return {
+      origem:    `${nomeOrigem} #${i + 1}`,
+      destino:   template.destino,
+      descricao: doc.observacoes
+        ? `${template.descricao} — ${doc.observacoes}`
+        : template.descricao,
+      valor:     doc.valor,
+      tipo:      template.tipo,
+      categoria: template.categoria,
+      cliente:   doc.razao_social_ou_nome,
+    }
+  })
 }
 
 /**
