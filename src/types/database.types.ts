@@ -68,7 +68,9 @@ export type ReferenciaTipoAnexo =
   | 'processo'
   | 'obrigacao'
   | 'cliente'
-  | 'rotina';
+  | 'rotina'
+  | 'ordem_servico'
+  | 'contrato';
 
 export type Setor =
   | 'Legalização'

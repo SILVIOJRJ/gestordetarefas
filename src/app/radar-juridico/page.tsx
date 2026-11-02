@@ -672,9 +672,11 @@ export default function RadarJuridicoPage() {
                   {diferenca > 0 ? '+' : ''}{fmtBRL(diferenca)} / ano
                 </p>
                 <p className="text-xs text-brand-500 mt-1">
-                  {diferenca > 0
-                    ? `Aumento estimado de carga tributária de ${((diferenca / impostoSimples) * 100).toFixed(1)}% em relação ao Simples`
-                    : `Redução estimada de carga tributária de ${(Math.abs(diferenca) / impostoSimples * 100).toFixed(1)}% com aproveitamento de créditos`}
+                  {impostoSimples <= 0
+                    ? 'Insira uma receita anual acima de zero para ver o impacto.'
+                    : diferenca > 0
+                      ? `Aumento estimado de carga tributária de ${((diferenca / impostoSimples) * 100).toFixed(1)}% em relação ao Simples`
+                      : `Redução estimada de carga tributária de ${(Math.abs(diferenca) / impostoSimples * 100).toFixed(1)}% com aproveitamento de créditos`}
                 </p>
               </div>
 

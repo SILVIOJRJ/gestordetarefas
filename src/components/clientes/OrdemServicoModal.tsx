@@ -248,13 +248,14 @@ export default function OrdemServicoModal({ cliente, onClose, onFinalizado }: Pr
         const prazo = new Date(hoje)
         prazo.setDate(prazo.getDate() + t.diasPrazo)
         return {
-          titulo:     `[Onboarding] ${t.titulo} — ${cliente.nome}`,
-          setor:      t.setor,
-          cliente_id: cliente.id,
-          prioridade: 'Alta' as const,
-          status:     'Pendente' as const,
-          prazo:      prazo.toISOString().slice(0, 10),
-          descricao:  `Tarefa gerada automaticamente pela OS Nº ${numeroOS}\nTipo: ${tipo}\nStatus dos dados: ${statusDados}\nHonorário instalação: R$ ${honInstal.toFixed(2)}\nHonorário mensal: R$ ${honMensal.toFixed(2)}`,
+          titulo:                 `[Onboarding] ${t.titulo} — ${cliente.nome}`,
+          setor:                  t.setor,
+          cliente_id:             cliente.id,
+          prioridade:             'Alta' as const,
+          status:                 'Pendente' as const,
+          prazo:                  prazo.toISOString().slice(0, 10),
+          responsaveis_conjuntos: [] as string[],
+          descricao:              `Tarefa gerada automaticamente pela OS Nº ${numeroOS}\nTipo: ${tipo}\nStatus dos dados: ${statusDados}\nHonorário instalação: R$ ${honInstal.toFixed(2)}\nHonorário mensal: R$ ${honMensal.toFixed(2)}`,
         }
       })
 

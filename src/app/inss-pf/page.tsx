@@ -295,7 +295,7 @@ export default function InssPFPage() {
                   <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase text-brand-500">Cód. GPS</th>
                   <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase text-brand-500">%</th>
                   <ThSort k="categoria"   label="Categoria" />
-                  <ThSort k="valor_gps"   label="Salário" />
+                  <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase text-brand-500">Salário</th>
                   <ThSort k="valor_gps"   label="Valor GPS" />
                   <ThSort k="competencia" label="Competência" />
                   <ThSort k="vencimento"  label="Vencimento" />

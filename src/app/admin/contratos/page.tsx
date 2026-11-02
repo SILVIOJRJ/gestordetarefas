@@ -17,9 +17,9 @@ interface ClienteOpt { id: string; nome: string }
 interface AnexoContrato {
   id: string
   nome_arquivo: string
-  url_storage: string
-  created_at: string
-  tamanho_bytes?: number | null
+  url: string
+  criado_em: string
+  tamanho?: number | null
 }
 
 interface ContratoAdmin {
@@ -249,10 +249,10 @@ export default function AdminContratosPage() {
   async function carregarAnexos(contratoId: string) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (supabase.from('anexos') as any)
-      .select('id, nome_arquivo, url_storage, created_at, tamanho_bytes')
+      .select('id, nome_arquivo, url, criado_em, tamanho')
       .eq('referencia_tipo', 'contrato')
       .eq('referencia_id', contratoId)
-      .order('created_at', { ascending: false })
+      .order('criado_em', { ascending: false })
     setAnexos(prev => ({ ...prev, [contratoId]: (data ?? []) as AnexoContrato[] }))
   }
 
@@ -265,20 +265,16 @@ export default function AdminContratosPage() {
         .from('documentos-empresa')
         .upload(path, file, { contentType: file.type })
       if (upErr) throw upErr
-      const { data: urlData } = supabase.storage
-        .from('documentos-empresa')
-        .getPublicUrl(path)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error: dbErr } = await (supabase.from('anexos') as any).insert({
         referencia_tipo: 'contrato',
         referencia_id:   contratoId,
         nome_arquivo:    file.name,
-        url_storage:     path,
-        tamanho_bytes:   file.size,
-        mime_type:       file.type,
+        url:             path,
+        tamanho:         file.size,
+        tipo_mime:       file.type,
       })
       if (dbErr) throw dbErr
-      void urlData
       void ext
       await carregarAnexos(contratoId)
     } catch (e) {
@@ -712,11 +708,11 @@ export default function AdminContratosPage() {
                                   <Paperclip size={11} className="text-brand-400 flex-shrink-0" />
                                   <span className="flex-1 truncate text-brand-700">{a.nome_arquivo}</span>
                                   <span className="text-brand-400 text-[10px] whitespace-nowrap">
-                                    {new Date(a.created_at).toLocaleDateString('pt-BR')}
+                                    {new Date(a.criado_em).toLocaleDateString('pt-BR')}
                                   </span>
                                   <button
                                     onClick={async () => {
-                                      const url = await getSignedUrl(a.url_storage)
+                                      const url = await getSignedUrl(a.url)
                                       window.open(url, '_blank')
                                     }}
                                     className="text-brand-400 hover:text-brand-700"
@@ -725,7 +721,7 @@ export default function AdminContratosPage() {
                                     <ExternalLink size={13} />
                                   </button>
                                   <button
-                                    onClick={() => excluirAnexo(c.id, a.id, a.url_storage)}
+                                    onClick={() => excluirAnexo(c.id, a.id, a.url)}
                                     className="text-brand-300 hover:text-danger-500"
                                     title="Excluir"
                                   >
