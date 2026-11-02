@@ -1,584 +1,395 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Shell from '@/components/layout/Shell'
 import { supabase } from '@/lib/supabase'
-import type { Cliente, Contrato, RegimeTributario } from '@/types/database.types'
-import { BarChart2, TrendingUp, AlertTriangle, DollarSign, ChevronLeft, ChevronRight, FileText, Printer, ArrowUpCircle, ArrowDownCircle, Plus, X, Save, Loader2 } from 'lucide-react'
-import { buscarLancamentosDoMes, imprimirRelatorioGerencial, type LancamentoFinanceiro } from '@/services/reports'
+import { Loader2, Pencil, X, Save, ChevronLeft, ChevronRight } from 'lucide-react'
 
 // ─── Tipos ────────────────────────────────────────────────────
 
-interface ClienteContrato extends Cliente {
-  contratos: Contrato[]
-}
+type Regime = 'Simples Nacional' | 'Lucro Presumido' | 'Lucro Real' | 'MEI' | string | null
 
-interface KPIs {
-  mrr: number
-  faturadoMes: number
-  adicionais: number
-  inadimplentes: number
-}
-
-interface FaturamentoPorRegime {
-  regime: string
-  clientes: number
-  mrr: number
-}
-
-interface ServicoAdicional {
-  clienteId: string
-  nomeCliente: string
-  descricao: string
-  valorEstimado: number | null
-}
-
-type StatusRecebimento = 'Recebido' | 'Pendente' | 'Inadimplente'
-
-interface ApuracaoCliente {
-  clienteId: string
+interface ClienteRow {
+  id: string
   nome: string
-  regime: string
-  honorarios: number
-  adicionais: number
-  statusRecebimento: StatusRecebimento
-  obs: string
+  regime: Regime
 }
 
-interface NovoLancamento {
-  data: string
-  tipo: 'entrada' | 'saida'
-  categoria: string
-  cliente: string
-  forma: string
-  valor: string
-  descricao: string
+interface ValoresGerenciais {
+  id?: string
+  cliente_id: string
+  competencia: string   // YYYY-MM
+  condicao: string
+  fgts: number | null
+  inss: number | null
+  das: number | null
+  irpj: number | null
+  csll: number | null
+  pis_cofins: number | null
+  receita_servicos: number | null
+  receita_vendas: number | null
+  despesas_total: number | null
+  folha_liquida: number | null
+  caixa_atual: number | null
+  fator_r: number | null
+  obs: string | null
+  atualizado_por: string | null
 }
 
-const REGIME_COR: Record<string, string> = {
-  'Simples Nacional': 'bg-blue-500',
-  'Lucro Presumido':  'bg-purple-500',
-  'Lucro Real':       'bg-rose-500',
-  'MEI':              'bg-emerald-500',
+interface LinhaTabela extends ClienteRow {
+  valores: ValoresGerenciais
 }
 
-const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+// ─── Constantes ───────────────────────────────────────────────
 
-function fmt(v: number) {
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 })
+const MESES_PT = [
+  'janeiro','fevereiro','março','abril','maio','junho',
+  'julho','agosto','setembro','outubro','novembro','dezembro',
+]
+
+const REGIME_BADGE: Record<string, string> = {
+  'Simples Nacional': 'bg-emerald-100 text-emerald-700',
+  'Lucro Presumido':  'bg-purple-100 text-purple-700',
+  'Lucro Real':       'bg-rose-100 text-rose-700',
+  'MEI':              'bg-blue-100 text-blue-700',
 }
 
-// ─── Componente ───────────────────────────────────────────────
+function n(v: number | null | undefined): number { return v ?? 0 }
+
+function calcCaixa(v: ValoresGerenciais): number {
+  const receitas  = n(v.receita_servicos) + n(v.receita_vendas)
+  const encargos  = n(v.fgts) + n(v.inss) + n(v.das) + n(v.irpj) + n(v.csll) + n(v.pis_cofins)
+  return receitas - encargos - n(v.despesas_total) - n(v.folha_liquida)
+}
+
+function fmt(v: number | null | undefined): string {
+  if (!v) return '—'
+  return v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+}
+
+function fmtR(v: number | null | undefined): string {
+  if (!v) return '—'
+  return v.toFixed(2).replace('.', ',')
+}
+
+function vazioValores(clienteId: string, competencia: string): ValoresGerenciais {
+  return {
+    cliente_id: clienteId, competencia, condicao: 'Normal',
+    fgts: null, inss: null, das: null, irpj: null, csll: null,
+    pis_cofins: null, receita_servicos: null, receita_vendas: null,
+    despesas_total: null, folha_liquida: null, caixa_atual: null,
+    fator_r: null, obs: null, atualizado_por: null,
+  }
+}
+
+// ─── Componente principal ─────────────────────────────────────
 
 export default function GerencialPage() {
   const now = new Date()
   const [mes, setMes] = useState(now.getMonth() + 1)
   const [ano, setAno] = useState(now.getFullYear())
+  const [busca, setBusca] = useState('')
 
-  const [clientes, setClientes] = useState<ClienteContrato[]>([])
-  const [kpis, setKpis] = useState<KPIs>({ mrr: 0, faturadoMes: 0, adicionais: 0, inadimplentes: 0 })
-  const [porRegime, setPorRegime] = useState<FaturamentoPorRegime[]>([])
-  const [adicionais, setAdicionais] = useState<ServicoAdicional[]>([])
-  const [lancamentos, setLancamentos] = useState<LancamentoFinanceiro[]>([])
-  const [apuracao, setApuracao] = useState<ApuracaoCliente[]>([])
+  const [linhas, setLinhas] = useState<LinhaTabela[]>([])
   const [loading, setLoading] = useState(true)
-  const [showLancModal, setShowLancModal] = useState(false)
-  const [savingLanc, setSavingLanc] = useState(false)
-  const [novoLanc, setNovoLanc] = useState<NovoLancamento>({
-    data: new Date().toISOString().slice(0, 10),
-    tipo: 'entrada', categoria: '', cliente: '', forma: 'Pix', valor: '', descricao: '',
-  })
+
+  const [modal, setModal] = useState<LinhaTabela | null>(null)
+  const [form, setForm]   = useState<ValoresGerenciais | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [erroSalvar, setErroSalvar] = useState<string | null>(null)
+
+  const competencia = `${ano}-${String(mes).padStart(2, '0')}`
 
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
-      // Clientes + contratos ativos
-      const { data: cData } = await (supabase.from('clientes') as any)
-        .select('*, contratos(*)')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: clientes } = await (supabase.from('clientes') as any)
+        .select('id, nome, regime')
         .order('nome')
-      const lista = (cData ?? []) as ClienteContrato[]
-      setClientes(lista)
 
-      // KPIs
-      let mrr = 0
-      let inadimplentes = 0
-      const regimeMap: Record<string, FaturamentoPorRegime> = {}
-      const extras: ServicoAdicional[] = []
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: valores } = await (supabase.from('gerencial_mensal') as any)
+        .select('*')
+        .eq('competencia', competencia)
 
-      for (const c of lista) {
-        const contratosAtivos = (c.contratos ?? []).filter((ct: Contrato) => ct.status === 'ativo')
-        const valorMensal = contratosAtivos.reduce((acc: number, ct: Contrato) => acc + (ct.valor_mensal ?? 0), 0)
-        mrr += valorMensal
+      const mapa: Record<string, ValoresGerenciais> = {}
+      for (const v of (valores ?? [])) mapa[v.cliente_id] = v
 
-        const regime = c.regime ?? 'Sem Regime'
-        if (!regimeMap[regime]) regimeMap[regime] = { regime, clientes: 0, mrr: 0 }
-        regimeMap[regime].clientes += 1
-        regimeMap[regime].mrr += valorMensal
+      const rows: LinhaTabela[] = (clientes ?? []).map((c: ClienteRow) => ({
+        ...c,
+        valores: mapa[c.id] ?? vazioValores(c.id, competencia),
+      }))
 
-        // Contratos vencidos = inadimplência
-        const vencidos = contratosAtivos.filter((ct: Contrato) => {
-          if (!ct.termino) return false
-          return new Date(ct.termino) < new Date() && !ct.renovacao_auto
-        })
-        if (vencidos.length > 0) inadimplentes++
-
-        // Serviços extras sem contrato ativo
-        if (valorMensal === 0 && c.nome) {
-          extras.push({ clienteId: c.id, nomeCliente: c.nome, descricao: 'Cliente sem contrato ativo', valorEstimado: null })
-        }
-      }
-
-      setKpis({ mrr, faturadoMes: mrr, adicionais: extras.length * 150, inadimplentes })
-      setPorRegime(Object.values(regimeMap).sort((a, b) => b.mrr - a.mrr))
-      setAdicionais(extras.slice(0, 20))
-
-      // Tabela de apuração por cliente
-      const apuracaoData: ApuracaoCliente[] = lista.map(c => {
-        const ativos = (c.contratos ?? []).filter((ct: Contrato) => ct.status === 'ativo')
-        const honorarios = ativos.reduce((a: number, ct: Contrato) => a + (ct.valor_mensal ?? 0), 0)
-        return {
-          clienteId: c.id,
-          nome: c.nome,
-          regime: c.regime ?? '—',
-          honorarios,
-          adicionais: 0,
-          statusRecebimento: honorarios > 0 ? 'Pendente' : 'Inadimplente',
-          obs: '',
-        }
-      })
-      setApuracao(apuracaoData)
-
-      // Lançamentos financeiros do mês
-      const lanc = await buscarLancamentosDoMes(mes, ano)
-      setLancamentos(lanc)
+      setLinhas(rows)
     } finally {
       setLoading(false)
     }
-  }, [mes, ano])
+  }, [competencia])
 
   useEffect(() => { carregar() }, [carregar])
 
-  function navMes(d: number) {
-    const dt = new Date(ano, mes - 1 + d, 1)
-    setMes(dt.getMonth() + 1)
-    setAno(dt.getFullYear())
+  function abrirModal(linha: LinhaTabela) {
+    setModal(linha)
+    setForm({ ...linha.valores })
+    setErroSalvar(null)
   }
 
-  const maxMrr = Math.max(...porRegime.map(r => r.mrr), 1)
+  function fecharModal() {
+    setModal(null)
+    setForm(null)
+  }
 
-  async function salvarLancamento() {
-    if (!novoLanc.valor || Number(novoLanc.valor) <= 0) return
-    setSavingLanc(true)
+  function setF(k: keyof ValoresGerenciais, v: unknown) {
+    setForm(f => f ? { ...f, [k]: v } : f)
+  }
+
+  const caixaCalc = form ? calcCaixa(form) : 0
+
+  async function salvar() {
+    if (!form) return
+    setSaving(true)
+    setErroSalvar(null)
     try {
       const { data: { user } } = await supabase.auth.getUser()
+      const payload = {
+        ...form,
+        caixa_atual: caixaCalc,
+        atualizado_por: user?.email ?? 'sistema',
+        updated_at: new Date().toISOString(),
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.from('lancamentos_financeiros') as any).insert({
-        data:      novoLanc.data,
-        tipo:      novoLanc.tipo,
-        categoria: novoLanc.categoria || null,
-        cliente:   novoLanc.cliente || null,
-        forma:     novoLanc.forma,
-        valor:     Number(novoLanc.valor),
-        descricao: novoLanc.descricao || null,
-        mes:       mes,
-        ano:       ano,
-        criado_por: user?.id ?? null,
-      })
-      setShowLancModal(false)
-      setNovoLanc({ data: new Date().toISOString().slice(0, 10), tipo: 'entrada', categoria: '', cliente: '', forma: 'Pix', valor: '', descricao: '' })
-      carregar()
+      const q = form.id
+        ? (supabase.from('gerencial_mensal') as any).update(payload).eq('id', form.id).select('id').single()
+        : (supabase.from('gerencial_mensal') as any).insert(payload).select('id').single()
+      const { data, error } = await q
+      if (error) throw error
+      await carregar()
+      fecharModal()
+      if (!form.id && data?.id) setF('id', data.id)
+    } catch (e) {
+      setErroSalvar(e instanceof Error ? e.message : 'Erro ao salvar.')
     } finally {
-      setSavingLanc(false)
+      setSaving(false)
     }
   }
 
-  function setApuracaoStatus(clienteId: string, status: StatusRecebimento) {
-    setApuracao(prev => prev.map(a => a.clienteId === clienteId ? { ...a, statusRecebimento: status } : a))
-  }
+  const linhasFiltradas = linhas.filter(l =>
+    !busca || l.nome.toLowerCase().includes(busca.toLowerCase())
+  )
 
-  function setApuracaoObs(clienteId: string, obs: string) {
-    setApuracao(prev => prev.map(a => a.clienteId === clienteId ? { ...a, obs } : a))
+  function navMes(dir: -1 | 1) {
+    const novo = mes + dir
+    if (novo < 1)  { setMes(12); setAno(a => a - 1) }
+    else if (novo > 12) { setMes(1); setAno(a => a + 1) }
+    else setMes(novo)
   }
 
   return (
     <Shell>
-      <div className="max-w-7xl mx-auto px-4 py-6 space-y-8">
+      <div className="space-y-4">
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <BarChart2 size={24} className="text-brand-600" />
-            <div>
-              <h1 className="text-xl font-bold text-brand-800">Painel Gerencial</h1>
-              <p className="text-xs text-brand-400">Honorários, faturamento e adicionais extracontratuais</p>
-            </div>
-          </div>
-          <button
-            onClick={() => imprimirRelatorioGerencial(mes, ano, lancamentos)}
-            className="flex items-center gap-2 border border-brand-200 hover:bg-brand-50 text-brand-600 text-sm font-medium px-3 py-2 rounded-lg transition"
-          >
-            <Printer size={15} /> Imprimir Relatório
-          </button>
-          <div className="flex items-center gap-2 bg-white border border-brand-100 rounded-xl px-3 py-2">
-            <button onClick={() => navMes(-1)} className="p-1 hover:bg-brand-50 rounded">
-              <ChevronLeft size={16} className="text-brand-500" />
+        {/* ── Header ──────────────────────────────────────────── */}
+        <div>
+          <h1 className="text-xl font-bold text-brand-900">Planilha Gerencial</h1>
+          <p className="text-sm text-brand-500">Valores financeiros por cliente e competência</p>
+        </div>
+
+        {/* ── Filtros ─────────────────────────────────────────── */}
+        <div className="flex flex-wrap gap-2 items-center">
+          {/* Competência */}
+          <div className="flex items-center gap-1 bg-white border border-brand-200 rounded-lg px-2 py-1.5">
+            <button onClick={() => navMes(-1)} className="text-brand-400 hover:text-brand-700 p-0.5">
+              <ChevronLeft size={15} />
             </button>
-            <span className="text-sm font-medium text-brand-700 w-28 text-center">
-              {MESES[mes - 1]} / {ano}
+            <span className="text-sm font-semibold text-brand-800 min-w-[160px] text-center capitalize">
+              {MESES_PT[mes - 1]} de {ano}
             </span>
-            <button onClick={() => navMes(1)} className="p-1 hover:bg-brand-50 rounded">
-              <ChevronRight size={16} className="text-brand-500" />
+            <button onClick={() => navMes(1)} className="text-brand-400 hover:text-brand-700 p-0.5">
+              <ChevronRight size={15} />
             </button>
           </div>
+          {/* Busca */}
+          <input
+            className="input flex-1 min-w-[200px] text-sm"
+            placeholder="Filtrar empresa..."
+            value={busca}
+            onChange={e => setBusca(e.target.value)}
+          />
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            {
-              label: 'MRR — Honorários Recorrentes',
-              valor: fmt(kpis.mrr),
-              icon: <DollarSign size={20} className="text-emerald-500" />,
-              sub: `${clientes.length} clientes ativos`,
-              cor: 'border-emerald-200 bg-emerald-50/40',
-            },
-            {
-              label: 'Total Faturado no Mês',
-              valor: fmt(kpis.faturadoMes),
-              icon: <TrendingUp size={20} className="text-blue-500" />,
-              sub: `${MESES[mes - 1]}/${ano}`,
-              cor: 'border-blue-200 bg-blue-50/40',
-            },
-            {
-              label: 'Adicionais Pendentes',
-              valor: fmt(kpis.adicionais),
-              icon: <FileText size={20} className="text-amber-500" />,
-              sub: `${adicionais.length} itens sem contrato`,
-              cor: 'border-amber-200 bg-amber-50/40',
-            },
-            {
-              label: 'Inadimplência',
-              valor: kpis.inadimplentes.toString(),
-              icon: <AlertTriangle size={20} className="text-rose-500" />,
-              sub: 'contratos vencidos',
-              cor: 'border-rose-200 bg-rose-50/40',
-            },
-          ].map(k => (
-            <div key={k.label} className={`bg-white border rounded-xl p-4 ${k.cor}`}>
-              <div className="flex items-start justify-between mb-3">
-                <p className="text-xs text-brand-500 leading-tight max-w-[80%]">{k.label}</p>
-                {k.icon}
-              </div>
-              <p className="text-2xl font-bold text-brand-800">{k.valor}</p>
-              <p className="text-xs text-brand-400 mt-1">{k.sub}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Faturamento por Regime */}
-        <div className="bg-white border border-brand-100 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-brand-50">
-            <h2 className="text-sm font-semibold text-brand-700">Faturamento por Regime Tributário</h2>
-          </div>
+        {/* ── Tabela ──────────────────────────────────────────── */}
+        <div className="bg-white rounded-xl border border-brand-100 overflow-x-auto">
           {loading ? (
-            <div className="py-10 text-center text-brand-300 text-sm">Carregando…</div>
-          ) : porRegime.length === 0 ? (
-            <div className="py-10 text-center text-brand-300 text-sm">Nenhum dado disponível.</div>
-          ) : (
-            <div className="p-4 space-y-4">
-              {porRegime.map(r => (
-                <div key={r.regime}>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${REGIME_COR[r.regime] ?? 'bg-gray-400'}`} />
-                      <span className="text-sm text-brand-700 font-medium">{r.regime}</span>
-                      <span className="text-xs text-brand-400">{r.clientes} cliente{r.clientes !== 1 ? 's' : ''}</span>
-                    </div>
-                    <span className="text-sm font-semibold text-brand-800">{fmt(r.mrr)}</span>
-                  </div>
-                  <div className="w-full bg-brand-100 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-500 ${REGIME_COR[r.regime] ?? 'bg-gray-400'}`}
-                      style={{ width: `${(r.mrr / maxMrr) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-
-              {/* Totais */}
-              <div className="pt-3 border-t border-brand-50 flex justify-between text-sm">
-                <span className="text-brand-500">Total geral</span>
-                <span className="font-bold text-brand-800">{fmt(porRegime.reduce((a, r) => a + r.mrr, 0))}</span>
-              </div>
+            <div className="py-16 flex justify-center">
+              <Loader2 size={26} className="animate-spin text-brand-300" />
             </div>
-          )}
-        </div>
-
-        {/* Tabela resumo por cliente */}
-        <div className="bg-white border border-brand-100 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-brand-50">
-            <h2 className="text-sm font-semibold text-brand-700">Honorários por Cliente</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          ) : (
+            <table className="w-full text-xs min-w-[1200px]">
               <thead>
-                <tr className="text-left text-xs text-brand-400 bg-brand-50/60 border-b border-brand-100">
-                  <th className="px-4 py-2 font-medium">Cliente</th>
-                  <th className="px-3 py-2 font-medium">Regime</th>
-                  <th className="px-3 py-2 font-medium text-right">Honorário</th>
-                  <th className="px-3 py-2 font-medium">Contratos</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
+                <tr className="text-left text-[11px] text-brand-400 bg-brand-50 border-b border-brand-100">
+                  {['REGIME','EMPRESA','CONDIÇÃO','FGTS','INSS','DAS','IRPJ','CSLL','PIS/COFINS',
+                    'REC. SERVIÇOS','REC. VENDAS','DESPESAS','FOLHA LÍQUIDA','CAIXA','FATOR R','OBS','ATUALIZADO POR',''].map((h, i) => (
+                    <th key={i} className={`px-2 py-2 font-semibold whitespace-nowrap ${i >= 3 && i <= 13 ? 'text-right' : ''}`}>{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {clientes.map(c => {
-                  const ativos = (c.contratos ?? []).filter((ct: Contrato) => ct.status === 'ativo')
-                  const valor = ativos.reduce((a: number, ct: Contrato) => a + (ct.valor_mensal ?? 0), 0)
+                {linhasFiltradas.map(l => {
+                  const v = l.valores
+                  const caixa = calcCaixa(v)
                   return (
-                    <tr key={c.id} className="border-b border-brand-50 hover:bg-brand-50/40 transition">
-                      <td className="px-4 py-2 text-brand-800 font-medium">{c.nome}</td>
-                      <td className="px-3 py-2">
-                        <span className={`inline-flex items-center gap-1 text-xs`}>
-                          <span className={`w-2 h-2 rounded-full ${REGIME_COR[c.regime ?? ''] ?? 'bg-gray-300'}`} />
-                          {c.regime ?? '—'}
+                    <tr key={l.id} className="border-b border-brand-50 hover:bg-brand-50/60 transition-colors">
+                      <td className="px-2 py-1.5 whitespace-nowrap">
+                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${REGIME_BADGE[l.regime ?? ''] ?? 'bg-brand-100 text-brand-500'}`}>
+                          {l.regime ?? 'N/D'}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-right font-medium text-brand-700">
-                        {valor > 0 ? fmt(valor) : <span className="text-brand-300">—</span>}
+                      <td className="px-2 py-1.5 font-semibold text-brand-800 whitespace-nowrap max-w-[160px] truncate">{l.nome}</td>
+                      <td className="px-2 py-1.5 text-brand-500">{v.condicao ?? 'Normal'}</td>
+                      <td className="px-2 py-1.5 text-right text-brand-600">{fmt(v.fgts)}</td>
+                      <td className="px-2 py-1.5 text-right text-brand-600">{fmt(v.inss)}</td>
+                      <td className="px-2 py-1.5 text-right text-brand-600">{fmt(v.das)}</td>
+                      <td className="px-2 py-1.5 text-right text-brand-600">{fmt(v.irpj)}</td>
+                      <td className="px-2 py-1.5 text-right text-brand-600">{fmt(v.csll)}</td>
+                      <td className="px-2 py-1.5 text-right text-brand-600">{fmt(v.pis_cofins)}</td>
+                      <td className="px-2 py-1.5 text-right text-emerald-600 font-medium">{fmt(v.receita_servicos)}</td>
+                      <td className="px-2 py-1.5 text-right text-emerald-600 font-medium">{fmt(v.receita_vendas)}</td>
+                      <td className="px-2 py-1.5 text-right text-red-500">{fmt(v.despesas_total)}</td>
+                      <td className="px-2 py-1.5 text-right text-red-500">{fmt(v.folha_liquida)}</td>
+                      <td className={`px-2 py-1.5 text-right font-bold ${caixa >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {fmt(caixa)}
                       </td>
-                      <td className="px-3 py-2 text-brand-500 text-xs">{ativos.length} ativo{ativos.length !== 1 ? 's' : ''}</td>
-                      <td className="px-3 py-2">
-                        {valor === 0
-                          ? <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Sem contrato</span>
-                          : <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Regular</span>
-                        }
+                      <td className="px-2 py-1.5 text-right text-brand-500">{fmtR(v.fator_r)}</td>
+                      <td className="px-2 py-1.5 text-brand-400 max-w-[100px] truncate">{v.obs ?? ''}</td>
+                      <td className="px-2 py-1.5 text-brand-300 text-[10px] whitespace-nowrap">{v.atualizado_por ?? ''}</td>
+                      <td className="px-2 py-1.5">
+                        <button
+                          onClick={() => abrirModal(l)}
+                          className="p-1 rounded hover:bg-brand-100 text-brand-400 hover:text-brand-700 transition-colors"
+                          title="Editar valores"
+                        >
+                          <Pencil size={13} />
+                        </button>
                       </td>
                     </tr>
                   )
                 })}
+                {linhasFiltradas.length === 0 && (
+                  <tr>
+                    <td colSpan={18} className="py-12 text-center text-brand-300 text-sm">
+                      Nenhuma empresa encontrada.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
-          </div>
-        </div>
-
-        {/* Tabela de Apuração Detalhada por Cliente */}
-        <div className="bg-white border border-brand-100 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-brand-50">
-            <h2 className="text-sm font-semibold text-brand-700">Apuração Detalhada por Cliente — {MESES[mes - 1]}/{ano}</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-brand-400 bg-brand-50/60 border-b border-brand-100">
-                  <th className="px-4 py-2 font-medium">Cliente</th>
-                  <th className="px-3 py-2 font-medium">Regime</th>
-                  <th className="px-3 py-2 font-medium text-right">Honorários</th>
-                  <th className="px-3 py-2 font-medium text-right">Adicionais</th>
-                  <th className="px-3 py-2 font-medium text-right">Total</th>
-                  <th className="px-3 py-2 font-medium">Recebimento</th>
-                  <th className="px-3 py-2 font-medium">Obs.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {apuracao.map(a => (
-                  <tr key={a.clienteId} className="border-b border-brand-50 hover:bg-brand-50/30">
-                    <td className="px-4 py-2 font-medium text-brand-800 text-xs">{a.nome}</td>
-                    <td className="px-3 py-2 text-xs text-brand-500">{a.regime}</td>
-                    <td className="px-3 py-2 text-right text-xs font-medium text-brand-700">
-                      {a.honorarios > 0 ? fmt(a.honorarios) : <span className="text-brand-300">—</span>}
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs text-brand-500">
-                      {a.adicionais > 0 ? fmt(a.adicionais) : <span className="text-brand-300">—</span>}
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs font-bold text-brand-800">
-                      {a.honorarios + a.adicionais > 0 ? fmt(a.honorarios + a.adicionais) : <span className="text-brand-300">—</span>}
-                    </td>
-                    <td className="px-3 py-2">
-                      <select
-                        value={a.statusRecebimento}
-                        onChange={e => setApuracaoStatus(a.clienteId, e.target.value as StatusRecebimento)}
-                        className={`text-xs px-2 py-0.5 rounded-full font-medium border-0 cursor-pointer ${
-                          a.statusRecebimento === 'Recebido' ? 'bg-emerald-100 text-emerald-700'
-                          : a.statusRecebimento === 'Pendente' ? 'bg-amber-100 text-amber-700'
-                          : 'bg-danger-100 text-danger-700'
-                        }`}
-                      >
-                        <option value="Recebido">Recebido</option>
-                        <option value="Pendente">Pendente</option>
-                        <option value="Inadimplente">Inadimplente</option>
-                      </select>
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        className="w-full text-xs border border-brand-100 rounded px-1.5 py-0.5 bg-transparent"
-                        placeholder="Observação..."
-                        value={a.obs}
-                        onChange={e => setApuracaoObs(a.clienteId, e.target.value)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-brand-50 border-t-2 border-brand-200 text-xs font-bold">
-                  <td className="px-4 py-2 text-brand-600" colSpan={2}>Total Geral</td>
-                  <td className="px-3 py-2 text-right text-brand-800">{fmt(apuracao.reduce((s, a) => s + a.honorarios, 0))}</td>
-                  <td className="px-3 py-2 text-right text-brand-800">{fmt(apuracao.reduce((s, a) => s + a.adicionais, 0))}</td>
-                  <td className="px-3 py-2 text-right text-brand-800">{fmt(apuracao.reduce((s, a) => s + a.honorarios + a.adicionais, 0))}</td>
-                  <td colSpan={2} />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-
-        {/* Modal + Tabela de Lançamentos Financeiros */}
-        <div className="bg-white border border-brand-100 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-brand-50 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-brand-700">Entradas & Saídas — {MESES[mes - 1]}/{ano}</h2>
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="flex items-center gap-1 text-xs text-emerald-600">
-                <ArrowUpCircle size={13} />
-                Entradas: {fmt(lancamentos.filter(l => l.tipo === 'entrada').reduce((a, l) => a + l.valor, 0))}
-              </span>
-              <span className="flex items-center gap-1 text-xs text-red-500">
-                <ArrowDownCircle size={13} />
-                Saídas: {fmt(lancamentos.filter(l => l.tipo === 'saida').reduce((a, l) => a + l.valor, 0))}
-              </span>
-              <button onClick={() => setShowLancModal(true)} className="btn-primary text-xs py-1 px-2.5">
-                <Plus size={12} /> Lançamento
-              </button>
-            </div>
-          </div>
-          {lancamentos.length === 0 ? (
-            <div className="py-8 text-center text-brand-300 text-sm">Nenhum lançamento registrado para o período.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-brand-400 bg-brand-50/60 border-b border-brand-100">
-                    <th className="px-4 py-2 font-medium">Data</th>
-                    <th className="px-3 py-2 font-medium">Descrição</th>
-                    <th className="px-3 py-2 font-medium">Cliente</th>
-                    <th className="px-3 py-2 font-medium">Forma</th>
-                    <th className="px-3 py-2 font-medium text-right">Valor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lancamentos.map((l, i) => (
-                    <tr key={i} className="border-b border-brand-50 hover:bg-brand-50/40">
-                      <td className="px-4 py-2 text-brand-500 text-xs whitespace-nowrap">
-                        {new Date(l.data + 'T00:00:00').toLocaleDateString('pt-BR')}
-                      </td>
-                      <td className="px-3 py-2 text-brand-700 text-xs">{l.descricao}</td>
-                      <td className="px-3 py-2 text-brand-400 text-xs">{l.cliente ?? '—'}</td>
-                      <td className="px-3 py-2 text-brand-400 text-xs">{l.forma}</td>
-                      <td className={`px-3 py-2 text-right font-semibold text-xs ${l.tipo === 'entrada' ? 'text-emerald-600' : 'text-red-500'}`}>
-                        {l.tipo === 'saida' ? '−' : '+'}{fmt(l.valor)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-brand-50 border-t-2 border-brand-200">
-                    <td colSpan={4} className="px-4 py-2 text-xs font-semibold text-brand-600">Saldo do mês</td>
-                    <td className={`px-3 py-2 text-right font-bold text-sm ${
-                      lancamentos.reduce((a, l) => a + (l.tipo === 'entrada' ? l.valor : -l.valor), 0) >= 0
-                        ? 'text-emerald-600' : 'text-red-500'
-                    }`}>
-                      {fmt(lancamentos.reduce((a, l) => a + (l.tipo === 'entrada' ? l.valor : -l.valor), 0))}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
           )}
         </div>
-
-        {/* Adicionais extracontratuais */}
-        {adicionais.length > 0 && (
-          <div className="bg-white border border-amber-200 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-amber-100 bg-amber-50/40 flex items-center gap-2">
-              <AlertTriangle size={16} className="text-amber-500" />
-              <h2 className="text-sm font-semibold text-amber-700">Serviços Adicionais Pendentes de Faturamento</h2>
-            </div>
-            <div className="divide-y divide-brand-50">
-              {adicionais.map(a => (
-                <div key={a.clienteId} className="px-4 py-2 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-brand-800">{a.nomeCliente}</p>
-                    <p className="text-xs text-brand-400">{a.descricao}</p>
-                  </div>
-                  {a.valorEstimado && (
-                    <span className="text-sm font-semibold text-amber-600">{fmt(a.valorEstimado)}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Modal: Novo Lançamento */}
-      {showLancModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-brand-800">Novo Lançamento Financeiro</h3>
-              <button onClick={() => setShowLancModal(false)} className="text-brand-400 hover:text-brand-600"><X size={18} /></button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+      {/* ── Modal Valores Gerenciais ─────────────────────────── */}
+      {modal && form && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-4">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-brand-100">
               <div>
-                <label className="input-label">Data</label>
-                <input type="date" className="input" value={novoLanc.data}
-                  onChange={e => setNovoLanc(n => ({ ...n, data: e.target.value }))} />
+                <p className="text-xs font-semibold text-brand-400 uppercase tracking-wide">Valores Gerenciais</p>
+                <h2 className="text-base font-bold text-brand-900">
+                  {modal.nome} — <span className="capitalize">{MESES_PT[mes - 1]}/{ano}</span>
+                </h2>
               </div>
-              <div>
-                <label className="input-label">Tipo</label>
-                <select className="input" value={novoLanc.tipo}
-                  onChange={e => setNovoLanc(n => ({ ...n, tipo: e.target.value as 'entrada' | 'saida' }))}>
-                  <option value="entrada">Entrada</option>
-                  <option value="saida">Saída</option>
-                </select>
-              </div>
-              <div className="col-span-2">
-                <label className="input-label">Categoria</label>
-                <input className="input" placeholder="Ex: Honorários, Aluguel, Pró-labore..."
-                  value={novoLanc.categoria}
-                  onChange={e => setNovoLanc(n => ({ ...n, categoria: e.target.value }))} />
-              </div>
-              <div className="col-span-2">
-                <label className="input-label">Cliente (opcional)</label>
-                <input className="input" placeholder="Nome do cliente relacionado"
-                  value={novoLanc.cliente}
-                  onChange={e => setNovoLanc(n => ({ ...n, cliente: e.target.value }))} />
-              </div>
-              <div>
-                <label className="input-label">Forma</label>
-                <select className="input" value={novoLanc.forma}
-                  onChange={e => setNovoLanc(n => ({ ...n, forma: e.target.value }))}>
-                  {['Pix', 'Boleto', 'TED', 'DOC', 'Dinheiro', 'Cartão'].map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="input-label">Valor (R$)</label>
-                <input type="number" min={0} step={0.01} className="input" placeholder="0,00"
-                  value={novoLanc.valor}
-                  onChange={e => setNovoLanc(n => ({ ...n, valor: e.target.value }))} />
-              </div>
-              <div className="col-span-2">
-                <label className="input-label">Descrição</label>
-                <input className="input" placeholder="Detalhe do lançamento..."
-                  value={novoLanc.descricao}
-                  onChange={e => setNovoLanc(n => ({ ...n, descricao: e.target.value }))} />
-              </div>
-            </div>
-            <div className="flex gap-2 pt-1">
-              <button onClick={salvarLancamento} disabled={savingLanc} className="btn-primary flex-1">
-                {savingLanc ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                Salvar Lançamento
+              <button onClick={fecharModal} className="text-brand-400 hover:text-brand-700">
+                <X size={20} />
               </button>
-              <button onClick={() => setShowLancModal(false)} className="btn-secondary"><X size={14} /></button>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+
+                {/* Coluna 1 */}
+                <div className="space-y-3">
+                  {([
+                    ['fgts',            'FGTS'],
+                    ['das',             'DAS'],
+                    ['csll',            'CSLL'],
+                    ['receita_servicos','RECEITA SERVIÇOS'],
+                    ['despesas_total',  'DESPESAS TOTAL'],
+                  ] as [keyof ValoresGerenciais, string][]).map(([k, label]) => (
+                    <div key={k}>
+                      <label className="input-label">{label}</label>
+                      <input
+                        type="number" min={0} step={0.01} className="input text-sm"
+                        placeholder="0,00"
+                        value={form[k] as number ?? ''}
+                        onChange={e => setF(k, e.target.value ? Number(e.target.value) : null)}
+                      />
+                    </div>
+                  ))}
+                  {/* Caixa Atual — read-only calculado */}
+                  <div>
+                    <label className="input-label">CAIXA ATUAL (calculado)</label>
+                    <div className={`input text-sm font-bold bg-brand-50 cursor-default ${
+                      caixaCalc >= 0 ? 'text-emerald-600' : 'text-red-600'
+                    }`}>
+                      {caixaCalc.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Coluna 2 */}
+                <div className="space-y-3">
+                  {([
+                    ['inss',           'INSS'],
+                    ['irpj',           'IRPJ'],
+                    ['pis_cofins',     'PIS/COFINS / ISS / ICMS'],
+                    ['receita_vendas', 'RECEITA VENDAS'],
+                    ['folha_liquida',  'FOLHA LÍQUIDA'],
+                    ['fator_r',        'FATOR R'],
+                  ] as [keyof ValoresGerenciais, string][]).map(([k, label]) => (
+                    <div key={k}>
+                      <label className="input-label">{label}</label>
+                      <input
+                        type="number" min={0} step={k === 'fator_r' ? 0.0001 : 0.01}
+                        className="input text-sm"
+                        placeholder="0,00"
+                        value={form[k] as number ?? ''}
+                        onChange={e => setF(k, e.target.value ? Number(e.target.value) : null)}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Observação — 2 colunas */}
+                <div className="col-span-2">
+                  <label className="input-label">OBSERVAÇÃO</label>
+                  <textarea
+                    rows={3}
+                    className="input text-sm resize-none"
+                    placeholder="Anotações sobre a competência..."
+                    value={form.obs ?? ''}
+                    onChange={e => setF('obs', e.target.value || null)}
+                  />
+                </div>
+
+              </div>
+
+              {erroSalvar && (
+                <p className="text-sm text-red-600">{erroSalvar}</p>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-2 px-6 py-4 border-t border-brand-100">
+              <button onClick={salvar} disabled={saving} className="btn-primary flex-1">
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                Salvar Valores
+              </button>
+              <button onClick={fecharModal} className="btn-secondary">
+                <X size={14} /> Cancelar
+              </button>
             </div>
           </div>
         </div>

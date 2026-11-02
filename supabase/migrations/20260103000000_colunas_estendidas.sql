@@ -162,7 +162,18 @@ CREATE POLICY "recados_leitura" ON recados FOR SELECT
 CREATE INDEX IF NOT EXISTS idx_recados_destinatario ON recados(destinatario_id);
 CREATE INDEX IF NOT EXISTS idx_recados_criado_em    ON recados(criado_em DESC);
 
--- ─── 11. gerencial_mensal — colunas extra + constraint ───────
+-- ─── 11. gerencial_mensal — colunas obrigatórias ─────────────
+
+ALTER TABLE gerencial_mensal
+  ADD COLUMN IF NOT EXISTS fgts             NUMERIC(12,2),
+  ADD COLUMN IF NOT EXISTS inss             NUMERIC(12,2),
+  ADD COLUMN IF NOT EXISTS das              NUMERIC(12,2),
+  ADD COLUMN IF NOT EXISTS irpj             NUMERIC(12,2),
+  ADD COLUMN IF NOT EXISTS csll             NUMERIC(12,2),
+  ADD COLUMN IF NOT EXISTS fator_r          NUMERIC(8,4),
+  ADD COLUMN IF NOT EXISTS condicao         TEXT DEFAULT 'Normal';
+
+-- ─── 11b. gerencial_mensal — colunas extra + constraint ───────
 
 ALTER TABLE gerencial_mensal
   ADD COLUMN IF NOT EXISTS folha_pagamento  NUMERIC(12,2),
