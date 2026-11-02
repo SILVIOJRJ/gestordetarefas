@@ -10,6 +10,7 @@ ALTER TABLE clientes
   ADD COLUMN IF NOT EXISTS ie                  TEXT,
   ADD COLUMN IF NOT EXISTS im                  TEXT,
   ADD COLUMN IF NOT EXISTS cnae                TEXT,
+  ADD COLUMN IF NOT EXISTS municipio           TEXT,
   ADD COLUMN IF NOT EXISTS limite_nfe          INTEGER DEFAULT 50,
   ADD COLUMN IF NOT EXISTS limite_faturamento  NUMERIC(15,2) DEFAULT 100000,
   ADD COLUMN IF NOT EXISTS taxa_recalculo      NUMERIC(10,2) DEFAULT 150,
