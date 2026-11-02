@@ -202,8 +202,11 @@ export default function GerencialPage() {
       await carregar()
       fecharModal()
       if (!form.id && data?.id) setF('id', data.id)
-    } catch (e) {
-      setErroSalvar(e instanceof Error ? e.message : 'Erro ao salvar.')
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message
+        : (e as { message?: string })?.message
+        ?? JSON.stringify(e)
+      setErroSalvar(`Erro: ${msg}`)
     } finally {
       setSaving(false)
     }
