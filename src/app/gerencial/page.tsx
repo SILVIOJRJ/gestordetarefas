@@ -103,20 +103,32 @@ export default function GerencialPage() {
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
+      // Busca todos os clientes — independente de terem valores no mês
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: clientes } = await (supabase.from('clientes') as any)
+      const { data: clientes, error: errClientes } = await (supabase.from('clientes') as any)
         .select('id, nome, regime')
         .order('nome')
 
+      if (errClientes) {
+        console.error('[gerencial] erro ao buscar clientes:', errClientes.message)
+      }
+
+      // LEFT JOIN manual: busca valores do mês (falha silenciosa se tabela não tiver colunas ainda)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: valores } = await (supabase.from('gerencial_mensal') as any)
-        .select('*')
+        .select('cliente_id, fgts, inss, das, irpj, csll, pis_cofins, receita_servicos, receita_vendas, despesas_total, folha_pagamento, caixa_atual, fator_r, obs, atualizado_por, condicao, id')
         .eq('competencia', competencia)
 
       const mapa: Record<string, ValoresGerenciais> = {}
-      for (const v of (valores ?? [])) mapa[v.cliente_id] = v
+      for (const v of (valores ?? [])) {
+        mapa[v.cliente_id] = {
+          ...v,
+          // folha_pagamento pode ser o nome legado da coluna
+          folha_liquida: v.folha_liquida ?? v.folha_pagamento ?? null,
+        }
+      }
 
-      const rows: LinhaTabela[] = (clientes ?? []).map((c: ClienteRow) => ({
+      const rows: LinhaTabela[] = ((clientes ?? []) as ClienteRow[]).map(c => ({
         ...c,
         valores: mapa[c.id] ?? vazioValores(c.id, competencia),
       }))
@@ -153,10 +165,23 @@ export default function GerencialPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const payload = {
-        ...form,
-        caixa_atual: caixaCalc,
-        atualizado_por: user?.email ?? 'sistema',
-        updated_at: new Date().toISOString(),
+        cliente_id:       form.cliente_id,
+        competencia:      form.competencia,
+        fgts:             form.fgts,
+        inss:             form.inss,
+        das:              form.das,
+        irpj:             form.irpj,
+        csll:             form.csll,
+        pis_cofins:       form.pis_cofins,
+        receita_servicos: form.receita_servicos,
+        receita_vendas:   form.receita_vendas,
+        despesas_total:   form.despesas_total,
+        folha_pagamento:  form.folha_liquida,   // nome da coluna no banco
+        caixa_atual:      caixaCalc,
+        fator_r:          form.fator_r,
+        obs:              form.obs,
+        atualizado_por:   user?.email ?? 'sistema',
+        updated_at:       new Date().toISOString(),
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const q = form.id
