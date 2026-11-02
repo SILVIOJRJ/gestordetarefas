@@ -292,6 +292,88 @@ export function gerarMinutaHtml(
 </html>`
 }
 
+// ─── Gerencial: lançamentos financeiros ──────────────────────
+
+export interface LancamentoFinanceiro {
+  id: string
+  descricao: string
+  valor: number
+  tipo: 'entrada' | 'saida'
+  categoria: string
+  data: string
+  cliente?: string | null
+  forma?: string | null
+  cliente_id?: string | null
+}
+
+export async function buscarLancamentosDoMes(
+  mes: number,
+  ano: number,
+): Promise<LancamentoFinanceiro[]> {
+  // Importação dinâmica para não quebrar SSR — reports.ts é client-only via window.print
+  const { supabase } = await import('@/lib/supabase')
+  const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`
+  const fim    = new Date(ano, mes, 0).toISOString().slice(0, 10)
+  const { data } = await (supabase.from('lancamentos_financeiros') as any)
+    .select('*')
+    .gte('data', inicio)
+    .lte('data', fim)
+    .order('data', { ascending: false })
+  return (data ?? []) as LancamentoFinanceiro[]
+}
+
+export function imprimirRelatorioGerencial(
+  mes: number,
+  ano: number,
+  lancamentos: LancamentoFinanceiro[],
+): void {
+  const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                 'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+  const receitas = lancamentos.filter(l => l.tipo === 'entrada').reduce((s, l) => s + l.valor, 0)
+  const despesas = lancamentos.filter(l => l.tipo === 'saida').reduce((s, l) => s + l.valor, 0)
+  const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+  const linhas = lancamentos.map(l => `
+    <tr>
+      <td>${new Date(l.data + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+      <td>${l.descricao}</td>
+      <td>${l.categoria}</td>
+      <td style="color:${l.tipo === 'entrada' ? '#16a34a' : '#dc2626'}">${fmt(l.valor)}</td>
+    </tr>`).join('')
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+<title>Relatório Gerencial — ${MESES[mes - 1]}/${ano}</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 30px; color: #1e293b; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: #64748b; font-size: 13px; margin-bottom: 20px; }
+  .kpis { display: flex; gap: 24px; margin-bottom: 24px; }
+  .kpi { padding: 12px 20px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; }
+  .kpi .val { font-size: 22px; font-weight: bold; }
+  .kpi .lbl { font-size: 11px; color: #64748b; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #f1f5f9; text-align: left; padding: 8px 10px; border-bottom: 2px solid #e2e8f0; }
+  td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; }
+  @media print { body { margin: 0 } }
+</style></head><body>
+<h1>Nascente Contábil — Relatório Gerencial</h1>
+<p class="sub">${MESES[mes - 1]} / ${ano}</p>
+<div class="kpis">
+  <div class="kpi"><div class="val" style="color:#16a34a">${fmt(receitas)}</div><div class="lbl">Receitas</div></div>
+  <div class="kpi"><div class="val" style="color:#dc2626">${fmt(despesas)}</div><div class="lbl">Despesas</div></div>
+  <div class="kpi"><div class="val" style="color:#2563eb">${fmt(receitas - despesas)}</div><div class="lbl">Resultado</div></div>
+</div>
+<table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th></tr></thead>
+<tbody>${linhas || '<tr><td colspan="4" style="text-align:center;color:#94a3b8">Nenhum lançamento</td></tr>'}</tbody>
+</table>
+</body></html>`
+
+  const w = window.open('', '_blank')
+  if (!w) { alert('Permita pop-ups para imprimir.'); return }
+  w.document.open(); w.document.write(html); w.document.close()
+  setTimeout(() => { w.print() }, 400)
+}
+
 // ─── Imprimir / PDF ───────────────────────────────────────────
 
 export function imprimirMinuta(html: string): void {
