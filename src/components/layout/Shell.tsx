@@ -5,11 +5,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BroadcastNoticeModal from '@/components/admin/BroadcastNoticeModal'
+import SmartUploadPanel from '@/components/documents/SmartUploadPanel'
 import type { PermissoesModulos, RoleUsuario } from '@/types/database.types'
 import {
   LayoutDashboard, CheckSquare, Users, FileText, BarChart2,
   Repeat, Truck, Lock, Settings, Bell, ChevronLeft, ChevronRight,
-  Menu, X, Building2, Scale, FileSignature, CalendarCheck,
+  Menu, X, Building2, Scale, FileSignature, CalendarCheck, Paperclip,
 } from 'lucide-react'
 
 // ─── Nav items com gate de módulo ─────────────────────────────
@@ -67,6 +68,7 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
   const pathname = usePathname()
   const [collapsed, setCollapsed]     = useState(false)
   const [mobileOpen, setMobileOpen]   = useState(false)
+  const [uploadOpen, setUploadOpen]   = useState(false)
   const [role, setRole]               = useState<RoleUsuario | null>(null)
   const [permissoes, setPermissoes]   = useState<PermissoesModulos | null>(null)
   const [ultimoAcesso, setUltimoAcesso] = useState<string | null>(null)
@@ -244,6 +246,15 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
             </p>
           )}
 
+          {/* Upload Inteligente */}
+          <button
+            onClick={() => setUploadOpen(true)}
+            title="Upload Inteligente"
+            className="relative p-2 rounded-lg text-brand-500 hover:bg-brand-100 hover:text-brand-900 transition-colors"
+          >
+            <Paperclip size={20} />
+          </button>
+
           {/* Notificações */}
           <button className="relative p-2 rounded-lg text-brand-500 hover:bg-brand-100 hover:text-brand-900 transition-colors">
             <Bell size={20} />
@@ -264,6 +275,9 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
 
       {/* ── Modal de recados obrigatórios ───────────────────── */}
       <BroadcastNoticeModal />
+
+      {/* ── Upload Inteligente (painel global) ──────────────── */}
+      <SmartUploadPanel open={uploadOpen} onClose={() => setUploadOpen(false)} />
 
       {/* ── Bottom Navigation (mobile) ───────────────────────── */}
       <nav className="fixed bottom-0 inset-x-0 z-20 flex lg:hidden bg-white border-t border-brand-200 h-16">
