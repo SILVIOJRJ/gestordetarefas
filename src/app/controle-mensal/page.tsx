@@ -21,7 +21,7 @@ type SetorControle =
 interface ClienteRow {
   id: string
   nome: string
-  regime: string | null
+  regime?: string | null
 }
 
 interface ObrigacaoCell {
@@ -110,7 +110,7 @@ export default function ControleMensalPage() {
     // 1. Busca todos os clientes — sempre renderiza a grade completa
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: cData } = await (supabase.from('clientes') as any)
-      .select('id, nome, regime')
+      .select('id, nome')
       .order('nome')
 
     setClientes((cData ?? []) as ClienteRow[])

@@ -12,7 +12,7 @@ type Regime = 'Simples Nacional' | 'Lucro Presumido' | 'Lucro Real' | 'MEI' | st
 interface ClienteRow {
   id: string
   nome: string
-  regime: Regime
+  regime?: Regime
 }
 
 interface ValoresGerenciais {
@@ -108,7 +108,7 @@ export default function GerencialPage() {
     // 1. Busca todos os clientes — captura erro para diagnóstico
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: clientes, error: erroQ } = await (supabase.from('clientes') as any)
-      .select('id, nome, regime')
+      .select('id, nome')
       .order('nome')
 
     if (erroQ) {
