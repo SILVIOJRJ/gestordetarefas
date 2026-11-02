@@ -92,6 +92,7 @@ export default function GerencialPage() {
 
   const [linhas, setLinhas] = useState<LinhaTabela[]>([])
   const [loading, setLoading] = useState(true)
+  const [erroClientes, setErroClientes] = useState<string | null>(null)
 
   const [modal, setModal] = useState<LinhaTabela | null>(null)
   const [form, setForm]   = useState<ValoresGerenciais | null>(null)
@@ -102,12 +103,20 @@ export default function GerencialPage() {
 
   const carregar = useCallback(async () => {
     setLoading(true)
+    setErroClientes(null)
 
-    // 1. Busca todos os clientes — nunca deve falhar
+    // 1. Busca todos os clientes — captura erro para diagnóstico
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: clientes } = await (supabase.from('clientes') as any)
+    const { data: clientes, error: erroQ } = await (supabase.from('clientes') as any)
       .select('id, nome, regime')
       .order('nome')
+
+    if (erroQ) {
+      setErroClientes(`Erro ao buscar clientes: ${erroQ.message ?? JSON.stringify(erroQ)}`)
+      setLinhas([])
+      setLoading(false)
+      return
+    }
 
     // 2. Tenta buscar valores do mês — se a tabela ainda não tiver as colunas,
     //    a query falha mas não deve impedir a listagem de clientes
@@ -243,6 +252,13 @@ export default function GerencialPage() {
             onChange={e => setBusca(e.target.value)}
           />
         </div>
+
+        {/* ── Erro de carregamento ─────────────────────────────── */}
+        {erroClientes && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+            <strong>Erro ao carregar empresas:</strong> {erroClientes}
+          </div>
+        )}
 
         {/* ── Tabela ──────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-brand-100 overflow-x-auto">
