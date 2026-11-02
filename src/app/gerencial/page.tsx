@@ -102,41 +102,42 @@ export default function GerencialPage() {
 
   const carregar = useCallback(async () => {
     setLoading(true)
+
+    // 1. Busca todos os clientes — nunca deve falhar
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: clientes } = await (supabase.from('clientes') as any)
+      .select('id, nome, regime')
+      .order('nome')
+
+    // 2. Tenta buscar valores do mês — se a tabela ainda não tiver as colunas,
+    //    a query falha mas não deve impedir a listagem de clientes
+    let mapa: Record<string, ValoresGerenciais> = {}
     try {
-      // Busca todos os clientes — independente de terem valores no mês
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: clientes, error: errClientes } = await (supabase.from('clientes') as any)
-        .select('id, nome, regime')
-        .order('nome')
-
-      if (errClientes) {
-        console.error('[gerencial] erro ao buscar clientes:', errClientes.message)
-      }
-
-      // LEFT JOIN manual: busca valores do mês (falha silenciosa se tabela não tiver colunas ainda)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: valores } = await (supabase.from('gerencial_mensal') as any)
-        .select('cliente_id, fgts, inss, das, irpj, csll, pis_cofins, receita_servicos, receita_vendas, despesas_total, folha_pagamento, caixa_atual, fator_r, obs, atualizado_por, condicao, id')
+      const { data: valores, error } = await (supabase.from('gerencial_mensal') as any)
+        .select('id, cliente_id, competencia, fgts, inss, das, irpj, csll, pis_cofins, receita_servicos, receita_vendas, despesas_total, folha_pagamento, caixa_atual, fator_r, obs, atualizado_por, condicao')
         .eq('competencia', competencia)
 
-      const mapa: Record<string, ValoresGerenciais> = {}
-      for (const v of (valores ?? [])) {
-        mapa[v.cliente_id] = {
-          ...v,
-          // folha_pagamento pode ser o nome legado da coluna
-          folha_liquida: v.folha_liquida ?? v.folha_pagamento ?? null,
+      if (!error) {
+        for (const v of (valores ?? [])) {
+          mapa[v.cliente_id] = {
+            ...v,
+            folha_liquida: v.folha_liquida ?? v.folha_pagamento ?? null,
+          }
         }
       }
-
-      const rows: LinhaTabela[] = ((clientes ?? []) as ClienteRow[]).map(c => ({
-        ...c,
-        valores: mapa[c.id] ?? vazioValores(c.id, competencia),
-      }))
-
-      setLinhas(rows)
-    } finally {
-      setLoading(false)
+    } catch {
+      // tabela ou colunas inexistentes — mostra clientes sem valores
     }
+
+    // 3. Merge: todo cliente aparece, com ou sem valores no mês
+    const rows: LinhaTabela[] = ((clientes ?? []) as ClienteRow[]).map(c => ({
+      ...c,
+      valores: mapa[c.id] ?? vazioValores(c.id, competencia),
+    }))
+
+    setLinhas(rows)
+    setLoading(false)
   }, [competencia])
 
   useEffect(() => { carregar() }, [carregar])

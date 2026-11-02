@@ -106,28 +106,35 @@ export default function ControleMensalPage() {
 
   const carregar = useCallback(async () => {
     setLoading(true)
+
+    // 1. Busca todos os clientes — sempre renderiza a grade completa
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: cData } = await (supabase.from('clientes') as any)
+      .select('id, nome, regime')
+      .order('nome')
+
+    setClientes((cData ?? []) as ClienteRow[])
+
+    // 2. Tenta buscar obrigações do mês/setor — falha silenciosa se tabela não existir ainda
+    const novaMapa = new Map<string, ObrigacaoCell>()
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: cData } = await (supabase.from('clientes') as any)
-        .select('id, nome, regime')
-        .order('nome')
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: oData } = await (supabase.from('controle_mensal_obrigacoes') as any)
-        .select('*')
+      const { data: oData, error } = await (supabase.from('controle_mensal_obrigacoes') as any)
+        .select('id, cliente_id, competencia, setor, obrigacao, status, valor, observacao')
         .eq('competencia', competencia)
         .eq('setor', setor)
 
-      const mapa = new Map<string, ObrigacaoCell>()
-      for (const o of (oData ?? [])) {
-        mapa.set(cellKey(o.cliente_id, o.obrigacao), o as ObrigacaoCell)
+      if (!error) {
+        for (const o of (oData ?? [])) {
+          novaMapa.set(cellKey(o.cliente_id, o.obrigacao), o as ObrigacaoCell)
+        }
       }
-
-      setClientes((cData ?? []) as ClienteRow[])
-      setCells(mapa)
-    } finally {
-      setLoading(false)
+    } catch {
+      // tabela ainda não existe no banco — mostra clientes com status Pendente
     }
+
+    setCells(novaMapa)
+    setLoading(false)
   }, [competencia, setor])
 
   useEffect(() => { carregar() }, [carregar])
