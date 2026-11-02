@@ -1,335 +1,308 @@
-// reports.ts — Geração de PDFs timbrados via print window
-// Padrão: HTML estilizado → window.print() → salva como PDF
+// ─── Types ────────────────────────────────────────────────────
 
-import { supabase } from '@/lib/supabase'
-import type { OrdemServico, Contrato, Cliente } from '@/types/database.types'
+export type ModalidadeContrato =
+  | 'Prestação de Serviços Contábeis'
+  | 'Assessoria e Consultoria'
+  | 'Sociedade em Conta de Participação (SCP)'
 
-// ─── Dados do escritório (timbrado) ──────────────────────────
+export type IndiceReajuste = 'IPCA' | 'IGPM' | 'Fixo'
 
-const ESCRITORIO = {
-  razao: 'Nascente Contábil',
-  cnpj: '00.000.000/0001-00',
-  endereco: 'Rua Exemplo, 123 — Centro — Blumenau/SC',
-  telefone: '(47) 3333-0000',
-  email: 'contato@nascentecontabil.com.br',
-  site: 'www.nascentecontabil.com.br',
+export interface DadosSCP {
+  socioOstensivo: string
+  socioParticipante: string
+  percentualResultados: number
+  capitalizacaoOstensivo: number
+  capitalizacaoParticipante: number
 }
 
-// ─── CSS base para todos os PDFs ─────────────────────────────
-
-const BASE_CSS = `
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Arial', sans-serif; font-size: 11px; color: #1a1a2e; background: white; }
-  @page { margin: 20mm 15mm; size: A4; }
-  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-
-  .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 12px; border-bottom: 3px solid #1a1a2e; margin-bottom: 20px; }
-  .header-logo { font-size: 18px; font-weight: 900; color: #1a1a2e; letter-spacing: -0.5px; }
-  .header-logo span { color: #10b981; }
-  .header-info { text-align: right; font-size: 9px; color: #555; line-height: 1.6; }
-
-  .doc-title { text-align: center; font-size: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; }
-  .doc-num { text-align: center; font-size: 10px; color: #666; margin-top: -14px; margin-bottom: 20px; }
-
-  .section { margin-bottom: 16px; }
-  .section-title { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #10b981; font-weight: bold; border-bottom: 1px solid #e5e7eb; padding-bottom: 3px; margin-bottom: 8px; }
-
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-  .field { margin-bottom: 6px; }
-  .field-label { font-size: 8px; text-transform: uppercase; color: #888; letter-spacing: 0.5px; }
-  .field-value { font-size: 11px; color: #1a1a2e; font-weight: 500; margin-top: 1px; }
-
-  table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 8px; }
-  th { background: #1a1a2e; color: white; padding: 6px 8px; text-align: left; font-size: 9px; }
-  td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; }
-  tr:nth-child(even) td { background: #f9fafb; }
-
-  .total-row td { font-weight: bold; background: #f0fdf4 !important; border-top: 2px solid #10b981; }
-
-  .assinaturas { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
-  .assinatura-box { text-align: center; }
-  .assinatura-linha { border-top: 1px solid #333; padding-top: 6px; font-size: 9px; color: #666; }
-
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 9px; font-weight: bold; }
-  .badge-ok { background: #d1fae5; color: #065f46; }
-  .badge-pending { background: #fef3c7; color: #92400e; }
-
-  .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 8px; color: #999; }
-`
-
-function fmt(v: number | null | undefined) {
-  if (v == null) return 'R$ 0,00'
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+export interface ClausulaContrato {
+  objeto: boolean
+  limiteDocumentos: boolean
+  multaClienteAtraso: boolean
+  reajusteAnual: boolean
+  vigencia: boolean
+  foro: boolean
 }
 
-function fmtDate(d: string | null | undefined) {
-  if (!d) return '—'
-  return new Date(d + (d.length === 10 ? 'T00:00:00' : '')).toLocaleDateString('pt-BR')
+export interface DadosContrato {
+  modalidade: ModalidadeContrato
+  dataAssinatura: string
+  vigenciaInicio: string
+  vigenciaFim: string
+  valorMensal: number
+  diaVencimento: number
+  indiceReajuste: IndiceReajuste
+  percentualFixo?: number
+  limiteNotasMensais: number
+  multaAtraso: number
+  foroComarca: string
+  clausulas: ClausulaContrato
+  scp?: DadosSCP
 }
 
-function numOS() {
-  return `OS-${Date.now().toString().slice(-8)}`
+// ─── Helpers ──────────────────────────────────────────────────
+
+function fmtData(iso: string): string {
+  if (!iso) return '___/___/______'
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
 }
 
-// ─── Timbrado compartilhado ───────────────────────────────────
+function fmtMoeda(valor: number): string {
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
 
-function headerHtml(subtitulo?: string) {
-  return `
-    <div class="header">
-      <div>
-        <div class="header-logo">Nascente<span>Contábil</span></div>
-        <div style="font-size:9px;color:#666;margin-top:4px">${ESCRITORIO.endereco}</div>
+function extensoData(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso + 'T12:00:00')
+  return d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+// ─── Gerar HTML da Minuta ─────────────────────────────────────
+
+export function gerarMinutaHtml(
+  contrato: DadosContrato,
+  cliente: { nome: string; cnpj?: string | null; responsavel?: string | null },
+): string {
+  const isSCP = contrato.modalidade === 'Sociedade em Conta de Participação (SCP)'
+  const c = contrato.clausulas
+
+  const clausulaObjeto = c.objeto ? `
+    <div class="clausula">
+      <p class="clausula-titulo">CLÁUSULA 1ª – DO OBJETO</p>
+      <p>A CONTRATADA obriga-se a prestar à CONTRATANTE os serviços de ${contrato.modalidade.toLowerCase()},
+      compreendendo: escrituração contábil, apuração de impostos e obrigações acessórias, elaboração de
+      demonstrações financeiras e demais serviços inerentes à atividade contábil, conforme regime tributário
+      aplicável e legislação vigente.</p>
+    </div>` : ''
+
+  const clausulaLimite = c.limiteDocumentos ? `
+    <div class="clausula">
+      <p class="clausula-titulo">CLÁUSULA – LIMITE DE DOCUMENTOS</p>
+      <p>O valor mensal contratado abrange o processamento de até <strong>${contrato.limiteNotasMensais} (${contrato.limiteNotasMensais})
+      documentos fiscais/mês</strong>. O volume excedente será cobrado proporcionalmente, mediante acordo prévio entre as partes.</p>
+    </div>` : ''
+
+  const clausulaMulta = c.multaClienteAtraso ? `
+    <div class="clausula">
+      <p class="clausula-titulo">CLÁUSULA – RESPONSABILIDADE POR ATRASO NA ENTREGA DE DOCUMENTOS</p>
+      <p>A CONTRATANTE compromete-se a entregar todos os documentos necessários à execução dos serviços até o
+      5º (quinto) dia útil de cada mês. O descumprimento deste prazo implica em multa de
+      <strong>${contrato.multaAtraso}% (${contrato.multaAtraso} por cento)</strong> sobre o valor da mensalidade,
+      além de isentar a CONTRATADA de responsabilidade por eventuais multas e penalidades decorrentes do
+      atraso na entrega de obrigações acessórias ao Fisco.</p>
+    </div>` : ''
+
+  const reajusteDesc = contrato.indiceReajuste === 'Fixo'
+    ? `reajuste fixo de ${contrato.percentualFixo ?? 0}% ao ano`
+    : `variação acumulada do índice ${contrato.indiceReajuste} no período`
+
+  const clausulaReajuste = c.reajusteAnual ? `
+    <div class="clausula">
+      <p class="clausula-titulo">CLÁUSULA – REAJUSTE ANUAL</p>
+      <p>Os valores contratados serão reajustados anualmente, na data de aniversário do contrato, com base na
+      <strong>${reajusteDesc}</strong>. O reajuste será comunicado à CONTRATANTE com antecedência mínima de 30 (trinta) dias.</p>
+    </div>` : ''
+
+  const clausulaVigencia = c.vigencia ? `
+    <div class="clausula">
+      <p class="clausula-titulo">CLÁUSULA – VIGÊNCIA</p>
+      <p>O presente contrato vigorará por prazo ${contrato.vigenciaFim ? 'determinado' : 'indeterminado'},
+      com início em <strong>${fmtData(contrato.vigenciaInicio)}</strong>${contrato.vigenciaFim ? ` e término em <strong>${fmtData(contrato.vigenciaFim)}</strong>` : ''},
+      podendo ser rescindido por qualquer das partes mediante aviso prévio de 30 (trinta) dias, por escrito.</p>
+    </div>` : ''
+
+  const clausulaForo = c.foro ? `
+    <div class="clausula">
+      <p class="clausula-titulo">CLÁUSULA – FORO</p>
+      <p>Para dirimir quaisquer controvérsias oriundas do presente instrumento, as partes elegem o foro da
+      Comarca de <strong>${contrato.foroComarca}</strong>, com renúncia expressa a qualquer outro, por mais
+      privilegiado que seja.</p>
+    </div>` : ''
+
+  const secaoSCP = isSCP && contrato.scp ? `
+    <div class="secao">
+      <p class="secao-titulo">SOCIEDADE EM CONTA DE PARTICIPAÇÃO</p>
+      <div class="clausula">
+        <p class="clausula-titulo">CLÁUSULA – DA SOCIEDADE EM CONTA DE PARTICIPAÇÃO</p>
+        <p>O presente instrumento formaliza a constituição de Sociedade em Conta de Participação (SCP),
+        nos termos dos artigos 991 a 996 do Código Civil Brasileiro (Lei nº 10.406/2002), nos seguintes termos:</p>
+        <table class="tabela-scp">
+          <tr><th>Sócio Ostensivo</th><td>${contrato.scp.socioOstensivo}</td></tr>
+          <tr><th>Sócio Participante</th><td>${contrato.scp.socioParticipante}</td></tr>
+          <tr><th>Participação nos Resultados</th>
+              <td>Ostensivo: ${100 - contrato.scp.percentualResultados}% | Participante: ${contrato.scp.percentualResultados}%</td></tr>
+          <tr><th>Integralização – Sócio Ostensivo</th><td>${fmtMoeda(contrato.scp.capitalizacaoOstensivo)}</td></tr>
+          <tr><th>Integralização – Sócio Participante</th><td>${fmtMoeda(contrato.scp.capitalizacaoParticipante)}</td></tr>
+        </table>
+        <p style="margin-top:12px">A existência da SCP é reservada aos sócios, não podendo ser invocada contra terceiros,
+        sendo o Sócio Ostensivo o único que se obriga perante terceiros pelos atos e contratos praticados no exercício da atividade.</p>
       </div>
-      <div class="header-info">
-        CNPJ: ${ESCRITORIO.cnpj}<br>
-        Tel: ${ESCRITORIO.telefone}<br>
-        ${ESCRITORIO.email}<br>
-        ${ESCRITORIO.site}
-        ${subtitulo ? `<br><br><strong>${subtitulo}</strong>` : ''}
-      </div>
+    </div>` : ''
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minuta de Contrato – ${contrato.modalidade}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 12pt;
+      line-height: 1.6;
+      color: #1a1a1a;
+      background: #fff;
+    }
+    @media screen {
+      body { padding: 20px; background: #e5e7eb; }
+      .pagina { background: #fff; max-width: 210mm; margin: 0 auto; padding: 25mm 20mm; box-shadow: 0 4px 24px rgba(0,0,0,.15); }
+    }
+    @media print {
+      body { margin: 0; background: #fff; }
+      .pagina { padding: 20mm 20mm; }
+    }
+    .cabecalho { border-bottom: 3px solid #1e3a5f; padding-bottom: 16px; margin-bottom: 24px; display: flex; align-items: flex-start; gap: 16px; }
+    .cabecalho-logo { width: 52px; height: 52px; background: #1e3a5f; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .cabecalho-logo span { color: #fff; font-size: 22pt; font-weight: bold; font-family: Arial, sans-serif; }
+    .cabecalho-info h1 { font-size: 16pt; font-weight: bold; color: #1e3a5f; font-family: Arial, sans-serif; }
+    .cabecalho-info p { font-size: 9pt; color: #555; margin-top: 2px; }
+    .titulo-contrato { text-align: center; margin: 24px 0 20px; }
+    .titulo-contrato h2 { font-size: 14pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #1e3a5f; }
+    .titulo-contrato p { font-size: 10pt; color: #555; margin-top: 4px; }
+    .partes { border: 1px solid #c0c8d4; border-radius: 6px; padding: 16px; margin-bottom: 24px; background: #f8fafc; }
+    .partes h3 { font-size: 10pt; font-weight: bold; color: #1e3a5f; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; font-family: Arial, sans-serif; }
+    .parte { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
+    .parte:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .parte-role { font-size: 9pt; font-weight: bold; color: #1e3a5f; text-transform: uppercase; }
+    .parte-nome { font-size: 11pt; font-weight: bold; }
+    .parte-detalhe { font-size: 9.5pt; color: #555; }
+    .condicoes { border: 1px solid #c0c8d4; border-radius: 6px; padding: 14px 16px; margin-bottom: 24px; background: #f0f7ff; }
+    .condicoes h3 { font-size: 10pt; font-weight: bold; color: #1e3a5f; text-transform: uppercase; margin-bottom: 8px; font-family: Arial, sans-serif; }
+    .condicoes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-size: 10pt; }
+    .cond-item strong { color: #1e3a5f; }
+    .secao-titulo { font-size: 11pt; font-weight: bold; text-transform: uppercase; color: #1e3a5f; letter-spacing: .5px; border-bottom: 1px solid #c0c8d4; padding-bottom: 4px; margin: 24px 0 12px; font-family: Arial, sans-serif; }
+    .clausula { margin-bottom: 14px; }
+    .clausula-titulo { font-size: 10.5pt; font-weight: bold; margin-bottom: 4px; color: #1e3a5f; }
+    .clausula p { text-align: justify; font-size: 11pt; }
+    .tabela-scp { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 10.5pt; }
+    .tabela-scp th, .tabela-scp td { border: 1px solid #c0c8d4; padding: 6px 10px; text-align: left; }
+    .tabela-scp th { background: #e8eff7; font-weight: bold; width: 45%; }
+    .assinaturas { margin-top: 48px; page-break-inside: avoid; }
+    .assinaturas-data { text-align: center; margin-bottom: 32px; font-size: 10.5pt; }
+    .assinaturas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+    .ass-bloco { text-align: center; }
+    .ass-linha { border-top: 1px solid #1a1a1a; padding-top: 6px; margin-top: 48px; font-size: 10pt; }
+    .ass-nome { font-weight: bold; font-size: 10.5pt; }
+    .ass-cargo { font-size: 9.5pt; color: #555; }
+    .rodape { margin-top: 32px; border-top: 1px solid #c0c8d4; padding-top: 8px; text-align: center; font-size: 8pt; color: #888; }
+  </style>
+</head>
+<body>
+<div class="pagina">
+
+  <!-- Cabeçalho / Timbrado -->
+  <div class="cabecalho">
+    <div class="cabecalho-logo"><span>N</span></div>
+    <div class="cabecalho-info">
+      <h1>Nascente Contábil Ltda</h1>
+      <p>Rua das Flores, 123, Centro – Jacarezinho/PR – CEP 86.400-000</p>
+      <p>CNPJ: 00.000.000/0001-00 &nbsp;|&nbsp; CRC/PR: 000000/O-0</p>
+      <p>contato@nascentecontabil.com.br &nbsp;|&nbsp; (43) 9 9000-0000</p>
     </div>
-  `
-}
+  </div>
 
-function footerHtml() {
-  return `
-    <div class="footer">
-      Documento gerado em ${new Date().toLocaleString('pt-BR')} — ${ESCRITORIO.razao} · ${ESCRITORIO.cnpj}
+  <!-- Título -->
+  <div class="titulo-contrato">
+    <h2>Contrato de ${contrato.modalidade}</h2>
+    <p>Instrumento Particular – Data de Assinatura: ${fmtData(contrato.dataAssinatura)}</p>
+  </div>
+
+  <!-- Das Partes -->
+  <div class="partes">
+    <h3>Das Partes Contratantes</h3>
+    <div class="parte">
+      <p class="parte-role">Contratante</p>
+      <p class="parte-nome">${cliente.nome}</p>
+      ${cliente.cnpj ? `<p class="parte-detalhe">CNPJ/CPF: ${cliente.cnpj}</p>` : ''}
+      ${cliente.responsavel ? `<p class="parte-detalhe">Representante: ${cliente.responsavel}</p>` : ''}
     </div>
-  `
-}
-
-function abrirPrint(html: string) {
-  const win = window.open('', '_blank', 'width=900,height=700')
-  if (!win) { alert('Habilite pop-ups para gerar o PDF.'); return }
-  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><style>${BASE_CSS}</style></head><body>${html}</body></html>`)
-  win.document.close()
-  win.focus()
-  setTimeout(() => { win.print() }, 600)
-}
-
-// ─── Ordem de Serviço ─────────────────────────────────────────
-
-export interface OSPayload {
-  os: OrdemServico
-  cliente: Cliente
-  itens?: Array<{ descricao: string; qtd: number; valor: number }>
-}
-
-export function imprimirOS({ os, cliente, itens = [] }: OSPayload) {
-  const num = os.numero ?? numOS()
-  const subtotal = itens.reduce((a, i) => a + i.qtd * i.valor, 0)
-  const itensHtml = itens.length > 0 ? `
-    <table>
-      <tr><th>Descrição</th><th>Qtd</th><th>Valor Unit.</th><th>Total</th></tr>
-      ${itens.map(i => `<tr><td>${i.descricao}</td><td>${i.qtd}</td><td>${fmt(i.valor)}</td><td>${fmt(i.qtd * i.valor)}</td></tr>`).join('')}
-      <tr class="total-row"><td colspan="3"><strong>Total</strong></td><td><strong>${fmt(subtotal)}</strong></td></tr>
-    </table>
-  ` : '<p style="color:#999;font-size:10px">Sem itens discriminados.</p>'
-
-  const html = `
-    ${headerHtml()}
-    <div class="doc-title">Ordem de Serviço</div>
-    <div class="doc-num">Nº ${num} · Status: ${os.status} · Abertura: ${fmtDate(os.data_abertura)}</div>
-
-    <div class="section">
-      <div class="section-title">Dados do Cliente</div>
-      <div class="grid-2">
-        <div class="field"><div class="field-label">Razão Social</div><div class="field-value">${cliente.nome}</div></div>
-        <div class="field"><div class="field-label">CNPJ/CPF</div><div class="field-value">${cliente.cnpj ?? '—'}</div></div>
-        <div class="field"><div class="field-label">Regime Tributário</div><div class="field-value">${cliente.regime ?? '—'}</div></div>
-        <div class="field"><div class="field-label">E-mail</div><div class="field-value">${cliente.email ?? '—'}</div></div>
-      </div>
+    <div class="parte">
+      <p class="parte-role">Contratada</p>
+      <p class="parte-nome">Nascente Contábil Ltda</p>
+      <p class="parte-detalhe">CNPJ: 00.000.000/0001-00 | CRC/PR: 000000/O-0</p>
+      <p class="parte-detalhe">Rua das Flores, 123, Centro – Jacarezinho/PR</p>
     </div>
+  </div>
 
-    <div class="section">
-      <div class="section-title">Descrição do Serviço</div>
-      <div class="field-value" style="white-space:pre-wrap;line-height:1.6">${os.descricao}</div>
+  <!-- Condições Gerais -->
+  <div class="condicoes">
+    <h3>Condições Comerciais</h3>
+    <div class="condicoes-grid">
+      <div class="cond-item"><strong>Valor Mensal:</strong> ${fmtMoeda(contrato.valorMensal)}</div>
+      <div class="cond-item"><strong>Vencimento:</strong> Dia ${contrato.diaVencimento} de cada mês</div>
+      <div class="cond-item"><strong>Início da Vigência:</strong> ${fmtData(contrato.vigenciaInicio)}</div>
+      <div class="cond-item"><strong>Término:</strong> ${contrato.vigenciaFim ? fmtData(contrato.vigenciaFim) : 'Prazo Indeterminado'}</div>
+      <div class="cond-item"><strong>Reajuste Anual:</strong> ${contrato.indiceReajuste === 'Fixo' ? `Fixo ${contrato.percentualFixo ?? 0}%` : contrato.indiceReajuste}</div>
+      <div class="cond-item"><strong>Limite de Docs:</strong> ${contrato.limiteNotasMensais} documentos/mês</div>
     </div>
+  </div>
 
-    <div class="section">
-      <div class="section-title">Itens / Honorários</div>
-      ${itensHtml}
-    </div>
+  <!-- Cláusulas -->
+  <p class="secao-titulo">Das Cláusulas e Condições</p>
+  ${clausulaObjeto}
+  ${clausulaLimite}
+  ${clausulaMulta}
+  ${clausulaReajuste}
+  ${clausulaVigencia}
+  ${clausulaForo}
 
-    ${os.obs ? `<div class="section"><div class="section-title">Observações</div><div style="white-space:pre-wrap;font-size:10px;color:#555">${os.obs}</div></div>` : ''}
+  <!-- Seção SCP -->
+  ${secaoSCP}
 
-    <div class="assinaturas">
-      <div class="assinatura-box">
-        <div class="assinatura-linha">Cliente — ${cliente.nome}</div>
-      </div>
-      <div class="assinatura-box">
-        <div class="assinatura-linha">${ESCRITORIO.razao} — Responsável</div>
-      </div>
-    </div>
-    ${footerHtml()}
-  `
-  abrirPrint(html)
-}
-
-// ─── Contrato de Prestação de Serviços ───────────────────────
-
-export interface ContratoPayload {
-  contrato: Contrato
-  cliente: Cliente
-  servicosDetalhados?: string[]
-}
-
-export function imprimirContrato({ contrato, cliente, servicosDetalhados = [] }: ContratoPayload) {
-  const servicosHtml = servicosDetalhados.length > 0
-    ? servicosDetalhados.map((s, i) => `<div style="padding:3px 0;border-bottom:1px solid #f0f0f0">${i + 1}. ${s}</div>`).join('')
-    : '<p style="color:#999;font-size:10px">Conforme proposta comercial anexa.</p>'
-
-  const html = `
-    ${headerHtml('CONTRATO DE PRESTAÇÃO DE SERVIÇOS CONTÁBEIS')}
-
-    <div class="doc-title">Contrato de Prestação de Serviços</div>
-    <div class="doc-num">${contrato.titulo} · Início: ${fmtDate(contrato.inicio)}</div>
-
-    <div class="section">
-      <div class="section-title">Partes Contratantes</div>
-      <p><strong>CONTRATANTE:</strong> ${cliente.nome} — CNPJ/CPF: ${cliente.cnpj ?? '—'}</p>
-      <p style="margin-top:6px"><strong>CONTRATADA:</strong> ${ESCRITORIO.razao} — CNPJ: ${ESCRITORIO.cnpj} — ${ESCRITORIO.endereco}</p>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Objeto do Contrato</div>
-      <p style="line-height:1.7">${contrato.descricao ?? 'Prestação de serviços contábeis, fiscais e trabalhistas conforme legislação vigente.'}</p>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Serviços Inclusos</div>
-      ${servicosHtml}
-    </div>
-
-    <div class="section">
-      <div class="section-title">Honorários e Vigência</div>
-      <div class="grid-3">
-        <div class="field"><div class="field-label">Honorário Mensal</div><div class="field-value" style="font-size:14px;color:#10b981;font-weight:900">${fmt(contrato.valor_mensal)}</div></div>
-        <div class="field"><div class="field-label">Início da Vigência</div><div class="field-value">${fmtDate(contrato.inicio)}</div></div>
-        <div class="field"><div class="field-label">Término / Renovação</div><div class="field-value">${contrato.termino ? fmtDate(contrato.termino) : contrato.renovacao_auto ? 'Renovação automática anual' : 'Indeterminado'}</div></div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Cláusulas Gerais</div>
-      <div style="font-size:9px;color:#555;line-height:1.8">
-        <p><strong>1. OBRIGAÇÕES DA CONTRATADA:</strong> A ${ESCRITORIO.razao} obriga-se a prestar os serviços descritos com zelo, pontualidade e de acordo com as normas do CFC.</p>
-        <p><strong>2. OBRIGAÇÕES DO CONTRATANTE:</strong> Fornecer documentos até o dia 5 de cada mês, assinar guias e declarações em tempo hábil.</p>
-        <p><strong>3. RESCISÃO:</strong> Qualquer das partes pode rescindir com aviso prévio de 30 dias.</p>
-        <p><strong>4. FORO:</strong> Comarca de Blumenau/SC.</p>
-      </div>
-    </div>
-
-    <p style="text-align:center;font-size:9px;color:#888;margin:16px 0">
-      Blumenau/SC, ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+  <!-- Assinaturas -->
+  <div class="assinaturas">
+    <p class="assinaturas-data">
+      ${contrato.foroComarca}, ${extensoData(contrato.dataAssinatura)}
     </p>
-
-    <div class="assinaturas">
-      <div class="assinatura-box">
-        <div class="assinatura-linha">CONTRATANTE — ${cliente.nome}</div>
+    <div class="assinaturas-grid">
+      <div class="ass-bloco">
+        <div class="ass-linha">
+          <p class="ass-nome">${cliente.nome}</p>
+          <p class="ass-cargo">CONTRATANTE</p>
+          ${cliente.responsavel ? `<p class="ass-cargo">${cliente.responsavel}</p>` : ''}
+        </div>
       </div>
-      <div class="assinatura-box">
-        <div class="assinatura-linha">CONTRATADA — ${ESCRITORIO.razao}</div>
+      <div class="ass-bloco">
+        <div class="ass-linha">
+          <p class="ass-nome">Nascente Contábil Ltda</p>
+          <p class="ass-cargo">CONTRATADA</p>
+        </div>
       </div>
     </div>
-    ${footerHtml()}
-  `
-  abrirPrint(html)
+  </div>
+
+  <div class="rodape">
+    Documento gerado pelo Portal Nascente Contábil – ${new Date().toLocaleDateString('pt-BR')} – MINUTA SUJEITA A REVISÃO JURÍDICA
+  </div>
+
+</div>
+</body>
+</html>`
 }
 
-// ─── Relatório Gerencial ──────────────────────────────────────
+// ─── Imprimir / PDF ───────────────────────────────────────────
 
-export interface LancamentoFinanceiro {
-  data: string
-  descricao: string
-  tipo: 'entrada' | 'saida'
-  forma: string
-  valor: number
-  cliente?: string
-}
-
-export async function buscarLancamentosDoMes(mes: number, ano: number): Promise<LancamentoFinanceiro[]> {
-  const mesStr = `${ano}-${String(mes).padStart(2, '0')}`
-
-  // Usa honorários dos contratos ativos como "entradas" do mês
-  const { data: contratos } = await (supabase.from('contratos') as any)
-    .select('*, clientes(nome)')
-    .eq('status', 'ativo')
-
-  const lancamentos: LancamentoFinanceiro[] = []
-  for (const ct of (contratos ?? []) as Array<Contrato & { clientes?: { nome: string } | null }>) {
-    if (!ct.valor_mensal) continue
-    lancamentos.push({
-      data: `${mesStr}-05`,
-      descricao: `Honorário contábil — ${ct.titulo}`,
-      tipo: 'entrada',
-      forma: 'Transferência',
-      valor: ct.valor_mensal,
-      cliente: ct.clientes?.nome,
-    })
+export function imprimirMinuta(html: string): void {
+  const newWindow = window.open('', '_blank')
+  if (!newWindow) {
+    alert('Permita pop-ups para gerar o PDF da minuta.')
+    return
   }
-
-  return lancamentos.sort((a, b) => a.data.localeCompare(b.data))
-}
-
-export function imprimirRelatorioGerencial(
-  mes: number,
-  ano: number,
-  lancamentos: LancamentoFinanceiro[]
-) {
-  const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
-  const entradas = lancamentos.filter(l => l.tipo === 'entrada')
-  const saidas = lancamentos.filter(l => l.tipo === 'saida')
-  const totalEntradas = entradas.reduce((a, l) => a + l.valor, 0)
-  const totalSaidas = saidas.reduce((a, l) => a + l.valor, 0)
-  const saldo = totalEntradas - totalSaidas
-
-  function tabelaLancamentos(lista: LancamentoFinanceiro[]) {
-    if (lista.length === 0) return '<p style="color:#999;font-size:10px">Nenhum lançamento.</p>'
-    return `
-      <table>
-        <tr><th>Data</th><th>Descrição</th><th>Cliente</th><th>Forma</th><th>Valor</th></tr>
-        ${lista.map(l => `<tr>
-          <td>${fmtDate(l.data)}</td>
-          <td>${l.descricao}</td>
-          <td>${l.cliente ?? '—'}</td>
-          <td>${l.forma}</td>
-          <td style="text-align:right;font-weight:600;color:${l.tipo === 'entrada' ? '#059669' : '#dc2626'}">${fmt(l.valor)}</td>
-        </tr>`).join('')}
-        <tr class="total-row">
-          <td colspan="4"><strong>Total</strong></td>
-          <td style="text-align:right"><strong>${fmt(lista.reduce((a, l) => a + l.valor, 0))}</strong></td>
-        </tr>
-      </table>
-    `
-  }
-
-  const html = `
-    ${headerHtml()}
-    <div class="doc-title">Relatório Gerencial — ${MESES[mes - 1]} / ${ano}</div>
-
-    <div class="section">
-      <div class="section-title">Resumo do Mês</div>
-      <div class="grid-3">
-        <div class="field"><div class="field-label">Total Entradas</div><div class="field-value" style="font-size:14px;color:#059669;font-weight:900">${fmt(totalEntradas)}</div></div>
-        <div class="field"><div class="field-label">Total Saídas</div><div class="field-value" style="font-size:14px;color:#dc2626;font-weight:900">${fmt(totalSaidas)}</div></div>
-        <div class="field"><div class="field-label">Saldo do Mês</div><div class="field-value" style="font-size:14px;color:${saldo >= 0 ? '#059669' : '#dc2626'};font-weight:900">${fmt(saldo)}</div></div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Entradas</div>
-      ${tabelaLancamentos(entradas)}
-    </div>
-
-    <div class="section">
-      <div class="section-title">Saídas</div>
-      ${tabelaLancamentos(saidas)}
-    </div>
-
-    ${footerHtml()}
-  `
-  abrirPrint(html)
+  newWindow.document.open()
+  newWindow.document.write(html)
+  newWindow.document.close()
+  newWindow.focus()
+  setTimeout(() => { newWindow.print() }, 500)
 }

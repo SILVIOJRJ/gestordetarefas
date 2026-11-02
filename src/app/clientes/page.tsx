@@ -4,16 +4,17 @@ import { useState, useEffect, useCallback } from 'react'
 import Shell from '@/components/layout/Shell'
 import ClienteForm from '@/components/forms/ClienteForm'
 import ClientGovernanceTab from '@/components/clients/ClientGovernanceTab'
+import ClientContractTab from '@/components/clients/ClientContractTab'
 import { supabase } from '@/lib/supabase'
 import type { Cliente, RegimeTributario } from '@/types/database.types'
 import {
   Plus, Search, X, AlertTriangle, Loader2,
-  ChevronUp, ChevronDown, Pencil, Building2, ShieldCheck, ChevronRight,
+  ChevronUp, ChevronDown, Pencil, Building2, ShieldCheck, ChevronRight, FileSignature,
 } from 'lucide-react'
 
 type SortKey = 'nome' | 'cnpj' | 'regime' | 'responsavel'
 type SortDir = 'asc' | 'desc'
-type DetalheAba = 'dados' | 'governanca'
+type DetalheAba = 'dados' | 'governanca' | 'contrato'
 
 const REGIMES: RegimeTributario[] = ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI']
 
@@ -211,6 +212,7 @@ export default function ClientesPage() {
               {([
                 { id: 'dados',      label: 'Dados',      icon: Building2 },
                 { id: 'governanca', label: 'Governança', icon: ShieldCheck },
+                { id: 'contrato',   label: 'Contrato',   icon: FileSignature },
               ] as { id: DetalheAba; label: string; icon: React.ComponentType<{ size: number; className?: string }> }[]).map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
@@ -225,7 +227,9 @@ export default function ClientesPage() {
             </div>
 
             {/* Conteúdo da aba */}
-            {detalheAba === 'dados' ? (
+            {detalheAba === 'contrato' ? (
+              <ClientContractTab cliente={detalhe} />
+            ) : detalheAba === 'dados' ? (
               <div className="card space-y-4">
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   {[
