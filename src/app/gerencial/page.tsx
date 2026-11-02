@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Shell from '@/components/layout/Shell'
 import { supabase } from '@/lib/supabase'
 import type { Cliente, Contrato, RegimeTributario } from '@/types/database.types'
-import { BarChart2, TrendingUp, AlertTriangle, DollarSign, ChevronLeft, ChevronRight, FileText, Printer, ArrowUpCircle, ArrowDownCircle } from 'lucide-react'
+import { BarChart2, TrendingUp, AlertTriangle, DollarSign, ChevronLeft, ChevronRight, FileText, Printer, ArrowUpCircle, ArrowDownCircle, Plus, X, Save, Loader2 } from 'lucide-react'
 import { buscarLancamentosDoMes, imprimirRelatorioGerencial, type LancamentoFinanceiro } from '@/services/reports'
 
 // ─── Tipos ────────────────────────────────────────────────────
@@ -33,6 +33,28 @@ interface ServicoAdicional {
   valorEstimado: number | null
 }
 
+type StatusRecebimento = 'Recebido' | 'Pendente' | 'Inadimplente'
+
+interface ApuracaoCliente {
+  clienteId: string
+  nome: string
+  regime: string
+  honorarios: number
+  adicionais: number
+  statusRecebimento: StatusRecebimento
+  obs: string
+}
+
+interface NovoLancamento {
+  data: string
+  tipo: 'entrada' | 'saida'
+  categoria: string
+  cliente: string
+  forma: string
+  valor: string
+  descricao: string
+}
+
 const REGIME_COR: Record<string, string> = {
   'Simples Nacional': 'bg-blue-500',
   'Lucro Presumido':  'bg-purple-500',
@@ -58,7 +80,14 @@ export default function GerencialPage() {
   const [porRegime, setPorRegime] = useState<FaturamentoPorRegime[]>([])
   const [adicionais, setAdicionais] = useState<ServicoAdicional[]>([])
   const [lancamentos, setLancamentos] = useState<LancamentoFinanceiro[]>([])
+  const [apuracao, setApuracao] = useState<ApuracaoCliente[]>([])
   const [loading, setLoading] = useState(true)
+  const [showLancModal, setShowLancModal] = useState(false)
+  const [savingLanc, setSavingLanc] = useState(false)
+  const [novoLanc, setNovoLanc] = useState<NovoLancamento>({
+    data: new Date().toISOString().slice(0, 10),
+    tipo: 'entrada', categoria: '', cliente: '', forma: 'Pix', valor: '', descricao: '',
+  })
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -103,6 +132,22 @@ export default function GerencialPage() {
       setPorRegime(Object.values(regimeMap).sort((a, b) => b.mrr - a.mrr))
       setAdicionais(extras.slice(0, 20))
 
+      // Tabela de apuração por cliente
+      const apuracaoData: ApuracaoCliente[] = lista.map(c => {
+        const ativos = (c.contratos ?? []).filter((ct: Contrato) => ct.status === 'ativo')
+        const honorarios = ativos.reduce((a: number, ct: Contrato) => a + (ct.valor_mensal ?? 0), 0)
+        return {
+          clienteId: c.id,
+          nome: c.nome,
+          regime: c.regime ?? '—',
+          honorarios,
+          adicionais: 0,
+          statusRecebimento: honorarios > 0 ? 'Pendente' : 'Inadimplente',
+          obs: '',
+        }
+      })
+      setApuracao(apuracaoData)
+
       // Lançamentos financeiros do mês
       const lanc = await buscarLancamentosDoMes(mes, ano)
       setLancamentos(lanc)
@@ -120,6 +165,40 @@ export default function GerencialPage() {
   }
 
   const maxMrr = Math.max(...porRegime.map(r => r.mrr), 1)
+
+  async function salvarLancamento() {
+    if (!novoLanc.valor || Number(novoLanc.valor) <= 0) return
+    setSavingLanc(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('lancamentos_financeiros') as any).insert({
+        data:      novoLanc.data,
+        tipo:      novoLanc.tipo,
+        categoria: novoLanc.categoria || null,
+        cliente:   novoLanc.cliente || null,
+        forma:     novoLanc.forma,
+        valor:     Number(novoLanc.valor),
+        descricao: novoLanc.descricao || null,
+        mes:       mes,
+        ano:       ano,
+        criado_por: user?.id ?? null,
+      })
+      setShowLancModal(false)
+      setNovoLanc({ data: new Date().toISOString().slice(0, 10), tipo: 'entrada', categoria: '', cliente: '', forma: 'Pix', valor: '', descricao: '' })
+      carregar()
+    } finally {
+      setSavingLanc(false)
+    }
+  }
+
+  function setApuracaoStatus(clienteId: string, status: StatusRecebimento) {
+    setApuracao(prev => prev.map(a => a.clienteId === clienteId ? { ...a, statusRecebimento: status } : a))
+  }
+
+  function setApuracaoObs(clienteId: string, obs: string) {
+    setApuracao(prev => prev.map(a => a.clienteId === clienteId ? { ...a, obs } : a))
+  }
 
   return (
     <Shell>
@@ -282,19 +361,93 @@ export default function GerencialPage() {
           </div>
         </div>
 
-        {/* Tabela de Lançamentos Financeiros */}
+        {/* Tabela de Apuração Detalhada por Cliente */}
+        <div className="bg-white border border-brand-100 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-brand-50">
+            <h2 className="text-sm font-semibold text-brand-700">Apuração Detalhada por Cliente — {MESES[mes - 1]}/{ano}</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-brand-400 bg-brand-50/60 border-b border-brand-100">
+                  <th className="px-4 py-2 font-medium">Cliente</th>
+                  <th className="px-3 py-2 font-medium">Regime</th>
+                  <th className="px-3 py-2 font-medium text-right">Honorários</th>
+                  <th className="px-3 py-2 font-medium text-right">Adicionais</th>
+                  <th className="px-3 py-2 font-medium text-right">Total</th>
+                  <th className="px-3 py-2 font-medium">Recebimento</th>
+                  <th className="px-3 py-2 font-medium">Obs.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {apuracao.map(a => (
+                  <tr key={a.clienteId} className="border-b border-brand-50 hover:bg-brand-50/30">
+                    <td className="px-4 py-2 font-medium text-brand-800 text-xs">{a.nome}</td>
+                    <td className="px-3 py-2 text-xs text-brand-500">{a.regime}</td>
+                    <td className="px-3 py-2 text-right text-xs font-medium text-brand-700">
+                      {a.honorarios > 0 ? fmt(a.honorarios) : <span className="text-brand-300">—</span>}
+                    </td>
+                    <td className="px-3 py-2 text-right text-xs text-brand-500">
+                      {a.adicionais > 0 ? fmt(a.adicionais) : <span className="text-brand-300">—</span>}
+                    </td>
+                    <td className="px-3 py-2 text-right text-xs font-bold text-brand-800">
+                      {a.honorarios + a.adicionais > 0 ? fmt(a.honorarios + a.adicionais) : <span className="text-brand-300">—</span>}
+                    </td>
+                    <td className="px-3 py-2">
+                      <select
+                        value={a.statusRecebimento}
+                        onChange={e => setApuracaoStatus(a.clienteId, e.target.value as StatusRecebimento)}
+                        className={`text-xs px-2 py-0.5 rounded-full font-medium border-0 cursor-pointer ${
+                          a.statusRecebimento === 'Recebido' ? 'bg-emerald-100 text-emerald-700'
+                          : a.statusRecebimento === 'Pendente' ? 'bg-amber-100 text-amber-700'
+                          : 'bg-danger-100 text-danger-700'
+                        }`}
+                      >
+                        <option value="Recebido">Recebido</option>
+                        <option value="Pendente">Pendente</option>
+                        <option value="Inadimplente">Inadimplente</option>
+                      </select>
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        className="w-full text-xs border border-brand-100 rounded px-1.5 py-0.5 bg-transparent"
+                        placeholder="Observação..."
+                        value={a.obs}
+                        onChange={e => setApuracaoObs(a.clienteId, e.target.value)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-brand-50 border-t-2 border-brand-200 text-xs font-bold">
+                  <td className="px-4 py-2 text-brand-600" colSpan={2}>Total Geral</td>
+                  <td className="px-3 py-2 text-right text-brand-800">{fmt(apuracao.reduce((s, a) => s + a.honorarios, 0))}</td>
+                  <td className="px-3 py-2 text-right text-brand-800">{fmt(apuracao.reduce((s, a) => s + a.adicionais, 0))}</td>
+                  <td className="px-3 py-2 text-right text-brand-800">{fmt(apuracao.reduce((s, a) => s + a.honorarios + a.adicionais, 0))}</td>
+                  <td colSpan={2} />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        {/* Modal + Tabela de Lançamentos Financeiros */}
         <div className="bg-white border border-brand-100 rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-brand-50 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-brand-700">Entradas & Saídas — {MESES[mes - 1]}/{ano}</h2>
-            <div className="flex gap-4 text-xs">
-              <span className="flex items-center gap-1 text-emerald-600">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="flex items-center gap-1 text-xs text-emerald-600">
                 <ArrowUpCircle size={13} />
                 Entradas: {fmt(lancamentos.filter(l => l.tipo === 'entrada').reduce((a, l) => a + l.valor, 0))}
               </span>
-              <span className="flex items-center gap-1 text-red-500">
+              <span className="flex items-center gap-1 text-xs text-red-500">
                 <ArrowDownCircle size={13} />
                 Saídas: {fmt(lancamentos.filter(l => l.tipo === 'saida').reduce((a, l) => a + l.valor, 0))}
               </span>
+              <button onClick={() => setShowLancModal(true)} className="btn-primary text-xs py-1 px-2.5">
+                <Plus size={12} /> Lançamento
+              </button>
             </div>
           </div>
           {lancamentos.length === 0 ? (
@@ -365,6 +518,71 @@ export default function GerencialPage() {
           </div>
         )}
       </div>
+
+      {/* Modal: Novo Lançamento */}
+      {showLancModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-brand-800">Novo Lançamento Financeiro</h3>
+              <button onClick={() => setShowLancModal(false)} className="text-brand-400 hover:text-brand-600"><X size={18} /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="input-label">Data</label>
+                <input type="date" className="input" value={novoLanc.data}
+                  onChange={e => setNovoLanc(n => ({ ...n, data: e.target.value }))} />
+              </div>
+              <div>
+                <label className="input-label">Tipo</label>
+                <select className="input" value={novoLanc.tipo}
+                  onChange={e => setNovoLanc(n => ({ ...n, tipo: e.target.value as 'entrada' | 'saida' }))}>
+                  <option value="entrada">Entrada</option>
+                  <option value="saida">Saída</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="input-label">Categoria</label>
+                <input className="input" placeholder="Ex: Honorários, Aluguel, Pró-labore..."
+                  value={novoLanc.categoria}
+                  onChange={e => setNovoLanc(n => ({ ...n, categoria: e.target.value }))} />
+              </div>
+              <div className="col-span-2">
+                <label className="input-label">Cliente (opcional)</label>
+                <input className="input" placeholder="Nome do cliente relacionado"
+                  value={novoLanc.cliente}
+                  onChange={e => setNovoLanc(n => ({ ...n, cliente: e.target.value }))} />
+              </div>
+              <div>
+                <label className="input-label">Forma</label>
+                <select className="input" value={novoLanc.forma}
+                  onChange={e => setNovoLanc(n => ({ ...n, forma: e.target.value }))}>
+                  {['Pix', 'Boleto', 'TED', 'DOC', 'Dinheiro', 'Cartão'].map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="input-label">Valor (R$)</label>
+                <input type="number" min={0} step={0.01} className="input" placeholder="0,00"
+                  value={novoLanc.valor}
+                  onChange={e => setNovoLanc(n => ({ ...n, valor: e.target.value }))} />
+              </div>
+              <div className="col-span-2">
+                <label className="input-label">Descrição</label>
+                <input className="input" placeholder="Detalhe do lançamento..."
+                  value={novoLanc.descricao}
+                  onChange={e => setNovoLanc(n => ({ ...n, descricao: e.target.value }))} />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button onClick={salvarLancamento} disabled={savingLanc} className="btn-primary flex-1">
+                {savingLanc ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                Salvar Lançamento
+              </button>
+              <button onClick={() => setShowLancModal(false)} className="btn-secondary"><X size={14} /></button>
+            </div>
+          </div>
+        </div>
+      )}
     </Shell>
   )
 }

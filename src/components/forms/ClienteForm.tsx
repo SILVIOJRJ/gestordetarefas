@@ -20,7 +20,7 @@ const VAZIO: ClientePayload = {
   nome: '', cnpj: '', regime: null, email: null, telefone: null,
   responsavel: null, responsavel_id: null, criado_por: null,
   ie: '', im: '', cnae: '', limite_nfe: 50, limite_faturamento: 100000, taxa_recalculo: 150,
-  vinculo_atendimento: null, contatos_chave: null, manual_costumes: null,
+  vinculo_atendimento: null, contatos_chave: null, manual_costumes: null, municipio: null,
 }
 
 export default function ClienteForm({ inicial, onSalvo, onCancelar }: Props) {

@@ -102,6 +102,7 @@ export interface Cliente {
   vinculo_atendimento: 'Exclusivo Denazaré' | 'Exclusivo Silvio' | 'Carteira Conjunta' | null;
   contatos_chave: Array<{ nome: string; cargo: string; whatsapp: string; email_guias: string }> | null;
   manual_costumes: string | null;
+  municipio: string | null;
   criado_por: string | null;
   created_at: string; // timestamptz
   updated_at: string;
@@ -381,21 +382,23 @@ export interface Contrato {
 // ─── Permissões modulares ─────────────────────────────────────
 
 export interface PermissoesModulos {
-  modulo_pessoal:    boolean;
-  modulo_fiscal:     boolean;
-  modulo_contabil:   boolean;
-  modulo_societario: boolean;
-  modulo_financeiro: boolean;
-  acoes_financeiras: boolean; // criar/editar faturas, ver extratos
+  modulo_pessoal:          boolean;
+  modulo_fiscal:           boolean;
+  modulo_contabil:         boolean;
+  modulo_societario:       boolean;
+  modulo_financeiro:       boolean;
+  acoes_financeiras:       boolean;
+  modulo_gestao_contratos: boolean;
 }
 
 export const PERMISSOES_DEFAULT: PermissoesModulos = {
-  modulo_pessoal:    true,
-  modulo_fiscal:     true,
-  modulo_contabil:   true,
-  modulo_societario: true,
-  modulo_financeiro: false,
-  acoes_financeiras: false,
+  modulo_pessoal:          true,
+  modulo_fiscal:           true,
+  modulo_contabil:         true,
+  modulo_societario:       true,
+  modulo_financeiro:       false,
+  acoes_financeiras:       false,
+  modulo_gestao_contratos: false,
 }
 
 // ─── Multi-tenant / Auth ──────────────────────────────────────

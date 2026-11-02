@@ -16,6 +16,12 @@ interface ContratoPayload {
   status: string
   servicos_inclusos: string[]
   servicos_extras: string[]
+  modalidade: string | null
+  indice_reajuste: string | null
+  percentual_fixo: number | null
+  limite_notas_mensais: number | null
+  multa_atraso: number | null
+  foro_comarca: string | null
 }
 
 interface Props {
@@ -37,6 +43,10 @@ export default function ContratoForm({ inicial, onSalvo, onCancelar }: Props) {
     inicio: new Date().toISOString().slice(0, 10), termino: null,
     renovacao_auto: true, status: 'ativo',
     servicos_inclusos: [], servicos_extras: [],
+    modalidade: 'Prestação de Serviços Contábeis',
+    indice_reajuste: 'IPCA', percentual_fixo: null,
+    limite_notas_mensais: 50, multa_atraso: 2,
+    foro_comarca: 'Jacarezinho/PR',
     ...inicial,
   })
   const [novoServico, setNovoServico] = useState('')
@@ -69,19 +79,24 @@ export default function ContratoForm({ inicial, onSalvo, onCancelar }: Props) {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const payload = {
-        cliente_id:    form.cliente_id,
-        titulo:        form.titulo.trim(),
-        descricao:     JSON.stringify({
-          dia_vencimento: form.dia_vencimento,
-          servicos_inclusos: form.servicos_inclusos,
-          extras: form.servicos_extras,
-        }),
-        valor_mensal:  form.valor_mensal,
-        inicio:        form.inicio,
-        termino:       form.termino || null,
-        renovacao_auto: form.renovacao_auto,
-        status:        form.status,
-        criado_por:    user?.id ?? null,
+        cliente_id:           form.cliente_id,
+        titulo:               form.titulo.trim(),
+        descricao:            null,
+        valor_mensal:         form.valor_mensal,
+        dia_vencimento:       form.dia_vencimento,
+        inicio:               form.inicio,
+        termino:              form.termino || null,
+        renovacao_auto:       form.renovacao_auto,
+        status:               form.status,
+        servicos_inclusos:    form.servicos_inclusos,
+        servicos_extras:      form.servicos_extras,
+        modalidade:           form.modalidade,
+        indice_reajuste:      form.indice_reajuste,
+        percentual_fixo:      form.percentual_fixo,
+        limite_notas_mensais: form.limite_notas_mensais,
+        multa_atraso:         form.multa_atraso,
+        foro_comarca:         form.foro_comarca,
+        criado_por:           user?.id ?? null,
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const q = inicial?.id

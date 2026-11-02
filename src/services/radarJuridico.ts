@@ -22,6 +22,7 @@ export interface AlertaJuridico {
   data: string
   regimesImpactados: RegimeImpactado[]
   cnaesImpactados: string[]
+  municipiosImpactados: string[]
   impacto: string
   acaoPreventiva: string
   urgente: boolean
@@ -37,6 +38,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2025-01-16',
     regimesImpactados: ['Todos'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'A CBS (federal) substitui PIS/Cofins e o IBS (subnacional) substitui ICMS e ISS. Período de testes em 2026 com alíquotas reduzidas; transição plena de 2027 a 2033.',
     acaoPreventiva:
@@ -52,6 +54,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2024-12-20',
     regimesImpactados: ['Simples Nacional', 'MEI'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'Reajuste dos sublimites estaduais do Simples Nacional para recolhimento do ICMS/ISS no próprio Simples. Empresas com receita acima do sublimite passam a recolher ICMS/ISS fora do DAS.',
     acaoPreventiva:
@@ -67,6 +70,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2025-03-01',
     regimesImpactados: ['MEI'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'Determinadas atividades consideradas de risco (construção civil pesada, transporte interestadual e atividades regulamentadas) foram excluídas do enquadramento como MEI/SIMEI, obrigando a migração para ME no Simples Nacional.',
     acaoPreventiva:
@@ -82,6 +86,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2025-04-10',
     regimesImpactados: ['Lucro Presumido', 'Lucro Real'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'O STF estendeu a tese do RE 574.706 (exclusão do ICMS da base do PIS/Cofins) para outros tributos "de fora" como ISS e IPI sobre entradas, ampliando o direito a créditos e restituições.',
     acaoPreventiva:
@@ -97,6 +102,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2024-11-15',
     regimesImpactados: ['MEI', 'Simples Nacional'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'MEIs com empregado doméstico ou CLT passam a ser obrigados ao eSocial para eventos de folha, férias, admissão e desligamento, com penalidades para envios em atraso.',
     acaoPreventiva:
@@ -112,6 +118,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2023-12-28',
     regimesImpactados: ['Lucro Real'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'Vedação à dedução de JCP calculado sobre reservas de lucros e lucros acumulados de exercícios anteriores ao apurado, reduzindo significativamente o benefício fiscal para empresas do Lucro Real.',
     acaoPreventiva:
@@ -127,6 +134,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2025-02-20',
     regimesImpactados: ['Lucro Presumido', 'Lucro Real'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'O STJ fixou que os juros Selic recebidos em restituições tributárias têm natureza de acréscimo patrimonial e compõem a base do IRPJ e da CSLL no período de recebimento.',
     acaoPreventiva:
@@ -142,6 +150,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2024-12-05',
     regimesImpactados: ['Todos'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'A portaria regulamentou a jornada 4x3 (4 dias trabalhados, 3 de folga) como modalidade opcional via acordo coletivo, impactando o cálculo de folha, banco de horas e encargos trabalhistas.',
     acaoPreventiva:
@@ -157,6 +166,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2023-12-21',
     regimesImpactados: ['Todos'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'Base constitucional da Reforma Tributária que criou o IBS, CBS e o Imposto Seletivo, além do Fundo de Desenvolvimento Regional. Todas as empresas serão afetadas na transição 2026-2033.',
     acaoPreventiva:
@@ -172,6 +182,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2024-06-01',
     regimesImpactados: ['Todos'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'A DCTFWeb passa a ser obrigatória para todas as empresas, inclusive Simples Nacional e MEI com empregado, substituindo a GFIP na confissão de débitos previdenciários.',
     acaoPreventiva:
@@ -187,6 +198,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2024-08-30',
     regimesImpactados: ['Simples Nacional', 'MEI'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'Abertura de programa especial de parcelamento de débitos do Simples Nacional e MEI com redução de multas e juros, com prazo limitado de adesão.',
     acaoPreventiva:
@@ -202,6 +214,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2024-12-15',
     regimesImpactados: ['Simples Nacional'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'Atualização das tabelas e faixas de alíquotas do Simples Nacional para o exercício de 2025, com ajustes nas alíquotas efetivas dos Anexos I a V.',
     acaoPreventiva:
@@ -217,6 +230,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2025-01-28',
     regimesImpactados: ['Todos'],
     cnaesImpactados: ['64', '65', '66'],
+    municipiosImpactados: ['Todos'],
     impacto:
       'O STF confirmou que o ISS incide sobre operações de leasing financeiro e operacional, com possibilidade de cobrança retroativa pelos municípios.',
     acaoPreventiva:
@@ -232,6 +246,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2024-10-01',
     regimesImpactados: ['Todos'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'Obrigatoriedade de emissão de NF-e ou NFS-e para prestadores de serviços ainda não obrigados, com prazo escalonado por faturamento.',
     acaoPreventiva:
@@ -247,6 +262,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2024-05-15',
     regimesImpactados: ['Simples Nacional', 'MEI'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'Abertura de modalidade especial de transação tributária da PGFN exclusiva para optantes do Simples Nacional e MEI, com descontos progressivos conforme capacidade de pagamento.',
     acaoPreventiva:
@@ -262,6 +278,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2025-03-10',
     regimesImpactados: ['Lucro Presumido', 'Lucro Real'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'Repetição de precedente consolidando que os juros Selic recebidos em qualquer restituição tributária são tributáveis pelo IRPJ e CSLL, com aplicação retroativa às compensações já realizadas.',
     acaoPreventiva:
@@ -277,6 +294,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2025-06-01',
     regimesImpactados: ['Todos'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'Implementação do mecanismo de cashback do IBS para pessoas de baixa renda em setores como alimentos, energia elétrica e gás, impactando a precificação e a cadeia de consumo dos clientes.',
     acaoPreventiva:
@@ -292,6 +310,7 @@ export const ALERTAS_JURIDICOS: AlertaJuridico[] = [
     data: '2025-05-20',
     regimesImpactados: ['Lucro Real', 'Lucro Presumido'],
     cnaesImpactados: [],
+    municipiosImpactados: ['Todos'],
     impacto:
       'Ampliação do escopo da e-Financeira para incluir novas operações financeiras obrigatórias, com redução dos limites mínimos de declaração e penalidades elevadas por omissão.',
     acaoPreventiva:
@@ -308,7 +327,7 @@ export interface AlertaComClientes extends AlertaJuridico {
 }
 
 export function analisarClientes(
-  clientes: Array<{ id: string; nome: string; regime: string | null; cnae?: string | null }>,
+  clientes: Array<{ id: string; nome: string; regime: string | null; cnae?: string | null; municipio?: string | null }>,
 ): AlertaComClientes[] {
   const resultado: AlertaComClientes[] = []
 
@@ -323,7 +342,14 @@ export function analisarClientes(
         (c.cnae != null &&
           alerta.cnaesImpactados.some((prefixo) => (c.cnae as string).startsWith(prefixo)))
 
-      return regimeOk && cnaeOk
+      const municipioOk =
+        alerta.municipiosImpactados.length === 0 ||
+        alerta.municipiosImpactados.includes('Todos') ||
+        (c.municipio != null && alerta.municipiosImpactados.some(
+          m => m.toLowerCase() === (c.municipio as string).toLowerCase()
+        ))
+
+      return regimeOk && cnaeOk && municipioOk
     })
 
     if (afetados.length > 0) {

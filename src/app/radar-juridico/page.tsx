@@ -23,6 +23,7 @@ interface Cliente {
   nome: string
   regime: string | null
   cnae?: string | null
+  municipio?: string | null
 }
 
 const TIPO_COLOR: Record<TipoNorma, string> = {
@@ -48,7 +49,7 @@ export default function RadarJuridicoPage() {
     setLoading(true)
     try {
       const { data } = await (supabase.from('clientes') as any)
-        .select('id, nome, regime, cnae')
+        .select('id, nome, regime, cnae, municipio')
       const clientes: Cliente[] = (data ?? []) as Cliente[]
       setTotalClientes(clientes.length)
       const resultado = analisarClientes(clientes)

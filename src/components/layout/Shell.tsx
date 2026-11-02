@@ -9,7 +9,7 @@ import type { PermissoesModulos, RoleUsuario } from '@/types/database.types'
 import {
   LayoutDashboard, CheckSquare, Users, FileText, BarChart2,
   Repeat, Truck, Lock, Settings, Bell, ChevronLeft, ChevronRight,
-  Menu, X, Building2, Scale,
+  Menu, X, Building2, Scale, FileSignature,
 } from 'lucide-react'
 
 // ─── Nav items com gate de módulo ─────────────────────────────
@@ -32,8 +32,9 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/rotinas',       label: 'Rotinas',          icon: Repeat,          modulo: 'modulo_fiscal' },
   { href: '/officeboy',     label: 'Office Boy',       icon: Truck,           modulo: 'modulo_pessoal' },
   { href: '/cofre',         label: 'Cofre de Senhas',  icon: Lock,            modulo: null },
-  { href: '/radar-juridico', label: 'Radar Jurídico',  icon: Scale,           modulo: null },
-  { href: '/configuracoes', label: 'Configurações',    icon: Settings,        modulo: null },
+  { href: '/radar-juridico',    label: 'Radar Jurídico',     icon: Scale,          modulo: null },
+  { href: '/admin/contratos',   label: 'Gestão Contratual',  icon: FileSignature,  modulo: 'modulo_gestao_contratos' },
+  { href: '/configuracoes',     label: 'Configurações',       icon: Settings,       modulo: null },
 ]
 
 // Itens da bottom nav mobile (sempre visíveis)
