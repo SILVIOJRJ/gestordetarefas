@@ -8,9 +8,10 @@ import ClientContractTab from '@/components/clients/ClientContractTab'
 import ClientDossieTab from '@/components/clients/ClientDossieTab'
 import { supabase } from '@/lib/supabase'
 import type { Cliente, RegimeTributario } from '@/types/database.types'
+import OrdemServicoModal from '@/components/clientes/OrdemServicoModal'
 import {
   Plus, Search, X, AlertTriangle, Loader2,
-  ChevronUp, ChevronDown, Pencil, Building2, ShieldCheck, ChevronRight, FileSignature, Archive,
+  ChevronUp, ChevronDown, Pencil, Building2, ShieldCheck, ChevronRight, FileSignature, Archive, ClipboardCheck,
 } from 'lucide-react'
 
 type SortKey = 'nome' | 'cnpj' | 'regime' | 'responsavel'
@@ -40,6 +41,7 @@ export default function ClientesPage() {
   // Painel de detalhe do cliente
   const [detalhe, setDetalhe]           = useState<Cliente | null>(null)
   const [detalheAba, setDetalheAba]     = useState<DetalheAba>('dados')
+  const [showOS, setShowOS]             = useState(false)
 
   const carregar = useCallback(async () => {
     setLoading(true); setErro(null)
@@ -250,12 +252,20 @@ export default function ClientesPage() {
                     </div>
                   ))}
                 </div>
-                <button
-                  onClick={() => { setEditando(detalhe); setShowForm(true) }}
-                  className="btn-secondary w-full"
-                >
-                  <Pencil size={14} /> Editar dados cadastrais
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setEditando(detalhe); setShowForm(true) }}
+                    className="btn-secondary flex-1"
+                  >
+                    <Pencil size={14} /> Editar dados
+                  </button>
+                  <button
+                    onClick={() => setShowOS(true)}
+                    className="btn-primary flex-1"
+                  >
+                    <ClipboardCheck size={14} /> Emitir OS
+                  </button>
+                </div>
               </div>
             ) : (
               <ClientGovernanceTab
@@ -271,6 +281,13 @@ export default function ClientesPage() {
           </div>
         )}
       </div>
+      {showOS && detalhe && (
+        <OrdemServicoModal
+          cliente={detalhe}
+          onClose={() => setShowOS(false)}
+          onFinalizado={() => { carregar(); setShowOS(false) }}
+        />
+      )}
     </Shell>
   )
 }
