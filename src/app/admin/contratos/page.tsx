@@ -7,12 +7,20 @@ import { gerarMinutaHtml, imprimirMinuta } from '@/services/reports'
 import type { ModalidadeContrato, IndiceReajuste, DadosSCP, ClausulaContrato } from '@/services/reports'
 import {
   FileSignature, Plus, Loader2, Save, X, Trash2, Printer,
-  ChevronDown, ChevronUp, Shield,
+  ChevronDown, ChevronUp, Shield, Paperclip, Upload, ExternalLink,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────
 
 interface ClienteOpt { id: string; nome: string }
+
+interface AnexoContrato {
+  id: string
+  nome_arquivo: string
+  url_storage: string
+  created_at: string
+  tamanho_bytes?: number | null
+}
 
 interface ContratoAdmin {
   id: string
@@ -108,6 +116,9 @@ export default function AdminContratosPage() {
   const [saving, setSaving]           = useState(false)
   const [erro, setErro]               = useState<string | null>(null)
   const [expandido, setExpandido]     = useState<string | null>(null)
+  const [anexos, setAnexos]           = useState<Record<string, AnexoContrato[]>>({})
+  const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const [erroAnexo, setErroAnexo]     = useState<string | null>(null)
 
   // Verificação de acesso admin
   useEffect(() => {
@@ -233,6 +244,63 @@ export default function AdminContratosPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function carregarAnexos(contratoId: string) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase.from('anexos') as any)
+      .select('id, nome_arquivo, url_storage, created_at, tamanho_bytes')
+      .eq('referencia_tipo', 'contrato')
+      .eq('referencia_id', contratoId)
+      .order('created_at', { ascending: false })
+    setAnexos(prev => ({ ...prev, [contratoId]: (data ?? []) as AnexoContrato[] }))
+  }
+
+  async function uploadAnexo(contratoId: string, file: File) {
+    setUploadingId(contratoId); setErroAnexo(null)
+    try {
+      const ext = file.name.split('.').pop() ?? 'pdf'
+      const path = `contratos/${contratoId}/${Date.now()}_${file.name}`
+      const { error: upErr } = await supabase.storage
+        .from('documentos-empresa')
+        .upload(path, file, { contentType: file.type })
+      if (upErr) throw upErr
+      const { data: urlData } = supabase.storage
+        .from('documentos-empresa')
+        .getPublicUrl(path)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: dbErr } = await (supabase.from('anexos') as any).insert({
+        referencia_tipo: 'contrato',
+        referencia_id:   contratoId,
+        nome_arquivo:    file.name,
+        url_storage:     path,
+        tamanho_bytes:   file.size,
+        mime_type:       file.type,
+      })
+      if (dbErr) throw dbErr
+      void urlData
+      void ext
+      await carregarAnexos(contratoId)
+    } catch (e) {
+      setErroAnexo(e instanceof Error ? e.message : 'Erro no upload.')
+    } finally {
+      setUploadingId(null)
+    }
+  }
+
+  async function getSignedUrl(urlStorage: string): Promise<string> {
+    const { data } = await supabase.storage
+      .from('documentos-empresa')
+      .createSignedUrl(urlStorage, 300)
+    return data?.signedUrl ?? '#'
+  }
+
+  async function excluirAnexo(contratoId: string, anexoId: string, urlStorage: string) {
+    if (!confirm('Excluir este anexo?')) return
+    await supabase.storage.from('documentos-empresa').remove([urlStorage])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from('anexos') as any).delete().eq('id', anexoId)
+    await carregarAnexos(contratoId)
   }
 
   function gerarMinuta() {
@@ -564,7 +632,11 @@ export default function AdminContratosPage() {
                   <div key={c.id} className="border border-brand-100 rounded-xl overflow-hidden">
                     <button
                       className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-brand-50/40 transition"
-                      onClick={() => setExpandido(isOpen ? null : c.id)}
+                      onClick={() => {
+                        const next = isOpen ? null : c.id
+                        setExpandido(next)
+                        if (next && !anexos[next]) carregarAnexos(next)
+                      }}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -606,6 +678,63 @@ export default function AdminContratosPage() {
                         )}
                         <div className="flex gap-2 pt-1">
                           <button onClick={() => abrirEditar(c)} className="btn-secondary text-xs">Editar</button>
+                        </div>
+
+                        {/* Anexos PDF do Contrato */}
+                        <div className="mt-3 pt-3 border-t border-brand-100">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-semibold text-brand-600 flex items-center gap-1.5">
+                              <Paperclip size={13} /> Documentos Anexados
+                            </p>
+                            <label className={`btn-secondary text-xs cursor-pointer ${uploadingId === c.id ? 'opacity-50 pointer-events-none' : ''}`}>
+                              {uploadingId === c.id
+                                ? <><Loader2 size={12} className="animate-spin" /> Enviando...</>
+                                : <><Upload size={12} /> Anexar PDF</>}
+                              <input
+                                type="file"
+                                accept=".pdf,.doc,.docx,.png,.jpg"
+                                className="hidden"
+                                onChange={e => {
+                                  const f = e.target.files?.[0]
+                                  if (f) uploadAnexo(c.id, f)
+                                  e.target.value = ''
+                                }}
+                              />
+                            </label>
+                          </div>
+                          {erroAnexo && <p className="text-xs text-danger-600 mb-2">{erroAnexo}</p>}
+                          {(anexos[c.id] ?? []).length === 0 ? (
+                            <p className="text-xs text-brand-400 italic">Nenhum documento anexado.</p>
+                          ) : (
+                            <ul className="space-y-1">
+                              {(anexos[c.id] ?? []).map(a => (
+                                <li key={a.id} className="flex items-center gap-2 text-xs bg-brand-50 px-3 py-1.5 rounded-lg">
+                                  <Paperclip size={11} className="text-brand-400 flex-shrink-0" />
+                                  <span className="flex-1 truncate text-brand-700">{a.nome_arquivo}</span>
+                                  <span className="text-brand-400 text-[10px] whitespace-nowrap">
+                                    {new Date(a.created_at).toLocaleDateString('pt-BR')}
+                                  </span>
+                                  <button
+                                    onClick={async () => {
+                                      const url = await getSignedUrl(a.url_storage)
+                                      window.open(url, '_blank')
+                                    }}
+                                    className="text-brand-400 hover:text-brand-700"
+                                    title="Abrir"
+                                  >
+                                    <ExternalLink size={13} />
+                                  </button>
+                                  <button
+                                    onClick={() => excluirAnexo(c.id, a.id, a.url_storage)}
+                                    className="text-brand-300 hover:text-danger-500"
+                                    title="Excluir"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
                       </div>
                     )}
