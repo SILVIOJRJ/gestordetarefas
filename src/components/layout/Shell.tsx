@@ -27,7 +27,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard',     label: 'Dashboard',       icon: LayoutDashboard, modulo: null },
   { href: '/tarefas',       label: 'Tarefas',          icon: CheckSquare,     modulo: null },
   { href: '/clientes',      label: 'Clientes',         icon: Users,           modulo: 'modulo_contabil' },
-  { href: '/processos',     label: 'Legalização',      icon: FileText,        modulo: 'modulo_societario' },
+  { href: '/legalizacao',   label: 'Legalização',      icon: FileText,        modulo: 'modulo_societario' },
   { href: '/gerencial',       label: 'Gerencial',        icon: BarChart2,      modulo: 'modulo_financeiro' },
   { href: '/controle-mensal', label: 'Controle Mensal',  icon: CalendarCheck,  modulo: 'modulo_fiscal' },
   { href: '/rotinas',       label: 'Rotinas',          icon: Repeat,          modulo: 'modulo_fiscal' },
