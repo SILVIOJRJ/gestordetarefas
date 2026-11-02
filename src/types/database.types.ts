@@ -464,6 +464,7 @@ export interface Database {
       cofre_credenciais: { Row: CofreCredencial; Insert: Omit<CofreCredencial, 'id' | 'created_at' | 'updated_at'>; Update: Partial<CofreCredencial> };
       ordens_servico: { Row: OrdemServico; Insert: Omit<OrdemServico, 'id' | 'created_at' | 'updated_at'>; Update: Partial<OrdemServico> };
       contratos: { Row: Contrato; Insert: Omit<Contrato, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Contrato> };
+      lancamentos_financeiros: { Row: LancamentoFinanceiro; Insert: Omit<LancamentoFinanceiro, 'id' | 'created_at'>; Update: Partial<LancamentoFinanceiro> };
     };
   };
 }

@@ -35,14 +35,20 @@ export default function ClienteForm({ inicial, onSalvo, onCancelar }: Props) {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const payload = {
-        nome:           form.nome.trim(),
-        cnpj:           form.cnpj || null,
-        regime:         form.regime,
-        email:          form.email || null,
-        telefone:       form.telefone || null,
-        responsavel:    form.responsavel || null,
-        responsavel_id: form.responsavel_id || null,
-        criado_por:     user?.id ?? null,
+        nome:                form.nome.trim(),
+        cnpj:                form.cnpj || null,
+        regime:              form.regime,
+        email:               form.email || null,
+        telefone:            form.telefone || null,
+        responsavel:         form.responsavel || null,
+        responsavel_id:      form.responsavel_id || null,
+        criado_por:          user?.id ?? null,
+        ie:                  (form as { ie?: string }).ie || null,
+        im:                  (form as { im?: string }).im || null,
+        cnae:                (form as { cnae?: string }).cnae || null,
+        limite_nfe:          (form as { limite_nfe?: number }).limite_nfe ?? 50,
+        limite_faturamento:  (form as { limite_faturamento?: number }).limite_faturamento ?? 100000,
+        taxa_recalculo:      (form as { taxa_recalculo?: number }).taxa_recalculo ?? 150,
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const q = inicial?.id
