@@ -11,6 +11,7 @@ import {
   LayoutDashboard, CheckSquare, Users, FileText, BarChart2,
   Repeat, Truck, Lock, Settings, Bell, ChevronLeft, ChevronRight,
   Menu, X, Building2, Scale, FileSignature, CalendarCheck, Paperclip,
+  Landmark, UserCheck,
 } from 'lucide-react'
 
 // ─── Nav items com gate de módulo ─────────────────────────────
@@ -32,6 +33,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/gerencial',       label: 'Gerencial',        icon: BarChart2,      modulo: 'modulo_financeiro' },
   { href: '/controle-mensal', label: 'Controle Mensal',  icon: CalendarCheck,  modulo: 'modulo_fiscal' },
   { href: '/rotinas',       label: 'Rotinas',          icon: Repeat,          modulo: 'modulo_fiscal' },
+  { href: '/parcelamentos', label: 'Parcelamentos',    icon: Landmark,        modulo: 'modulo_fiscal' },
+  { href: '/inss-pf',       label: 'INSS PF',          icon: UserCheck,       modulo: 'modulo_fiscal' },
   { href: '/officeboy',     label: 'Office Boy',       icon: Truck,           modulo: 'modulo_pessoal' },
   { href: '/cofre',         label: 'Cofre de Senhas',  icon: Lock,            modulo: null },
   { href: '/radar-juridico',    label: 'Radar Jurídico',     icon: Scale,          modulo: null },
