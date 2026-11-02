@@ -82,6 +82,56 @@ function vazioValores(clienteId: string, competencia: string): ValoresGerenciais
   }
 }
 
+// ─── Campo moeda com formatação BRL ──────────────────────────
+
+interface CurrencyInputProps {
+  value: number | null
+  onChange: (v: number | null) => void
+  step?: number
+  placeholder?: string
+  className?: string
+}
+
+function CurrencyInput({ value, onChange, step = 0.01, placeholder = '0,00', className = '' }: CurrencyInputProps) {
+  const [editing, setEditing] = useState(false)
+  const [raw, setRaw] = useState('')
+
+  function handleFocus() {
+    setEditing(true)
+    setRaw(value != null ? String(value) : '')
+  }
+
+  function handleBlur() {
+    setEditing(false)
+    const parsed = raw === '' ? null : parseFloat(raw.replace(',', '.'))
+    onChange(isNaN(parsed as number) ? null : parsed)
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setRaw(e.target.value)
+  }
+
+  const displayValue = editing
+    ? raw
+    : value != null
+      ? value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : ''
+
+  return (
+    <input
+      type={editing ? 'number' : 'text'}
+      step={step}
+      min={0}
+      className={`input text-sm ${className}`}
+      placeholder={placeholder}
+      value={displayValue}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      onChange={handleChange}
+    />
+  )
+}
+
 // ─── Componente principal ─────────────────────────────────────
 
 export default function GerencialPage() {
@@ -365,11 +415,9 @@ export default function GerencialPage() {
                   ] as [keyof ValoresGerenciais, string][]).map(([k, label]) => (
                     <div key={k}>
                       <label className="input-label">{label}</label>
-                      <input
-                        type="number" min={0} step={0.01} className="input text-sm"
-                        placeholder="0,00"
-                        value={form[k] as number ?? ''}
-                        onChange={e => setF(k, e.target.value ? Number(e.target.value) : null)}
+                      <CurrencyInput
+                        value={form[k] as number | null}
+                        onChange={v => setF(k, v)}
                       />
                     </div>
                   ))}
@@ -396,12 +444,11 @@ export default function GerencialPage() {
                   ] as [keyof ValoresGerenciais, string][]).map(([k, label]) => (
                     <div key={k}>
                       <label className="input-label">{label}</label>
-                      <input
-                        type="number" min={0} step={k === 'fator_r' ? 0.0001 : 0.01}
-                        className="input text-sm"
-                        placeholder="0,00"
-                        value={form[k] as number ?? ''}
-                        onChange={e => setF(k, e.target.value ? Number(e.target.value) : null)}
+                      <CurrencyInput
+                        value={form[k] as number | null}
+                        onChange={v => setF(k, v)}
+                        step={k === 'fator_r' ? 0.0001 : 0.01}
+                        placeholder={k === 'fator_r' ? '0,0000' : '0,00'}
                       />
                     </div>
                   ))}
