@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { DadosDocumentoExtraidos } from '@/lib/gemini'
 
 const GEMINI_API_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent'
 
 const PROMPT = `
 Você é um sistema especializado em análise de documentos fiscais e contábeis brasileiros.
