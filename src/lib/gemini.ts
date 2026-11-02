@@ -10,10 +10,24 @@ export type TipoDocumento =
   | 'HOLERITE'
   | 'FATURA'
   | 'CONTRATO_SOCIAL'
-  | 'NOTA_FISCAL'
+  | 'NOTA_FISCAL'        // NFS-e (serviços)
+  | 'NFe'                // NF-e (produtos)
   | 'GUIA_FGTS'
   | 'GUIA_INSS'
+  | 'EXTRATO_BANCARIO'   // OFX / PDF de extrato
+  | 'BALANCETE'
   | 'OUTRO'
+
+/** Qual coluna de gerencial_mensal este documento alimenta (null = não aloca) */
+export type CampoGerencial =
+  | 'das'
+  | 'fgts'
+  | 'inss'
+  | 'receita_servicos'
+  | 'receita_vendas'
+  | 'despesas_total'
+  | 'folha_pagamento'
+  | null
 
 export interface DadosDocumentoExtraidos {
   tipo_documento: TipoDocumento
@@ -24,6 +38,7 @@ export interface DadosDocumentoExtraidos {
   valor: number | null
   chave_pix: string | null
   observacoes: string | null
+  campo_gerencial: CampoGerencial   // inferido pela IA ou derivado do tipo
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -31,7 +46,6 @@ function blobToBase64(blob: Blob): Promise<string> {
     const reader = new FileReader()
     reader.onloadend = () => {
       const result = reader.result as string
-      // Remove o prefixo "data:...;base64,"
       resolve(result.split(',')[1] ?? '')
     }
     reader.onerror = reject
@@ -40,7 +54,7 @@ function blobToBase64(blob: Blob): Promise<string> {
 }
 
 /**
- * Envia um PDF ou imagem para o Gemini 2.5 Flash e extrai metadados estruturados.
+ * Envia um PDF, imagem ou OFX para o Gemini 2.5 Flash e extrai metadados estruturados.
  */
 export async function analisarDocumentoComIA(
   arquivo: Buffer | Blob,
@@ -49,7 +63,6 @@ export async function analisarDocumentoComIA(
   const apiKey = process.env['GEMINI_API_KEY']
   if (!apiKey) throw new Error('GEMINI_API_KEY não configurada.')
 
-  // Converte para base64
   let base64Data: string
   if (typeof Buffer !== 'undefined' && Buffer.isBuffer(arquivo)) {
     base64Data = arquivo.toString('base64')
@@ -62,17 +75,42 @@ Você é um sistema especializado em análise de documentos fiscais e contábeis
 Analise o documento fornecido e extraia as informações no formato JSON abaixo.
 Se um campo não existir no documento, use null.
 
+Tipos de documento possíveis:
+- DAS: Documento de Arrecadação do Simples Nacional
+- DARF: Documento de Arrecadação de Receitas Federais
+- HOLERITE: Contracheque/folha de pagamento
+- FATURA: Boleto, fatura de fornecedor ou despesa operacional
+- CONTRATO_SOCIAL: Contrato social, alteração contratual, atos constitutivos
+- NOTA_FISCAL: Nota Fiscal de Serviço (NFS-e) — receita de serviços
+- NFe: Nota Fiscal Eletrônica de Produto (NF-e) — receita de vendas
+- GUIA_FGTS: GFIP, SEFIP, guia de recolhimento de FGTS
+- GUIA_INSS: GPS, guia de recolhimento de INSS/Previdência
+- EXTRATO_BANCARIO: Extrato bancário (PDF ou OFX), conciliação bancária
+- BALANCETE: Balancete, DRE, demonstrativo contábil
+- OUTRO: Qualquer outro documento não enquadrado acima
+
+Para campo_gerencial, use a coluna correspondente em gerencial_mensal:
+- DAS → "das"
+- GUIA_FGTS → "fgts"
+- GUIA_INSS → "inss"
+- NOTA_FISCAL → "receita_servicos"
+- NFe → "receita_vendas"
+- HOLERITE → "folha_pagamento"
+- FATURA → "despesas_total"
+- Demais → null
+
 Retorne APENAS o JSON, sem markdown ou explicações:
 
 {
-  "tipo_documento": "<DAS|DARF|HOLERITE|FATURA|CONTRATO_SOCIAL|NOTA_FISCAL|GUIA_FGTS|GUIA_INSS|OUTRO>",
+  "tipo_documento": "<tipo>",
   "cnpj_cpf": "<apenas dígitos ou null>",
   "razao_social_ou_nome": "<nome da empresa ou pessoa ou null>",
   "competencia": "<MM/YYYY ou null>",
   "data_vencimento": "<YYYY-MM-DD ou null>",
   "valor": <número decimal ou null>,
   "chave_pix": "<chave pix se houver ou null>",
-  "observacoes": "<informação relevante extra ou null>"
+  "observacoes": "<informação relevante extra ou null>",
+  "campo_gerencial": "<coluna ou null>"
 }
 `
 
@@ -103,7 +141,27 @@ Retorne APENAS o JSON, sem markdown ou explicações:
   }
 
   const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
-  return JSON.parse(text) as DadosDocumentoExtraidos
+  const dados = JSON.parse(text) as DadosDocumentoExtraidos
+
+  // Garante campo_gerencial mesmo se a IA omitir
+  if (dados.campo_gerencial === undefined) {
+    dados.campo_gerencial = derivarCampoGerencial(dados.tipo_documento)
+  }
+
+  return dados
+}
+
+function derivarCampoGerencial(tipo: TipoDocumento): CampoGerencial {
+  const mapa: Partial<Record<TipoDocumento, CampoGerencial>> = {
+    DAS:              'das',
+    GUIA_FGTS:        'fgts',
+    GUIA_INSS:        'inss',
+    NOTA_FISCAL:      'receita_servicos',
+    NFe:              'receita_vendas',
+    HOLERITE:         'folha_pagamento',
+    FATURA:           'despesas_total',
+  }
+  return mapa[tipo] ?? null
 }
 
 /**
