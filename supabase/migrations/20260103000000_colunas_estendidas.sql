@@ -119,6 +119,39 @@ CREATE INDEX IF NOT EXISTS idx_lanc_tipo       ON lancamentos_financeiros(tipo);
 CREATE INDEX IF NOT EXISTS idx_lanc_cliente_id ON lancamentos_financeiros(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_lanc_mes_ano    ON lancamentos_financeiros(mes, ano);
 
+-- ─── controle_mensal_obrigacoes — nova tabela ─────────────────
+
+CREATE TABLE IF NOT EXISTS controle_mensal_obrigacoes (
+  id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  cliente_id      UUID        NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+  competencia     TEXT        NOT NULL,          -- YYYY-MM
+  setor           TEXT        NOT NULL,
+  obrigacao       TEXT        NOT NULL,
+  status          TEXT        NOT NULL DEFAULT 'Pendente'
+                              CHECK (status IN ('Pendente','Em andamento','Concluído')),
+  valor           NUMERIC(15,2),
+  observacao      TEXT,
+  atualizado_por  TEXT,
+  updated_at      TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (cliente_id, competencia, setor, obrigacao)
+);
+
+ALTER TABLE controle_mensal_obrigacoes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "controle_admin_all"   ON controle_mensal_obrigacoes;
+DROP POLICY IF EXISTS "controle_auth_read"   ON controle_mensal_obrigacoes;
+
+CREATE POLICY "controle_admin_all" ON controle_mensal_obrigacoes
+  USING (
+    EXISTS (SELECT 1 FROM perfis_usuarios WHERE id = auth.uid() AND role = 'admin')
+  );
+
+CREATE POLICY "controle_auth_read" ON controle_mensal_obrigacoes
+  FOR SELECT TO authenticated USING (true);
+
+CREATE INDEX IF NOT EXISTS idx_controle_comp_setor
+  ON controle_mensal_obrigacoes(competencia, setor);
+
 -- ─── 9. perfis_usuarios — permissoes_modulos + ultimo_acesso ─
 
 ALTER TABLE perfis_usuarios

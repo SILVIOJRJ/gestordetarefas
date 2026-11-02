@@ -9,7 +9,7 @@ import type { PermissoesModulos, RoleUsuario } from '@/types/database.types'
 import {
   LayoutDashboard, CheckSquare, Users, FileText, BarChart2,
   Repeat, Truck, Lock, Settings, Bell, ChevronLeft, ChevronRight,
-  Menu, X, Building2, Scale, FileSignature,
+  Menu, X, Building2, Scale, FileSignature, CalendarCheck,
 } from 'lucide-react'
 
 // ─── Nav items com gate de módulo ─────────────────────────────
@@ -28,7 +28,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/tarefas',       label: 'Tarefas',          icon: CheckSquare,     modulo: null },
   { href: '/clientes',      label: 'Clientes',         icon: Users,           modulo: 'modulo_contabil' },
   { href: '/processos',     label: 'Legalização',      icon: FileText,        modulo: 'modulo_societario' },
-  { href: '/gerencial',     label: 'Gerencial',        icon: BarChart2,       modulo: 'modulo_financeiro' },
+  { href: '/gerencial',       label: 'Gerencial',        icon: BarChart2,      modulo: 'modulo_financeiro' },
+  { href: '/controle-mensal', label: 'Controle Mensal',  icon: CalendarCheck,  modulo: 'modulo_fiscal' },
   { href: '/rotinas',       label: 'Rotinas',          icon: Repeat,          modulo: 'modulo_fiscal' },
   { href: '/officeboy',     label: 'Office Boy',       icon: Truck,           modulo: 'modulo_pessoal' },
   { href: '/cofre',         label: 'Cofre de Senhas',  icon: Lock,            modulo: null },
