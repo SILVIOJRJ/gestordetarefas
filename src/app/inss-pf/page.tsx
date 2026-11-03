@@ -122,7 +122,14 @@ export default function InssPFPage() {
       if (filtroComp)   q = q.eq('competencia', filtroComp)
       const { data, error } = await q
       if (error) throw error
-      setRows((data ?? []) as InssPF[])
+      // normaliza valor e salario para number (podem vir como string do Supabase)
+      const normalizado = ((data ?? []) as InssPF[]).map(r => ({
+        ...r,
+        valor:  r.valor  != null ? Number(r.valor)  : null,
+        salario: r.salario != null ? Number(r.salario) : null,
+        enviado: r.enviado ?? false,
+      }))
+      setRows(normalizado)
     } catch (e) { setErro(e instanceof Error ? e.message : 'Erro ao carregar.') }
     finally { setLoading(false) }
   }, [sortKey, sortDir, filtroStatus, filtroComp])
