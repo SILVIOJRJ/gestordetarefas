@@ -92,7 +92,7 @@ export default function InssPFPage() {
   const [erro, setErro]         = useState<string | null>(null)
   const [busca, setBusca]       = useState('')
   const [filtroStatus, setFiltroStatus] = useState<StatusInss | ''>('')
-  const [filtroComp, setFiltroComp]     = useState(mesAtualStr())
+  const [filtroComp, setFiltroComp]     = useState('')
   const [sortKey, setSortKey]   = useState<SortKey>('nome')
   const [sortDir, setSortDir]   = useState<SortDir>('asc')
   const [form, setForm]         = useState<typeof VAZIO | null>(null)
@@ -102,13 +102,13 @@ export default function InssPFPage() {
 
   // Na primeira carga, encontra a competência mais recente com dados
   useEffect(() => {
-    (supabase.from('inss_pf') as any)
+    ;(supabase.from('inss_pf') as any)
       .select('competencia')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
       .then(({ data }: { data: { competencia: string } | null }) => {
-        if (data?.competencia) setFiltroComp(data.competencia)
+        setFiltroComp(data?.competencia ?? mesAtualStr())
       })
   }, [])
 
@@ -241,10 +241,13 @@ export default function InssPFPage() {
       if (!atuais || atuais.length === 0) throw new Error('Nenhum registro na competência atual.')
 
       const novos = (atuais as InssPF[]).map(r => ({
-        nome: r.nome, nit: r.nit, codigo: r.codigo, aliquota: r.aliquota,
-        categoria: r.categoria, salario: r.salario, valor: r.valor,
+        nome: r.nome, nit: r.nit, codigo: r.codigo,
+        aliquota: r.aliquota != null ? Number(r.aliquota) : null,
+        categoria: r.categoria,
+        salario: r.salario != null ? Number(r.salario) : null,
+        valor: r.valor != null ? Number(r.valor) : null,
         competencia: proxComp, vencimento: null, envio: null,
-        status: 'Pendente', obs: null, enviado: false,
+        status: 'Pendente', obs: null,
       }))
       const { error: errIns } = await (supabase.from('inss_pf') as any).insert(novos)
       if (errIns) throw errIns
