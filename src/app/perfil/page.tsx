@@ -51,11 +51,16 @@ export default function PerfilPage() {
       const path = `avatars/${userId}.${ext}`
       const { error: upErr } = await supabase.storage.from('documentos').upload(path, file, { upsert: true })
       if (upErr) { setErro('Erro no upload: ' + upErr.message); return }
-      const { data: signed } = await supabase.storage.from('documentos').createSignedUrl(path, 60 * 60 * 24 * 365)
+      const { data: signed, error: signErr } = await supabase.storage.from('documentos').createSignedUrl(path, 60 * 60 * 24 * 365)
+      if (signErr) { setErro('Upload ok, erro ao gerar URL: ' + signErr.message); return }
       const url = signed?.signedUrl ?? null
       if (url) {
-        await (supabase.from('perfis_usuarios') as any).update({ avatar_url: url }).eq('id', userId)
+        const { error: updErr } = await (supabase.from('perfis_usuarios') as any)
+          .update({ avatar_url: url }).eq('id', userId)
+        if (updErr) { setErro('Foto enviada mas não salva: ' + updErr.message); return }
         setAvatarUrl(url)
+      } else {
+        setErro('Não foi possível gerar URL da imagem.')
       }
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : 'Erro desconhecido no upload')
