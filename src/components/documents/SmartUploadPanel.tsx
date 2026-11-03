@@ -105,7 +105,7 @@ export default function SmartUploadPanel({ open, onClose }: Props) {
       const criadoPor = user?.email ?? user?.id ?? 'desconhecido'
 
       // Upload + análise IA (competência opcional — usuário decide depois)
-      const r = await uploadDocumentoComIA(arquivo, clienteId || '__sem_cliente__', criadoPor, competencia)
+      const r = await uploadDocumentoComIA(arquivo, clienteId || null, criadoPor, competencia)
 
       // Tenta encontrar cliente pela razão social ou CNPJ extraído pela IA
       let clienteSugerido: ClienteMatch | null = null
@@ -203,7 +203,7 @@ export default function SmartUploadPanel({ open, onClose }: Props) {
       }
 
       // Atualiza cliente vinculado se foi selecionado/confirmado
-      if (clienteId && clienteId !== '__sem_cliente__') {
+      if (clienteId) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (supabase.from('anexos') as any)
           .update({ referencia_tipo: 'cliente', referencia_id: clienteId })

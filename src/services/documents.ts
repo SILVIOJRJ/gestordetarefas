@@ -187,13 +187,14 @@ async function atualizarObrigacaoConcluida(
  */
 export async function uploadDocumentoComIA(
   arquivo: File,
-  clienteId: string,
+  clienteId: string | null,
   criadoPor: string,
   competencia?: string, // 'YYYY-MM' — quando fornecida, ativa a alocação automática
 ): Promise<DocumentoUploadResult> {
   // 1. Caminho único no Storage
   const ts  = Date.now()
-  const caminho = `${clienteId}/${ts}-${arquivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+  const pasta = clienteId ?? 'sem-cliente'
+  const caminho = `${pasta}/${ts}-${arquivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
 
   // 2. Upload para bucket privado
   const { error: uploadErr } = await supabase.storage
@@ -221,7 +222,7 @@ export async function uploadDocumentoComIA(
   let alocacaoDetalhes: string[] = []
   let alocado = false
 
-  if (competencia) {
+  if (competencia && clienteId) {
     const [gerencial, obrigacao] = await Promise.all([
       alocarValoresGerenciais(dados, clienteId, competencia),
       atualizarObrigacaoConcluida(dados, clienteId, competencia),
@@ -234,8 +235,8 @@ export async function uploadDocumentoComIA(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: anexo, error: dbErr } = await (supabase.from('anexos') as any)
     .insert({
-      referencia_tipo:  'cliente',
-      referencia_id:    clienteId,
+      referencia_tipo:  clienteId ? 'cliente' : null,
+      referencia_id:    clienteId ?? null,
       nome_original:    arquivo.name,
       nome_arquivo:     caminho,
       url:              caminho,
