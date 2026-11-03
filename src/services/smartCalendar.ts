@@ -144,10 +144,10 @@ export function obrigacoesFiscais(ano: number, mes: number): EventoCalendario[] 
   add(makeDate(ano, mes, 15), 'DCTFWeb — Declaração de Débitos e Créditos Tributários', 'Fiscal')
 
   // FGTS — dia 7
-  add(makeDate(ano, mes, 7), 'FGTS — Recolhimento mensal', 'RH')
+  add(makeDate(ano, mes, 7), 'FGTS — Recolhimento mensal', 'Pessoal')
 
   // GFIP/eSocial competência mês anterior — dia 7
-  add(makeDate(ano, mes, 7), 'GFIP / eSocial DCTFWeb — Competência mês anterior', 'RH')
+  add(makeDate(ano, mes, 7), 'GFIP / eSocial DCTFWeb — Competência mês anterior', 'Pessoal')
 
   // SPED Fiscal (EFD ICMS/IPI) — dia 25
   add(makeDate(ano, mes, 25), 'EFD ICMS/IPI — SPED Fiscal', 'Fiscal')

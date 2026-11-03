@@ -17,8 +17,8 @@ const OBRIGACOES_MENSAIS: ObrigacaoFiscal[] = [
   { titulo: 'DAS — Simples Nacional', setor: 'Fiscal', dia_vencimento: 20, regimes: ['Simples Nacional', 'MEI'], descricao: 'Guia mensal do Simples Nacional' },
   { titulo: 'DARF IRPJ/CSLL Estimativa', setor: 'Fiscal', dia_vencimento: 30, regimes: ['Lucro Real'], descricao: 'Estimativa mensal Lucro Real' },
   { titulo: 'DARF PIS/COFINS', setor: 'Fiscal', dia_vencimento: 25, regimes: ['Lucro Presumido', 'Lucro Real'], descricao: 'PIS e COFINS mensais' },
-  { titulo: 'GPS — Contribuição Previdenciária', setor: 'RH', dia_vencimento: 20, regimes: ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI'], descricao: 'INSS empresa e empregados' },
-  { titulo: 'FGTS Mensal', setor: 'RH', dia_vencimento: 7, regimes: ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI'], descricao: 'Recolhimento FGTS' },
+  { titulo: 'GPS — Contribuição Previdenciária', setor: 'Pessoal', dia_vencimento: 20, regimes: ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI'], descricao: 'INSS empresa e empregados' },
+  { titulo: 'FGTS Mensal', setor: 'Pessoal', dia_vencimento: 7, regimes: ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI'], descricao: 'Recolhimento FGTS' },
   { titulo: 'DARF IRRF', setor: 'Fiscal', dia_vencimento: 20, regimes: ['Lucro Presumido', 'Lucro Real'], descricao: 'IR Retido na Fonte' },
   { titulo: 'DARF ISS', setor: 'Fiscal', dia_vencimento: 10, regimes: ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI'], descricao: 'Imposto Sobre Serviços municipal' },
 ]
@@ -30,7 +30,7 @@ const OBRIGACOES_TRIMESTRAIS: ObrigacaoFiscal[] = [
 
 const OBRIGACOES_ANUAIS: ObrigacaoFiscal[] = [
   { titulo: 'DIRF — Declaração IR Retido Fonte', setor: 'Fiscal', dia_vencimento: 28, regimes: ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI'] },
-  { titulo: 'RAIS / eSocial Anual', setor: 'RH', dia_vencimento: 31, regimes: ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI'] },
+  { titulo: 'RAIS / eSocial Anual', setor: 'Pessoal', dia_vencimento: 31, regimes: ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI'] },
   { titulo: 'DASN — Declaração Anual Simples', setor: 'Fiscal', dia_vencimento: 31, regimes: ['Simples Nacional', 'MEI'] },
   { titulo: 'ECF — Escrituração Contábil Fiscal', setor: 'Fiscal', dia_vencimento: 31, regimes: ['Lucro Presumido', 'Lucro Real'] },
   { titulo: 'ECD — Escrituração Contábil Digital', setor: 'Fiscal', dia_vencimento: 31, regimes: ['Lucro Real'] },
@@ -257,7 +257,7 @@ export async function statsRotinasMes(mes: number, ano: number): Promise<StatsMe
     .select('status')
     .gte('prazo', `${mesStr}-01`)
     .lte('prazo', `${mesStr}-31`)
-    .in('setor', ['Fiscal', 'RH', 'Administrativo'])
+    .in('setor', ['Fiscal', 'Pessoal', 'Administrativo'])
   const rows = (data ?? []) as Array<{ status: string }>
   const total = rows.length
   const concluidas = rows.filter(r => r.status === 'Concluída').length

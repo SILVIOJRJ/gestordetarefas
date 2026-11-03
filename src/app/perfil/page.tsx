@@ -5,7 +5,7 @@ import Shell from '@/components/layout/Shell'
 import { supabase } from '@/lib/supabase'
 import { Camera, Save, Loader2, User } from 'lucide-react'
 
-const SETORES = ['Legalização', 'Fiscal', 'RH', 'Office Boy', 'Gerencial', 'Administrativo']
+const SETORES = ['Legalização', 'Fiscal', 'Pessoal', 'Office Boy', 'Gerencial', 'Administrativo']
 
 export default function PerfilPage() {
   const [loading, setLoading]   = useState(true)

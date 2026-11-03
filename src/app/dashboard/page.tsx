@@ -78,7 +78,7 @@ const QUICK_LINKS: QuickLink[] = [
   { href: '/cofre',     label: 'Cofre de Senhas', desc: 'Credenciais criptografadas E2EE', icon: Lock },
 ]
 
-const SETORES_PROD: Setor[] = ['Legalização', 'Fiscal', 'RH', 'Office Boy', 'Gerencial', 'Administrativo']
+const SETORES_PROD: Setor[] = ['Legalização', 'Fiscal', 'Pessoal', 'Office Boy', 'Gerencial', 'Administrativo']
 
 // ─── Ranking de Colaboradores ────────────────────────────────
 

@@ -75,7 +75,7 @@ export type ReferenciaTipoAnexo =
 export type Setor =
   | 'Legalização'
   | 'Fiscal'
-  | 'RH'
+  | 'Pessoal'
   | 'Office Boy'
   | 'Gerencial'
   | 'Administrativo'

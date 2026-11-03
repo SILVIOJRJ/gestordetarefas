@@ -17,7 +17,7 @@ import {
   CheckSquare, Square, Users, Tag, ChevronDown, Calendar,
 } from 'lucide-react'
 
-const SETORES: Setor[] = ['Legalização', 'Fiscal', 'RH', 'Office Boy', 'Gerencial', 'Administrativo']
+const SETORES: Setor[] = ['Legalização', 'Fiscal', 'Pessoal', 'Office Boy', 'Gerencial', 'Administrativo']
 const STATUS_LIST: StatusTarefa[] = ['Pendente', 'Em andamento', 'Aguardando', 'Concluída', 'Cancelada']
 const PRIORIDADES: Prioridade[] = ['Baixa', 'Média', 'Alta', 'Urgente']
 

@@ -26,19 +26,19 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/dashboard',      label: 'Dashboard',      icon: LayoutDashboard, modulo: null },
-  { href: '/tarefas',        label: 'Tarefas',        icon: CheckSquare,     modulo: null },
-  { href: '/clientes',       label: 'Clientes',       icon: Users,           modulo: null },
-  { href: '/controle-mensal',label: 'Controle Mensal',icon: CalendarCheck,   modulo: null },
-  { href: '/rotinas',        label: 'Rotinas',        icon: Repeat,          modulo: null },
-  { href: '/officeboy',      label: 'Office Boy',     icon: Truck,           modulo: null },
-  { href: '/cofre',          label: 'Cofre de Senhas',icon: Lock,            modulo: null },
-  { href: '/legalizacao',    label: 'Legalização',    icon: FileText,        modulo: 'modulo_societario' },
-  { href: '/gerencial',      label: 'Gerencial',      icon: BarChart2,       modulo: 'modulo_financeiro' },
-  { href: '/parcelamentos',  label: 'Parcelamentos',  icon: Landmark,        modulo: 'modulo_fiscal' },
-  { href: '/inss-pf',        label: 'INSS PF',        icon: UserCheck,       modulo: 'modulo_fiscal' },
-  { href: '/radar-juridico',              label: 'Radar Jurídico',      icon: Scale,        modulo: null },
-  { href: '/certificado-digital', label: 'Cert. Digital', icon: BadgeCheck, modulo: null },
+  { href: '/dashboard',           label: 'Dashboard',       icon: LayoutDashboard, modulo: null },
+  { href: '/tarefas',             label: 'Tarefas',         icon: CheckSquare,     modulo: null },
+  { href: '/clientes',            label: 'Clientes',        icon: Users,           modulo: 'modulo_contabil' },
+  { href: '/controle-mensal',     label: 'Controle Mensal', icon: CalendarCheck,   modulo: 'modulo_contabil' },
+  { href: '/rotinas',             label: 'Rotinas',         icon: Repeat,          modulo: null },
+  { href: '/officeboy',           label: 'Office Boy',      icon: Truck,           modulo: null },
+  { href: '/cofre',               label: 'Cofre de Senhas', icon: Lock,            modulo: null },
+  { href: '/legalizacao',         label: 'Legalização',     icon: FileText,        modulo: 'modulo_societario' },
+  { href: '/gerencial',           label: 'Gerencial',       icon: BarChart2,       modulo: 'modulo_financeiro' },
+  { href: '/parcelamentos',       label: 'Parcelamentos',   icon: Landmark,        modulo: 'modulo_fiscal' },
+  { href: '/inss-pf',             label: 'INSS PF',         icon: UserCheck,       modulo: 'modulo_fiscal' },
+  { href: '/radar-juridico',      label: 'Radar Jurídico',  icon: Scale,           modulo: null },
+  { href: '/certificado-digital', label: 'Cert. Digital',   icon: BadgeCheck,      modulo: 'modulo_societario' },
 ]
 
 // Itens da bottom nav mobile (sempre visíveis)

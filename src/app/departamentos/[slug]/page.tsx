@@ -23,7 +23,7 @@ interface DeptConfig {
 }
 
 const DEPT: Record<DeptSlug, DeptConfig> = {
-  pessoal:               { label: 'Depto. Pessoal',       icon: Users,     setores: ['RH'],                           cor: 'text-blue-600',    desc: 'Admissões, demissões, férias e folha de pagamento' },
+  pessoal:               { label: 'Depto. Pessoal',       icon: Users,     setores: ['Pessoal', 'RH'] as Setor[],     cor: 'text-blue-600',    desc: 'Admissões, demissões, férias e folha de pagamento' },
   fiscal:                { label: 'Depto. Fiscal',        icon: BarChart2, setores: ['Fiscal'],                      cor: 'text-amber-600',   desc: 'Apuração de impostos, DAS, DARF e obrigações acessórias' },
   contabil:              { label: 'Depto. Contábil',      icon: FileText,  setores: ['Gerencial', 'Administrativo'], cor: 'text-emerald-600', desc: 'Balancetes, balanços, ECF e escrituração contábil' },
   societario:            { label: 'Depto. Societário',    icon: Scale,     setores: ['Legalização'],                 cor: 'text-purple-600',  desc: 'Abertura, alterações, alvarás e encerramento de empresas' },

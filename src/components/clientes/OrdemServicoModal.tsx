@@ -20,13 +20,13 @@ const TAREFAS_POR_TIPO: Record<TipoAtendimento, TarefaTemplate[]> = {
   'Abertura de Empresa (CNPJ)': [
     { setor: 'Legalização',  titulo: 'Abertura de CNPJ',                        diasPrazo: 30 },
     { setor: 'Fiscal',       titulo: 'Configuração Tributária e Regimes Fiscais', diasPrazo: 15 },
-    { setor: 'RH',           titulo: 'Cadastro Departamento Pessoal e eSocial',   diasPrazo: 15 },
+    { setor: 'Pessoal',           titulo: 'Cadastro Departamento Pessoal e eSocial',   diasPrazo: 15 },
     { setor: 'Gerencial',    titulo: 'Onboarding Contábil — Abertura de Livros',  diasPrazo: 20 },
   ],
   'Transferência': [
     { setor: 'Legalização',  titulo: 'Transferência de Responsabilidade Técnica', diasPrazo: 20 },
     { setor: 'Fiscal',       titulo: 'Migração Fiscal e Recadastramento',          diasPrazo: 10 },
-    { setor: 'RH',           titulo: 'Migração Departamento Pessoal',              diasPrazo: 10 },
+    { setor: 'Pessoal',           titulo: 'Migração Departamento Pessoal',              diasPrazo: 10 },
     { setor: 'Gerencial',    titulo: 'Reconstrução de Histórico Contábil',         diasPrazo: 30 },
   ],
   'CAEPF': [
@@ -34,7 +34,7 @@ const TAREFAS_POR_TIPO: Record<TipoAtendimento, TarefaTemplate[]> = {
     { setor: 'Fiscal',       titulo: 'Configuração Fiscal CAEPF',                  diasPrazo: 10 },
   ],
   'eSocial Doméstica (CEI)': [
-    { setor: 'RH',           titulo: 'Cadastro e Configuração eSocial Doméstico',  diasPrazo: 10 },
+    { setor: 'Pessoal',           titulo: 'Cadastro e Configuração eSocial Doméstico',  diasPrazo: 10 },
   ],
 }
 
@@ -397,7 +397,7 @@ export default function OrdemServicoModal({ cliente, onClose, onFinalizado }: Pr
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${
                       t.setor === 'Legalização' ? 'bg-purple-100 text-purple-700'
                       : t.setor === 'Fiscal'    ? 'bg-blue-100 text-blue-700'
-                      : t.setor === 'RH'        ? 'bg-green-100 text-green-700'
+                      : t.setor === 'Pessoal'        ? 'bg-green-100 text-green-700'
                       : 'bg-brand-100 text-brand-600'
                     }`}>{t.setor}</span>
                     <span className="flex-1">{t.titulo} — {cliente.nome}</span>

@@ -22,7 +22,7 @@ interface Props {
   onCancelar: () => void
 }
 
-const SETORES: Setor[] = ['Legalização', 'Fiscal', 'RH', 'Office Boy', 'Gerencial', 'Administrativo', 'Certificado Digital']
+const SETORES: Setor[] = ['Legalização', 'Fiscal', 'Pessoal', 'Office Boy', 'Gerencial', 'Administrativo', 'Certificado Digital']
 const PRIORIDADES: Prioridade[] = ['Baixa', 'Média', 'Alta', 'Urgente']
 const STATUS_LIST: StatusTarefa[] = ['Pendente', 'Em andamento', 'Aguardando', 'Concluída', 'Cancelada']
 

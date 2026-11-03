@@ -19,7 +19,7 @@ const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Ag
 
 const SETOR_COR: Record<string, string> = {
   'Fiscal': 'bg-blue-100 text-blue-800',
-  'RH': 'bg-purple-100 text-purple-800',
+  'Pessoal': 'bg-purple-100 text-purple-800',
   'Contábil': 'bg-emerald-100 text-emerald-800',
   'Administrativo': 'bg-yellow-100 text-yellow-800',
   'Legalização': 'bg-orange-100 text-orange-800',

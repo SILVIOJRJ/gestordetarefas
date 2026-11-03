@@ -31,7 +31,7 @@ const ROLE_CONFIG: Record<RoleUsuario, { label: string; cor: string; desc: strin
   colaborador_cliente: { label: 'Colaborador', cor: 'bg-gray-100 text-gray-700',  desc: 'Apenas holerites, informes e férias do próprio CPF' },
 }
 
-const SETORES = ['Legalização', 'Fiscal', 'RH', 'Office Boy', 'Gerencial', 'Administrativo']
+const SETORES = ['Legalização', 'Fiscal', 'Pessoal', 'Office Boy', 'Gerencial', 'Administrativo']
 
 type Aba = 'usuarios' | 'equipe' | 'contratos_internos' | 'auditoria' | 'configuracoes'
 
