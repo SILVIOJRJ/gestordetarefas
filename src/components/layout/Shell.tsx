@@ -38,7 +38,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/parcelamentos',  label: 'Parcelamentos',  icon: Landmark,        modulo: 'modulo_fiscal' },
   { href: '/inss-pf',        label: 'INSS PF',        icon: UserCheck,       modulo: 'modulo_fiscal' },
   { href: '/radar-juridico',              label: 'Radar Jurídico',      icon: Scale,        modulo: null },
-  { href: '/departamentos/certificado-digital', label: 'Cert. Digital', icon: BadgeCheck,   modulo: null },
+  { href: '/certificado-digital', label: 'Cert. Digital', icon: BadgeCheck, modulo: null },
 ]
 
 // Itens da bottom nav mobile (sempre visíveis)
