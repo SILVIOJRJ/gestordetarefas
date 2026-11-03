@@ -109,14 +109,24 @@ export default function SmartUploadPanel({ open, onClose }: Props) {
 
       // Tenta encontrar cliente pela razão social ou CNPJ extraído pela IA
       let clienteSugerido: ClienteMatch | null = null
-      const cnpj = r.dados.cnpj_cpf?.replace(/\D/g, '')
-      const nome  = (r.dados.razao_social_ou_nome ?? '').toLowerCase()
+      const cnpjDigits = r.dados.cnpj_cpf?.replace(/\D/g, '') ?? ''
+      // Formata CNPJ para bater com o banco que armazena com pontuação
+      const cnpjFmt = cnpjDigits.length === 14
+        ? `${cnpjDigits.slice(0,2)}.${cnpjDigits.slice(2,5)}.${cnpjDigits.slice(5,8)}/${cnpjDigits.slice(8,12)}-${cnpjDigits.slice(12)}`
+        : cnpjDigits
+      const nome = (r.dados.razao_social_ou_nome ?? '').toLowerCase()
 
-      if (cnpj || nome) {
+      if (cnpjDigits || nome) {
+        // Monta filtro OR: tenta CNPJ formatado, dígitos puros e nome
+        const filtros: string[] = []
+        if (cnpjFmt)    filtros.push(`cnpj_cpf.ilike.%${cnpjFmt}%`)
+        if (cnpjDigits) filtros.push(`cnpj_cpf.ilike.%${cnpjDigits}%`)
+        if (nome)       filtros.push(`nome.ilike.%${nome}%`)
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: found } = await (supabase.from('clientes') as any)
           .select('id, nome, telefone')
-          .or(cnpj ? `cnpj_cpf.ilike.%${cnpj}%` : `nome.ilike.%${nome}%`)
+          .or(filtros.join(','))
           .limit(1)
           .single()
         if (found) clienteSugerido = found as ClienteMatch
