@@ -44,28 +44,40 @@ export default function PerfilPage() {
 
   async function handleAvatar(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (!file || !userId) return
+    if (!file) return
+    setErro(null)
+
+    // Garante userId carregado antes de prosseguir
+    let uid = userId
+    if (!uid) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setErro('Usuário não autenticado.'); return }
+      uid = user.id
+      setUserId(uid)
+    }
+
     setUploading(true)
     try {
-      const ext = file.name.split('.').pop()
-      const path = `avatars/${userId}.${ext}`
+      const ext = file.name.split('.').pop() ?? 'jpg'
+      const path = `avatars/${uid}.${ext}`
       const { error: upErr } = await supabase.storage.from('documentos').upload(path, file, { upsert: true })
       if (upErr) { setErro('Erro no upload: ' + upErr.message); return }
+
       const { data: signed, error: signErr } = await supabase.storage.from('documentos').createSignedUrl(path, 60 * 60 * 24 * 365)
-      if (signErr) { setErro('Upload ok, erro ao gerar URL: ' + signErr.message); return }
-      const url = signed?.signedUrl ?? null
-      if (url) {
-        const { error: updErr } = await (supabase.from('perfis_usuarios') as any)
-          .update({ avatar_url: url }).eq('id', userId)
-        if (updErr) { setErro('Foto enviada mas não salva: ' + updErr.message); return }
-        setAvatarUrl(url)
-      } else {
-        setErro('Não foi possível gerar URL da imagem.')
-      }
+      if (signErr || !signed?.signedUrl) { setErro('Upload ok, erro ao gerar URL: ' + signErr?.message); return }
+
+      const url = signed.signedUrl
+      const { error: updErr } = await (supabase.from('perfis_usuarios') as any)
+        .update({ avatar_url: url }).eq('id', uid)
+      if (updErr) { setErro('Foto enviada mas não salva: ' + updErr.message); return }
+
+      // Adiciona timestamp para forçar reload da imagem no browser
+      setAvatarUrl(url + '&_t=' + Date.now())
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : 'Erro desconhecido no upload')
     } finally {
       setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
     }
   }
 
@@ -136,6 +148,9 @@ export default function PerfilPage() {
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatar} />
           </div>
           <p className="text-xs text-brand-400">Clique no ícone para alterar a foto</p>
+          {erro && erro.includes('Foto') && (
+            <p className="text-xs text-rose-600 text-center">{erro}</p>
+          )}
         </div>
 
         {/* Campos */}
