@@ -5,11 +5,13 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BroadcastNoticeModal from '@/components/admin/BroadcastNoticeModal'
+import SmartUploadPanel from '@/components/documents/SmartUploadPanel'
 import type { PermissoesModulos, RoleUsuario } from '@/types/database.types'
 import {
   LayoutDashboard, CheckSquare, Users, FileText, BarChart2,
   Repeat, Truck, Lock, Settings, Bell, ChevronLeft, ChevronRight,
-  Menu, X, Building2,
+  Menu, X, Building2, Scale, FileSignature, CalendarCheck, Paperclip,
+  Landmark, UserCheck,
 } from 'lucide-react'
 
 // ─── Nav items com gate de módulo ─────────────────────────────
@@ -27,12 +29,17 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard',     label: 'Dashboard',       icon: LayoutDashboard, modulo: null },
   { href: '/tarefas',       label: 'Tarefas',          icon: CheckSquare,     modulo: null },
   { href: '/clientes',      label: 'Clientes',         icon: Users,           modulo: 'modulo_contabil' },
-  { href: '/processos',     label: 'Legalização',      icon: FileText,        modulo: 'modulo_societario' },
-  { href: '/gerencial',     label: 'Gerencial',        icon: BarChart2,       modulo: 'modulo_financeiro' },
+  { href: '/legalizacao',   label: 'Legalização',      icon: FileText,        modulo: 'modulo_societario' },
+  { href: '/gerencial',       label: 'Gerencial',        icon: BarChart2,      modulo: 'modulo_financeiro' },
+  { href: '/controle-mensal', label: 'Controle Mensal',  icon: CalendarCheck,  modulo: 'modulo_fiscal' },
   { href: '/rotinas',       label: 'Rotinas',          icon: Repeat,          modulo: 'modulo_fiscal' },
+  { href: '/parcelamentos', label: 'Parcelamentos',    icon: Landmark,        modulo: 'modulo_fiscal' },
+  { href: '/inss-pf',       label: 'INSS PF',          icon: UserCheck,       modulo: 'modulo_fiscal' },
   { href: '/officeboy',     label: 'Office Boy',       icon: Truck,           modulo: 'modulo_pessoal' },
   { href: '/cofre',         label: 'Cofre de Senhas',  icon: Lock,            modulo: null },
-  { href: '/configuracoes', label: 'Configurações',    icon: Settings,        modulo: null },
+  { href: '/radar-juridico',    label: 'Radar Jurídico',     icon: Scale,          modulo: null },
+  { href: '/admin/contratos',   label: 'Gestão Contratual',  icon: FileSignature,  modulo: 'modulo_gestao_contratos' },
+  { href: '/configuracoes',     label: 'Configurações',       icon: Settings,       modulo: null },
 ]
 
 // Itens da bottom nav mobile (sempre visíveis)
@@ -64,6 +71,7 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
   const pathname = usePathname()
   const [collapsed, setCollapsed]     = useState(false)
   const [mobileOpen, setMobileOpen]   = useState(false)
+  const [uploadOpen, setUploadOpen]   = useState(false)
   const [role, setRole]               = useState<RoleUsuario | null>(null)
   const [permissoes, setPermissoes]   = useState<PermissoesModulos | null>(null)
   const [ultimoAcesso, setUltimoAcesso] = useState<string | null>(null)
@@ -241,6 +249,15 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
             </p>
           )}
 
+          {/* Upload Inteligente */}
+          <button
+            onClick={() => setUploadOpen(true)}
+            title="Upload Inteligente"
+            className="relative p-2 rounded-lg text-brand-500 hover:bg-brand-100 hover:text-brand-900 transition-colors"
+          >
+            <Paperclip size={20} />
+          </button>
+
           {/* Notificações */}
           <button className="relative p-2 rounded-lg text-brand-500 hover:bg-brand-100 hover:text-brand-900 transition-colors">
             <Bell size={20} />
@@ -261,6 +278,9 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
 
       {/* ── Modal de recados obrigatórios ───────────────────── */}
       <BroadcastNoticeModal />
+
+      {/* ── Upload Inteligente (painel global) ──────────────── */}
+      <SmartUploadPanel open={uploadOpen} onClose={() => setUploadOpen(false)} />
 
       {/* ── Bottom Navigation (mobile) ───────────────────────── */}
       <nav className="fixed bottom-0 inset-x-0 z-20 flex lg:hidden bg-white border-t border-brand-200 h-16">

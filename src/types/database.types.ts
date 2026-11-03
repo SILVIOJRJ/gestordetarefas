@@ -68,7 +68,9 @@ export type ReferenciaTipoAnexo =
   | 'processo'
   | 'obrigacao'
   | 'cliente'
-  | 'rotina';
+  | 'rotina'
+  | 'ordem_servico'
+  | 'contrato';
 
 export type Setor =
   | 'Legalização'
@@ -87,12 +89,22 @@ export type RoleUsuario = 'admin' | 'gestor_cliente' | 'colaborador_cliente';
 export interface Cliente {
   id: string; // uuid
   nome: string;
-  cnpj: string | null;
+  cnpj_cpf: string | null;
   regime: RegimeTributario | null;
   email: string | null;
   telefone: string | null;
   responsavel: string | null;
   responsavel_id: string | null; // uuid → funcionarios.id
+  ie: string | null;
+  im: string | null;
+  cnae: string | null;
+  limite_nfe: number | null;
+  limite_faturamento: number | null;
+  taxa_recalculo: number | null;
+  vinculo_atendimento: 'Exclusivo Denazaré' | 'Exclusivo Silvio' | 'Carteira Conjunta' | null;
+  contatos_chave: Array<{ nome: string; cargo: string; whatsapp: string; email_guias: string }> | null;
+  manual_costumes: string | null;
+  municipio: string | null;
   criado_por: string | null;
   created_at: string; // timestamptz
   updated_at: string;
@@ -116,6 +128,7 @@ export interface Tarefa {
   setor: Setor | null;
   responsavel: string | null;
   responsaveis_conjuntos: string[];
+  setores_visibilidade: string[] | null;
   prioridade: Prioridade;
   prazo: string | null; // date ISO
   status: StatusTarefa;
@@ -210,6 +223,7 @@ export interface Rotina {
   status: StatusRotina;
   obs: string | null;
   criado_por: string | null;
+  ultima_validacao: string | null;
   setores_visibilidade: string[] | null;
   created_at: string;
   updated_at: string;
@@ -312,6 +326,21 @@ export interface AcessoLog {
   acessado_em: string;
 }
 
+export interface LancamentoFinanceiro {
+  id: string;
+  cliente_id: string | null;
+  descricao: string;
+  valor: number;
+  tipo: 'entrada' | 'saida';
+  categoria: string;
+  cliente: string | null;
+  forma: string | null;
+  data: string;
+  competencia: string | null;
+  criado_por: string | null;
+  created_at: string;
+}
+
 export interface CofreCredencial {
   id: string;
   cliente_id: string;
@@ -355,21 +384,23 @@ export interface Contrato {
 // ─── Permissões modulares ─────────────────────────────────────
 
 export interface PermissoesModulos {
-  modulo_pessoal:    boolean;
-  modulo_fiscal:     boolean;
-  modulo_contabil:   boolean;
-  modulo_societario: boolean;
-  modulo_financeiro: boolean;
-  acoes_financeiras: boolean; // criar/editar faturas, ver extratos
+  modulo_pessoal:          boolean;
+  modulo_fiscal:           boolean;
+  modulo_contabil:         boolean;
+  modulo_societario:       boolean;
+  modulo_financeiro:       boolean;
+  acoes_financeiras:       boolean;
+  modulo_gestao_contratos: boolean;
 }
 
 export const PERMISSOES_DEFAULT: PermissoesModulos = {
-  modulo_pessoal:    true,
-  modulo_fiscal:     true,
-  modulo_contabil:   true,
-  modulo_societario: true,
-  modulo_financeiro: false,
-  acoes_financeiras: false,
+  modulo_pessoal:          true,
+  modulo_fiscal:           true,
+  modulo_contabil:         true,
+  modulo_societario:       true,
+  modulo_financeiro:       false,
+  acoes_financeiras:       false,
+  modulo_gestao_contratos: false,
 }
 
 // ─── Multi-tenant / Auth ──────────────────────────────────────
@@ -438,6 +469,7 @@ export interface Database {
       cofre_credenciais: { Row: CofreCredencial; Insert: Omit<CofreCredencial, 'id' | 'created_at' | 'updated_at'>; Update: Partial<CofreCredencial> };
       ordens_servico: { Row: OrdemServico; Insert: Omit<OrdemServico, 'id' | 'created_at' | 'updated_at'>; Update: Partial<OrdemServico> };
       contratos: { Row: Contrato; Insert: Omit<Contrato, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Contrato> };
+      lancamentos_financeiros: { Row: LancamentoFinanceiro; Insert: Omit<LancamentoFinanceiro, 'id' | 'created_at'>; Update: Partial<LancamentoFinanceiro> };
     };
   };
 }

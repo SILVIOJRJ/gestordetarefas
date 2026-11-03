@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import {
   CheckSquare, AlertTriangle, Clock, CheckCircle2, Users, FileText,
   Repeat, Lock, TrendingUp, ArrowRightLeft, BarChart2, Activity,
+  MessageSquare, Plus, X, Send, Loader2, Star, Award,
 } from 'lucide-react'
 import type { Setor, TaskEvento } from '@/types/database.types'
 import SmartCalendarWidget from '@/components/dashboard/SmartCalendarWidget'
@@ -41,6 +42,31 @@ interface FeedEvento extends TaskEvento {
   tarefa_titulo?: string
 }
 
+interface Recado {
+  id: string
+  titulo: string
+  corpo: string
+  criado_em: string
+  expira_em: string | null
+}
+
+interface DevolutivaSetor {
+  setor: string
+  total: number
+  noPrazo: number
+  atrasadas: number
+  pct: number
+}
+
+interface Devolutiva {
+  totalConcluidas: number
+  noPrazo: number
+  atrasadas: number
+  pct: number
+  porSetor: DevolutivaSetor[]
+  periodo: string // 'DD/MM a DD/MM'
+}
+
 // ─── Constantes ───────────────────────────────────────────────
 
 const QUICK_LINKS: QuickLink[] = [
@@ -66,15 +92,81 @@ export default function DashboardPage() {
   const mesAtual = new Date().getMonth() + 1
   const anoAtual = new Date().getFullYear()
 
+  // Recados e devolutiva (todos os usuários)
+  const [recados, setRecados]             = useState<Recado[]>([])
+  const [devolutiva, setDevolutiva]       = useState<Devolutiva | null>(null)
+  const [showNovoRecado, setShowNovoRecado] = useState(false)
+  const [novoRecado, setNovoRecado]       = useState({ titulo: '', corpo: '' })
+  const [salvandoRecado, setSalvandoRecado] = useState(false)
+  const [userId, setUserId]               = useState('')
+
   useEffect(() => {
+    async function carregarRecados() {
+      const hoje = new Date().toISOString()
+      const { data } = await (supabase.from('recados') as any)
+        .select('id, titulo, corpo, criado_em, expira_em')
+        .or(`expira_em.is.null,expira_em.gt.${hoje}`)
+        .order('criado_em', { ascending: false })
+        .limit(10)
+      setRecados((data ?? []) as Recado[])
+    }
+
+    async function carregarDevolutiva() {
+      const hoje = new Date()
+      const seteDiasAtras = new Date(hoje)
+      seteDiasAtras.setDate(hoje.getDate() - 7)
+      const inicio = seteDiasAtras.toISOString().split('T')[0]
+      const fim    = hoje.toISOString().split('T')[0]
+
+      const { data: concluidas } = await (supabase.from('tarefas') as any)
+        .select('id, prazo, setor, updated_at')
+        .eq('status', 'Concluída')
+        .gte('updated_at', inicio + 'T00:00:00')
+        .lte('updated_at', fim + 'T23:59:59')
+
+      const lista = (concluidas ?? []) as Array<{
+        id: string; prazo: string | null; setor: string | null; updated_at: string
+      }>
+
+      const noPrazo   = lista.filter(t => !t.prazo || t.updated_at.split('T')[0] <= t.prazo).length
+      const atrasadas = lista.length - noPrazo
+
+      const porSetor = SETORES_PROD.map(setor => {
+        const deste = lista.filter(t => t.setor === setor)
+        const setorNoPrazo = deste.filter(t => !t.prazo || t.updated_at.split('T')[0] <= t.prazo).length
+        return {
+          setor,
+          total:    deste.length,
+          noPrazo:  setorNoPrazo,
+          atrasadas: deste.length - setorNoPrazo,
+          pct:      deste.length > 0 ? Math.round((setorNoPrazo / deste.length) * 100) : 100,
+        }
+      }).filter(s => s.total > 0)
+
+      const fmtData = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+      setDevolutiva({
+        totalConcluidas: lista.length,
+        noPrazo,
+        atrasadas,
+        pct: lista.length > 0 ? Math.round((noPrazo / lista.length) * 100) : 100,
+        porSetor,
+        periodo: `${fmtData(seteDiasAtras)} a ${fmtData(hoje)}`,
+      })
+    }
+
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
+      setUserId(user.id)
 
       const { data: p } = await (supabase.from('perfis_usuarios') as any)
         .select('role')
         .eq('id', user.id)
         .single()
+
+      // Carrega recados e devolutiva para todos
+      carregarRecados()
+      carregarDevolutiva()
 
       if (p?.role !== 'admin') return
       setIsAdmin(true)
@@ -179,6 +271,36 @@ export default function DashboardPage() {
     { label: 'Concluídas Hoje',   value: '—', icon: CheckCircle2,  color: 'text-accent-700',   bg: 'bg-accent-100' },
     { label: 'Atenção / Urgentes',value: '—', icon: AlertTriangle, color: 'text-danger-600',   bg: 'bg-danger-100' },
   ]
+
+  async function salvarRecado() {
+    if (!novoRecado.titulo.trim() || !novoRecado.corpo.trim()) return
+    setSalvandoRecado(true)
+    try {
+      const { error } = await (supabase.from('recados') as any).insert({
+        titulo: novoRecado.titulo.trim(),
+        corpo:  novoRecado.corpo.trim(),
+        criado_por: userId || null,
+        destinatario_id: null, // broadcast global
+      })
+      if (error) throw error
+      setNovoRecado({ titulo: '', corpo: '' })
+      setShowNovoRecado(false)
+      // Recarrega
+      const { data } = await (supabase.from('recados') as any)
+        .select('id, titulo, corpo, criado_em, expira_em')
+        .order('criado_em', { ascending: false }).limit(10)
+      setRecados((data ?? []) as Recado[])
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSalvandoRecado(false)
+    }
+  }
+
+  async function removerRecado(id: string) {
+    await (supabase.from('recados') as any).delete().eq('id', id)
+    setRecados(prev => prev.filter(r => r.id !== id))
+  }
 
   function tipoLabel(tipo: string) {
     if (tipo === 'situacao')   return { label: 'Atualização',   cls: 'bg-blue-100 text-blue-700' }
@@ -319,6 +441,173 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+
+        {/* ─── Devolutiva Semanal + Quadro de Recados ─── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+          {/* Devolutiva Semanal de Desempenho */}
+          <div className="card space-y-3">
+            <div className="flex items-center gap-2">
+              <Award size={16} className="text-purple-600" />
+              <h2 className="text-sm font-semibold text-brand-700">Devolutiva Semanal de Desempenho</h2>
+              {devolutiva && (
+                <span className="ml-auto text-[10px] text-brand-400">{devolutiva.periodo}</span>
+              )}
+            </div>
+
+            {!devolutiva ? (
+              <div className="py-6 text-center text-brand-300 text-xs">Carregando…</div>
+            ) : devolutiva.totalConcluidas === 0 ? (
+              <div className="py-4 text-center space-y-1">
+                <p className="text-3xl">😴</p>
+                <p className="text-sm text-brand-600 font-medium">Nenhuma tarefa concluída esta semana.</p>
+                <p className="text-xs text-brand-400">Foco total — vamos fechar essas pendências!</p>
+              </div>
+            ) : (
+              <>
+                {/* KPI principal */}
+                <div className="flex items-center gap-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-purple-700">{devolutiva.pct}%</p>
+                    <p className="text-[10px] text-purple-500 font-medium uppercase tracking-wide">No Prazo</p>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex justify-between text-xs text-brand-600">
+                      <span>✅ {devolutiva.noPrazo} no prazo</span>
+                      <span>⚠️ {devolutiva.atrasadas} atrasadas</span>
+                    </div>
+                    <div className="h-2 bg-brand-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${devolutiva.pct >= 80 ? 'bg-emerald-500' : devolutiva.pct >= 60 ? 'bg-warning-500' : 'bg-danger-500'}`}
+                        style={{ width: `${devolutiva.pct}%` }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-brand-400">
+                      {devolutiva.totalConcluidas} tarefas concluídas na semana
+                    </p>
+                  </div>
+                </div>
+
+                {/* Mensagem motivacional */}
+                <div className={`text-xs px-3 py-2 rounded-lg border ${
+                  devolutiva.pct >= 85
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                    : devolutiva.pct >= 65
+                    ? 'bg-blue-50 border-blue-200 text-blue-700'
+                    : 'bg-warning-50 border-warning-200 text-warning-700'
+                }`}>
+                  <Star size={11} className="inline mr-1" />
+                  {devolutiva.pct >= 85
+                    ? 'Excelente semana! Alta taxa de cumprimento de prazos. Continue assim!'
+                    : devolutiva.pct >= 65
+                    ? 'Boa semana! Há espaço para melhorar o cumprimento de prazos.'
+                    : 'Atenção: muitas tarefas atrasadas esta semana. Revise a distribuição de carga.'}
+                </div>
+
+                {/* Por setor */}
+                {devolutiva.porSetor.length > 0 && isAdmin && (
+                  <div className="space-y-1.5">
+                    {devolutiva.porSetor.map(s => (
+                      <div key={s.setor}>
+                        <div className="flex justify-between text-xs mb-0.5">
+                          <span className="text-brand-700">{s.setor}</span>
+                          <span className="text-brand-400">{s.noPrazo}/{s.total} · {s.pct}%</span>
+                        </div>
+                        <div className="h-1.5 bg-brand-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${s.pct >= 80 ? 'bg-emerald-500' : s.pct >= 60 ? 'bg-warning-500' : 'bg-danger-500'}`}
+                            style={{ width: `${s.pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Quadro de Recados */}
+          <div className="card space-y-3">
+            <div className="flex items-center gap-2">
+              <MessageSquare size={16} className="text-brand-500" />
+              <h2 className="text-sm font-semibold text-brand-700">Quadro de Recados</h2>
+              {isAdmin && (
+                <button
+                  onClick={() => setShowNovoRecado(v => !v)}
+                  className="ml-auto flex items-center gap-1 text-xs text-accent-700 hover:text-accent-900 font-medium"
+                >
+                  <Plus size={12} /> Novo
+                </button>
+              )}
+            </div>
+
+            {/* Form novo recado (admin) */}
+            {showNovoRecado && isAdmin && (
+              <div className="space-y-2 bg-brand-50 rounded-xl p-3">
+                <input
+                  className="input text-sm"
+                  placeholder="Título do recado"
+                  value={novoRecado.titulo}
+                  onChange={e => setNovoRecado(r => ({ ...r, titulo: e.target.value }))}
+                />
+                <textarea
+                  className="input text-sm resize-none"
+                  rows={2}
+                  placeholder="Mensagem para a equipe..."
+                  value={novoRecado.corpo}
+                  onChange={e => setNovoRecado(r => ({ ...r, corpo: e.target.value }))}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={salvarRecado}
+                    disabled={salvandoRecado}
+                    className="btn-primary text-xs py-1.5 flex items-center gap-1"
+                  >
+                    {salvandoRecado ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                    Publicar
+                  </button>
+                  <button
+                    onClick={() => setShowNovoRecado(false)}
+                    className="btn-secondary text-xs py-1.5"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {recados.length === 0 ? (
+              <div className="py-6 text-center text-brand-300 text-xs">
+                <MessageSquare size={24} className="mx-auto mb-2 opacity-30" />
+                Nenhum recado no momento.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {recados.map(r => (
+                  <div key={r.id} className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold text-amber-800 leading-snug">{r.titulo}</p>
+                      {isAdmin && (
+                        <button
+                          onClick={() => removerRecado(r.id)}
+                          className="flex-shrink-0 text-amber-400 hover:text-red-500 mt-0.5"
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-xs text-amber-700 mt-1 leading-relaxed">{r.corpo}</p>
+                    <p className="text-[10px] text-amber-500 mt-1.5">
+                      {new Date(r.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      {r.expira_em && ` · expira ${new Date(r.expira_em).toLocaleDateString('pt-BR')}`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Atalhos rápidos */}
         <section>

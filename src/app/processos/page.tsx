@@ -15,8 +15,14 @@ import {
   FileText, Plus, X, Search, ChevronRight, ChevronDown,
   AlertCircle, Clock, CheckCircle2, XCircle, Loader2,
   Building2, Shield, Flame, Leaf, LayoutGrid, List,
-  ArrowRight, Users, Trash2, ClipboardList,
+  ArrowRight, Users, Trash2, ClipboardList, Paperclip, ExternalLink,
 } from 'lucide-react'
+import {
+  uploadERegistrar, listarAnexos, deletarAnexo, obterSignedUrl,
+  BUCKET_PRINCIPAL, fmtTamanho, iconeArquivo,
+  type AnexoInfo,
+} from '@/services/storage'
+import FileUploadModal from '@/components/common/FileUploadModal'
 
 // ─── Constantes ───────────────────────────────────────────────
 
@@ -118,6 +124,68 @@ export default function ProcessosPage() {
   // Estado inline de exigências para edição
   const [novaExig, setNovaExig] = useState({ descricao: '', data_limite: '', responsavel: '' })
   const [salvandoExig, setSalvandoExig] = useState(false)
+
+  // Anexos do processo em detalhe
+  const [anexosProcesso, setAnexosProcesso] = useState<AnexoInfo[]>([])
+  const [loadingAnexos, setLoadingAnexos]   = useState(false)
+  const [showUpload, setShowUpload]         = useState(false)
+  const [uploadErro, setUploadErro]         = useState<string | null>(null)
+  const [userId, setUserId]                 = useState('')
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.id) setUserId(data.user.id)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (abaDetalhe !== 'docs' || !detalhe) return
+    setLoadingAnexos(true)
+    listarAnexos('processo', detalhe.id)
+      .then(setAnexosProcesso)
+      .catch(() => setAnexosProcesso([]))
+      .finally(() => setLoadingAnexos(false))
+  }, [abaDetalhe, detalhe])
+
+  async function handleUploadProcesso(files: File[]) {
+    if (!detalhe) return
+    setUploadErro(null)
+    try {
+      const novos: AnexoInfo[] = []
+      for (const file of files) {
+        const info = await uploadERegistrar({
+          file,
+          bucket: BUCKET_PRINCIPAL,
+          pasta: `processos/${detalhe.id}`,
+          referencia_tipo: 'processo',
+          referencia_id: detalhe.id,
+          criado_por: userId,
+        })
+        novos.push(info)
+      }
+      setAnexosProcesso(prev => [...novos, ...prev])
+      setShowUpload(false)
+    } catch (e) {
+      setUploadErro(e instanceof Error ? e.message : 'Erro no upload')
+    }
+  }
+
+  async function abrirAnexoProcesso(anexo: AnexoInfo) {
+    try {
+      const url = await obterSignedUrl(BUCKET_PRINCIPAL, anexo.url)
+      window.open(url, '_blank')
+    } catch { alert('Falha ao gerar link.') }
+  }
+
+  async function removerAnexoProcesso(anexo: AnexoInfo) {
+    if (!confirm(`Remover "${anexo.nome_original}"?`)) return
+    try {
+      await deletarAnexo(anexo.id, anexo.url)
+      setAnexosProcesso(prev => prev.filter(a => a.id !== anexo.id))
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Erro ao remover')
+    }
+  }
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -536,33 +604,69 @@ export default function ProcessosPage() {
             {/* ── ABA DOCUMENTOS ── */}
             {abaDetalhe === 'docs' && (
               <div className="space-y-3">
-                <p className="text-xs text-brand-500">
-                  Documentos societários vinculados a este processo.
-                  Acesse o módulo de <a href="/processos" className="text-accent-600 underline">Anexos</a> para fazer upload.
-                </p>
-                {/* Checklist de docs esperados */}
-                {[
-                  'Contrato Social assinado',
-                  'Certidão Simplificada da Junta',
-                  'Cartão CNPJ',
-                  'Alvará de Funcionamento (definitivo ou provisório)',
-                  'Inscrição Estadual / IE',
-                  'Alvará Vigilância Sanitária',
-                  'Auto de Vistoria do Corpo de Bombeiros (AVCB)',
-                ].map(doc => (
-                  <div key={doc} className="flex items-center gap-3 p-3 bg-brand-50 rounded-xl border border-brand-100">
-                    <div className="w-5 h-5 rounded border-2 border-brand-200 flex items-center justify-center shrink-0" />
-                    <span className="text-sm text-brand-600">{doc}</span>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-brand-500 uppercase tracking-wide">
+                    Documentos Societários
+                  </p>
+                  <button
+                    onClick={() => setShowUpload(true)}
+                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-accent-600 text-white rounded-lg hover:bg-accent-700"
+                  >
+                    <Paperclip size={12} /> Anexar
+                  </button>
+                </div>
+
+                {uploadErro && (
+                  <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{uploadErro}</p>
+                )}
+
+                {loadingAnexos ? (
+                  <div className="flex justify-center py-6">
+                    <Loader2 size={20} className="animate-spin text-brand-300" />
                   </div>
-                ))}
-                <p className="text-xs text-brand-300 text-center pt-2">
-                  Integração com upload de anexos em desenvolvimento.
-                </p>
+                ) : anexosProcesso.length === 0 ? (
+                  <div className="text-center py-8 text-brand-400">
+                    <Paperclip size={32} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Nenhum arquivo anexado.</p>
+                    <p className="text-xs mt-1">Clique em &quot;Anexar&quot; para adicionar documentos societários.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {anexosProcesso.map(a => (
+                      <div key={a.id} className="flex items-center gap-3 px-3 py-2.5 bg-brand-50 rounded-xl border border-brand-100">
+                        <span className="text-xl flex-shrink-0">{iconeArquivo(a.tipo_mime)}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-brand-800 truncate">{a.nome_original}</p>
+                          <p className="text-xs text-brand-400">
+                            {fmtTamanho(a.tamanho)} · {new Date(a.created_at).toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => abrirAnexoProcesso(a)}
+                            title="Abrir"
+                            className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
+                          >
+                            <ExternalLink size={14} />
+                          </button>
+                          <button
+                            onClick={() => removerAnexoProcesso(a)}
+                            title="Remover"
+                            className="p-1.5 rounded hover:bg-red-100 text-red-500"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
+
     )
   }
 
@@ -803,6 +907,19 @@ export default function ProcessosPage() {
 
       {/* Modal de detalhe */}
       <Detalhe />
+
+      {showUpload && detalhe && (
+        <FileUploadModal
+          titulo="Anexar ao Processo"
+          bucket={BUCKET_PRINCIPAL}
+          pasta={`processos/${detalhe.id}`}
+          referencia_tipo="processo"
+          referencia_id={detalhe.id}
+          criado_por={userId}
+          onUpload={(files) => handleUploadProcesso(files)}
+          onClose={() => setShowUpload(false)}
+        />
+      )}
     </Shell>
   )
 }

@@ -4,16 +4,19 @@ import { useState, useEffect, useCallback } from 'react'
 import Shell from '@/components/layout/Shell'
 import ClienteForm from '@/components/forms/ClienteForm'
 import ClientGovernanceTab from '@/components/clients/ClientGovernanceTab'
+import ClientContractTab from '@/components/clients/ClientContractTab'
+import ClientDossieTab from '@/components/clients/ClientDossieTab'
 import { supabase } from '@/lib/supabase'
 import type { Cliente, RegimeTributario } from '@/types/database.types'
+import OrdemServicoModal from '@/components/clientes/OrdemServicoModal'
 import {
   Plus, Search, X, AlertTriangle, Loader2,
-  ChevronUp, ChevronDown, Pencil, Building2, ShieldCheck, ChevronRight,
+  ChevronUp, ChevronDown, Pencil, Building2, ShieldCheck, ChevronRight, FileSignature, Archive, ClipboardCheck,
 } from 'lucide-react'
 
-type SortKey = 'nome' | 'cnpj' | 'regime' | 'responsavel'
+type SortKey = 'nome' | 'cnpj_cpf' | 'regime' | 'responsavel'
 type SortDir = 'asc' | 'desc'
-type DetalheAba = 'dados' | 'governanca'
+type DetalheAba = 'dados' | 'governanca' | 'contrato' | 'dossie'
 
 const REGIMES: RegimeTributario[] = ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI']
 
@@ -38,6 +41,7 @@ export default function ClientesPage() {
   // Painel de detalhe do cliente
   const [detalhe, setDetalhe]           = useState<Cliente | null>(null)
   const [detalheAba, setDetalheAba]     = useState<DetalheAba>('dados')
+  const [showOS, setShowOS]             = useState(false)
 
   const carregar = useCallback(async () => {
     setLoading(true); setErro(null)
@@ -148,7 +152,7 @@ export default function ClientesPage() {
                 <thead className="bg-brand-50 text-xs text-brand-500 uppercase">
                   <tr>
                     <ThSort k="nome" label="Razão Social" />
-                    <ThSort k="cnpj" label="CNPJ/CPF" />
+                    <ThSort k="cnpj_cpf" label="CNPJ/CPF" />
                     <ThSort k="regime" label="Regime" />
                     <th className="text-left px-4 py-3 hidden md:table-cell">E-mail</th>
                     <th className="text-left px-4 py-3 hidden lg:table-cell">Telefone</th>
@@ -164,7 +168,7 @@ export default function ClientesPage() {
                       onClick={() => abrirDetalhe(c)}
                     >
                       <td className="px-4 py-2.5 font-medium text-brand-900 whitespace-nowrap">{c.nome}</td>
-                      <td className="px-4 py-2.5 text-brand-500 font-mono text-xs whitespace-nowrap">{c.cnpj ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-brand-500 font-mono text-xs whitespace-nowrap">{c.cnpj_cpf ?? '—'}</td>
                       <td className="px-4 py-2.5">
                         {c.regime ? (
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${REGIME_COLOR[c.regime]}`}>{c.regime}</span>
@@ -199,7 +203,7 @@ export default function ClientesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-base font-bold text-brand-800 truncate max-w-xs">{detalhe.nome}</h2>
-                <p className="text-xs text-brand-400">{detalhe.cnpj ?? ''} {detalhe.regime ? `· ${detalhe.regime}` : ''}</p>
+                <p className="text-xs text-brand-400">{detalhe.cnpj_cpf ?? ''} {detalhe.regime ? `· ${detalhe.regime}` : ''}</p>
               </div>
               <button onClick={() => setDetalhe(null)} className="p-1.5 hover:bg-brand-100 rounded-lg text-brand-400">
                 <X size={16} />
@@ -211,6 +215,8 @@ export default function ClientesPage() {
               {([
                 { id: 'dados',      label: 'Dados',      icon: Building2 },
                 { id: 'governanca', label: 'Governança', icon: ShieldCheck },
+                { id: 'contrato',   label: 'Contrato',   icon: FileSignature },
+                { id: 'dossie',     label: 'Dossiê',     icon: Archive },
               ] as { id: DetalheAba; label: string; icon: React.ComponentType<{ size: number; className?: string }> }[]).map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
@@ -225,12 +231,16 @@ export default function ClientesPage() {
             </div>
 
             {/* Conteúdo da aba */}
-            {detalheAba === 'dados' ? (
+            {detalheAba === 'dossie' ? (
+              <ClientDossieTab cliente={detalhe} />
+            ) : detalheAba === 'contrato' ? (
+              <ClientContractTab cliente={detalhe} />
+            ) : detalheAba === 'dados' ? (
               <div className="card space-y-4">
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   {[
                     { label: 'Razão Social', value: detalhe.nome },
-                    { label: 'CNPJ/CPF', value: detalhe.cnpj ?? '—' },
+                    { label: 'CNPJ/CPF', value: detalhe.cnpj_cpf ?? '—' },
                     { label: 'Regime', value: detalhe.regime ?? '—' },
                     { label: 'Responsável', value: detalhe.responsavel ?? '—' },
                     { label: 'E-mail', value: detalhe.email ?? '—' },
@@ -242,12 +252,20 @@ export default function ClientesPage() {
                     </div>
                   ))}
                 </div>
-                <button
-                  onClick={() => { setEditando(detalhe); setShowForm(true) }}
-                  className="btn-secondary w-full"
-                >
-                  <Pencil size={14} /> Editar dados cadastrais
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setEditando(detalhe); setShowForm(true) }}
+                    className="btn-secondary flex-1"
+                  >
+                    <Pencil size={14} /> Editar dados
+                  </button>
+                  <button
+                    onClick={() => setShowOS(true)}
+                    className="btn-primary flex-1"
+                  >
+                    <ClipboardCheck size={14} /> Emitir OS
+                  </button>
+                </div>
               </div>
             ) : (
               <ClientGovernanceTab
@@ -263,6 +281,13 @@ export default function ClientesPage() {
           </div>
         )}
       </div>
+      {showOS && detalhe && (
+        <OrdemServicoModal
+          cliente={detalhe}
+          onClose={() => setShowOS(false)}
+          onFinalizado={() => { carregar(); setShowOS(false) }}
+        />
+      )}
     </Shell>
   )
 }
