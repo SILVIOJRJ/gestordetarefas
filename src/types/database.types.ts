@@ -78,7 +78,8 @@ export type Setor =
   | 'RH'
   | 'Office Boy'
   | 'Gerencial'
-  | 'Administrativo';
+  | 'Administrativo'
+  | 'Certificado Digital';
 
 export type RegimeTributario = 'Simples Nacional' | 'Lucro Presumido' | 'Lucro Real' | 'MEI';
 

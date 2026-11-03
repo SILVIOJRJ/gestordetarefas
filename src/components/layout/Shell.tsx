@@ -90,11 +90,12 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
   const [notifs, setNotifs]             = useState<{ id: string; mensagem: string; created_at: string; lido: boolean }[]>([])
 
   const DEPARTAMENTOS = [
-    { slug: 'pessoal',    label: 'Pessoal' },
-    { slug: 'fiscal',     label: 'Fiscal' },
-    { slug: 'contabil',   label: 'Contábil' },
-    { slug: 'societario', label: 'Societário' },
-    { slug: 'financeiro', label: 'Financeiro' },
+    { slug: 'pessoal',               label: 'Pessoal' },
+    { slug: 'fiscal',                label: 'Fiscal' },
+    { slug: 'contabil',              label: 'Contábil' },
+    { slug: 'societario',            label: 'Societário' },
+    { slug: 'financeiro',            label: 'Financeiro' },
+    { slug: 'certificado-digital',   label: 'Certificado Digital' },
   ]
 
   useEffect(() => {
