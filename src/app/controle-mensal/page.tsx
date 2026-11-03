@@ -294,6 +294,26 @@ export default function ControleMensalPage() {
                             >
                               {cell?.observacao ? cell.observacao.slice(0, 15) + '…' : '—'}
                             </button>
+                          ) : col === 'VENCIMENTO CERTIFICADO DIGITAL' ? (
+                            <button
+                              onClick={() => abrirModal(c, col)}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border cursor-pointer hover:opacity-80 transition-opacity ${
+                                cell?.observacao
+                                  ? (() => {
+                                      const d = new Date(cell.observacao + 'T00:00:00')
+                                      const diff = (d.getTime() - Date.now()) / 86400000
+                                      return diff < 0 ? 'bg-rose-100 text-rose-700 border-rose-200' :
+                                             diff < 30 ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                                             'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                    })()
+                                  : STATUS_STYLE[status]
+                              }`}
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-current inline-block" />
+                              {cell?.observacao?.match(/^\d{4}-\d{2}-\d{2}$/)
+                                ? new Date(cell.observacao + 'T00:00:00').toLocaleDateString('pt-BR')
+                                : (cell?.observacao ?? status)}
+                            </button>
                           ) : (
                             <button
                               onClick={() => abrirModal(c, col)}
@@ -354,7 +374,20 @@ export default function ControleMensalPage() {
                 </select>
               </div>
 
-              {modal.coluna !== 'OBS' && (
+              {modal.coluna === 'VENCIMENTO CERTIFICADO DIGITAL' ? (
+                <div>
+                  <label className="input-label">DATA DE VENCIMENTO</label>
+                  <input
+                    type="date"
+                    className="input text-sm"
+                    value={formModal.observacao?.match(/^\d{4}-\d{2}-\d{2}$/) ? formModal.observacao : ''}
+                    onChange={e => setF('observacao', e.target.value || null)}
+                  />
+                  {formModal.observacao && !formModal.observacao.match(/^\d{4}-\d{2}-\d{2}$/) && (
+                    <p className="text-xs text-brand-400 mt-1">Atual: {formModal.observacao}</p>
+                  )}
+                </div>
+              ) : modal.coluna !== 'OBS' && (
                 <div>
                   <label className="input-label">VALOR (R$) — opcional</label>
                   <input
