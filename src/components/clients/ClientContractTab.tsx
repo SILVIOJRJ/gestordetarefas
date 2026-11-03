@@ -87,7 +87,7 @@ export default function ClientContractTab({ cliente }: Props) {
   function handleGerar() {
     const html = gerarMinutaHtml(contrato, {
       nome: cliente.nome,
-      cnpj: cliente.cnpj,
+      cnpj: cliente.cnpj_cpf,
       responsavel: cliente.responsavel,
     })
     imprimirMinuta(html)

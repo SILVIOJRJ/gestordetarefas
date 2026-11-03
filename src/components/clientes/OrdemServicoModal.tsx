@@ -119,7 +119,7 @@ function gerarHtmlOS(params: {
   <h2>1. Identificação do Contratante</h2>
   <div class="grid2">
     <div class="field"><label>Razão Social / Nome</label><span>${cliente.nome}</span></div>
-    <div class="field"><label>CNPJ / CPF</label><span>${cliente.cnpj ?? 'A definir'}</span></div>
+    <div class="field"><label>CNPJ / CPF</label><span>${cliente.cnpj_cpf ?? 'A definir'}</span></div>
     <div class="field"><label>Regime Tributário</label><span>${cliente.regime ?? 'A definir'}</span></div>
     <div class="field"><label>Responsável</label><span>${cliente.responsavel ?? '—'}</span></div>
     <div class="field"><label>E-mail</label><span>${cliente.email ?? '—'}</span></div>

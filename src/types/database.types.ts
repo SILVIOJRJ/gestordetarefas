@@ -89,7 +89,7 @@ export type RoleUsuario = 'admin' | 'gestor_cliente' | 'colaborador_cliente';
 export interface Cliente {
   id: string; // uuid
   nome: string;
-  cnpj: string | null;
+  cnpj_cpf: string | null;
   regime: RegimeTributario | null;
   email: string | null;
   telefone: string | null;

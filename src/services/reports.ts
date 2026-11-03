@@ -62,7 +62,7 @@ function extensoData(iso: string): string {
 
 export function gerarMinutaHtml(
   contrato: DadosContrato,
-  cliente: { nome: string; cnpj?: string | null; responsavel?: string | null },
+  cliente: { nome: string; cnpj?: string | null; cnpj_cpf?: string | null; responsavel?: string | null },
 ): string {
   const isSCP = contrato.modalidade === 'Sociedade em Conta de Participação (SCP)'
   const c = contrato.clausulas
@@ -225,7 +225,7 @@ export function gerarMinutaHtml(
     <div class="parte">
       <p class="parte-role">Contratante</p>
       <p class="parte-nome">${cliente.nome}</p>
-      ${cliente.cnpj ? `<p class="parte-detalhe">CNPJ/CPF: ${cliente.cnpj}</p>` : ''}
+      ${(cliente.cnpj_cpf ?? cliente.cnpj) ? `<p class="parte-detalhe">CNPJ/CPF: ${cliente.cnpj_cpf ?? cliente.cnpj}</p>` : ''}
       ${cliente.responsavel ? `<p class="parte-detalhe">Representante: ${cliente.responsavel}</p>` : ''}
     </div>
     <div class="parte">
