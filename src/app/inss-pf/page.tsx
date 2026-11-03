@@ -100,6 +100,18 @@ export default function InssPFPage() {
   const [salvando, setSalvando] = useState(false)
   const [avancando, setAvancando] = useState(false)
 
+  // Na primeira carga, encontra a competência mais recente com dados
+  useEffect(() => {
+    (supabase.from('inss_pf') as any)
+      .select('competencia')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+      .then(({ data }: { data: { competencia: string } | null }) => {
+        if (data?.competencia) setFiltroComp(data.competencia)
+      })
+  }, [])
+
   const carregar = useCallback(async () => {
     setLoading(true); setErro(null)
     try {
