@@ -75,15 +75,21 @@ export async function POST(req: NextRequest) {
       generationConfig: { temperature: 0.1, maxOutputTokens: 1024 },
     }
 
-    const resp = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
+    // Retry até 3x em caso de 503 (sobrecarga temporária do Gemini)
+    let resp: Response | null = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      resp = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (resp.status !== 503) break
+      await new Promise(r => setTimeout(r, (attempt + 1) * 1500))
+    }
 
-    if (!resp.ok) {
-      const txt = await resp.text()
-      return NextResponse.json({ error: `Gemini error: ${txt}` }, { status: resp.status })
+    if (!resp || !resp.ok) {
+      const txt = await resp?.text() ?? 'sem resposta'
+      return NextResponse.json({ error: `Gemini error: ${txt}` }, { status: resp?.status ?? 500 })
     }
 
     const json = await resp.json()
