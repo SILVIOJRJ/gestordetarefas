@@ -88,8 +88,6 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
   const [bellOpen, setBellOpen]         = useState(false)
   const [headerUserOpen, setHeaderUserOpen] = useState(false)
   const [notifs, setNotifs]             = useState<{ id: string; mensagem: string; created_at: string; lido: boolean }[]>([])
-  const bellRef      = useRef<HTMLDivElement>(null)
-  const headerUserRef = useRef<HTMLDivElement>(null)
 
   const DEPARTAMENTOS = [
     { slug: 'pessoal',    label: 'Pessoal' },
@@ -140,16 +138,6 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
       if (data) setNotifs(data)
     }
     fetchNotifs()
-  }, [])
-
-  // Fecha dropdowns ao clicar fora
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (bellRef.current && !bellRef.current.contains(e.target as Node)) setBellOpen(false)
-      if (headerUserRef.current && !headerUserRef.current.contains(e.target as Node)) setHeaderUserOpen(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
   async function handleLogout() {
@@ -434,7 +422,10 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
           </button>
 
           {/* Notificações */}
-          <div ref={bellRef} className="relative">
+          <div
+            className="relative"
+            onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setBellOpen(false) }}
+          >
             <button
               onClick={() => setBellOpen(v => !v)}
               className="relative p-2 rounded-lg text-brand-500 hover:bg-brand-100 hover:text-brand-900 transition-colors"
@@ -445,7 +436,10 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
               )}
             </button>
             {bellOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-brand-100 z-50 overflow-hidden">
+              <div
+                tabIndex={-1}
+                className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-brand-100 z-50 overflow-hidden"
+              >
                 <div className="px-4 py-3 border-b border-brand-100 flex items-center justify-between">
                   <span className="text-sm font-semibold text-brand-800">Notificações</span>
                   {notifs.some(n => !n.lido) && (
@@ -466,15 +460,22 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
                     </div>
                   ))}
                 </div>
+                <button
+                  className="sr-only"
+                  onClick={() => setBellOpen(false)}
+                >fechar</button>
               </div>
             )}
           </div>
 
           {/* Avatar do header */}
-          <div ref={headerUserRef} className="relative">
+          <div
+            className="relative"
+            onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setHeaderUserOpen(false) }}
+          >
             <button
               onClick={() => setHeaderUserOpen(v => !v)}
-              className="flex items-center gap-1.5 rounded-xl hover:bg-brand-100 p-1 transition-colors"
+              className="flex items-center gap-1 rounded-xl hover:bg-brand-100 p-1 transition-colors"
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-brand-200" />
@@ -486,7 +487,10 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
               <ChevronDown size={14} className="text-brand-400" />
             </button>
             {headerUserOpen && (
-              <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-brand-100 z-50 overflow-hidden">
+              <div
+                tabIndex={-1}
+                className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-brand-100 z-50 overflow-hidden"
+              >
                 <div className="px-4 py-3 border-b border-brand-100">
                   <p className="text-sm font-semibold text-brand-800 truncate">{nomeCompleto || 'Meu perfil'}</p>
                   <p className="text-xs text-brand-400 truncate">{email}</p>
