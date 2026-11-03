@@ -103,9 +103,11 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       setUserId(user.id)
+      // Auth email é sempre a fonte correta — nunca usar o email da tabela de perfil
+      setEmail(user.email ?? '')
 
       const { data: p } = await (supabase.from('perfis_usuarios') as any)
-        .select('role, permissoes_modulos, nome, email, ultimo_acesso, avatar_url, setor')
+        .select('role, permissoes_modulos, nome, ultimo_acesso, avatar_url, setor')
         .eq('id', user.id)
         .single()
 
@@ -114,7 +116,6 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
       setPermissoes(p.permissoes_modulos ?? null)
       setUltimoAcesso(p.ultimo_acesso ?? null)
       if (p.nome)       { setNomeCompleto(p.nome); setInitials(p.nome.charAt(0).toUpperCase()) }
-      if (p.email)      setEmail(p.email)
       if (p.avatar_url) setAvatarUrl(p.avatar_url)
       if (p.setor)      setSetor(p.setor)
 

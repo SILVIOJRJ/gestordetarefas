@@ -74,11 +74,21 @@ export default function PerfilPage() {
     setErro(null)
     setSaving(true)
     try {
-      const { error } = await (supabase.from('perfis_usuarios') as any)
-        .update({ nome, setor: setor || null })
+      const { error, count } = await (supabase.from('perfis_usuarios') as any)
+        .update({ nome, setor: setor || null }, { count: 'exact' })
         .eq('id', userId)
       if (error) {
-        setErro(error.message)
+        setErro('Erro ao salvar: ' + error.message)
+      } else if (count === 0) {
+        // Nenhuma linha afetada — tenta criar o perfil se não existir
+        const { error: insertError } = await (supabase.from('perfis_usuarios') as any)
+          .upsert({ id: userId, nome, setor: setor || null, email }, { onConflict: 'id' })
+        if (insertError) {
+          setErro('Perfil não encontrado e não foi possível criar: ' + insertError.message)
+        } else {
+          setSalvo(true)
+          setTimeout(() => setSalvo(false), 2500)
+        }
       } else {
         setSalvo(true)
         setTimeout(() => setSalvo(false), 2500)
