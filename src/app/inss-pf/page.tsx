@@ -17,15 +17,16 @@ interface InssPF {
   id: string
   nome: string
   nit: string | null
-  cod_gps: string | null
+  codigo: string | null
   aliquota: number | null
   categoria: CategoriaInss | string
   salario: number | null
-  valor_gps: number | null
+  valor: number | null
   competencia: string | null
   vencimento: string | null
   envio: string | null
   status: StatusInss | string
+  obs: string | null
   created_at: string
   updated_at: string
 }
@@ -39,16 +40,16 @@ const STATUS_COLOR: Record<string, string> = {
   'Pendente': 'bg-warning-100 text-warning-700',
 }
 
-type SortKey = 'nome' | 'categoria' | 'status' | 'vencimento' | 'valor_gps' | 'competencia'
+type SortKey = 'nome' | 'categoria' | 'status' | 'vencimento' | 'valor' | 'competencia'
 type SortDir = 'asc' | 'desc'
 
 const now = new Date()
 const mesAtual = `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`
 
 const VAZIO: Omit<InssPF, 'id' | 'created_at' | 'updated_at'> = {
-  nome: '', nit: '', cod_gps: '', aliquota: 11, categoria: 'Facultativo',
-  salario: null, valor_gps: null, competencia: mesAtual,
-  vencimento: null, envio: '', status: 'Pendente',
+  nome: '', nit: '', codigo: '', aliquota: 11, categoria: 'Facultativo',
+  salario: null, valor: null, competencia: mesAtual,
+  vencimento: null, envio: '', status: 'Pendente', obs: '',
 }
 
 function fmtBRL(v: number | null) {
@@ -112,27 +113,28 @@ export default function InssPFPage() {
   const total    = rows.length
   const pagos    = rows.filter(r => r.status === 'Pago').length
   const pendentes = rows.filter(r => r.status === 'Pendente').length
-  const totalGPS = rows.reduce((acc, r) => acc + (r.valor_gps ?? 0), 0)
+  const totalGPS = rows.reduce((acc, r) => acc + (r.valor ?? 0), 0)
 
   function abrirNovo() { setForm({ ...VAZIO }); setEditId(null) }
   function abrirEditar(r: InssPF) {
     setForm({
-      nome: r.nome, nit: r.nit ?? '', cod_gps: r.cod_gps ?? '',
+      nome: r.nome, nit: r.nit ?? '', codigo: r.codigo ?? '',
       aliquota: r.aliquota, categoria: r.categoria,
-      salario: r.salario, valor_gps: r.valor_gps,
+      salario: r.salario, valor: r.valor,
       competencia: r.competencia ?? mesAtual,
-      vencimento: r.vencimento, envio: r.envio ?? '', status: r.status,
+      vencimento: r.vencimento, envio: r.envio ?? '',
+      status: r.status, obs: r.obs ?? '',
     })
     setEditId(r.id)
   }
 
   function onChangeSalario(val: string) {
     const s = val ? Number(val) : null
-    setForm(f => f ? ({ ...f, salario: s, valor_gps: calcGPS(s, f.aliquota) }) : f)
+    setForm(f => f ? ({ ...f, salario: s, valor: calcGPS(s, f.aliquota) }) : f)
   }
   function onChangeAliquota(val: string) {
     const a = val ? Number(val) : null
-    setForm(f => f ? ({ ...f, aliquota: a, valor_gps: calcGPS(f.salario, a) }) : f)
+    setForm(f => f ? ({ ...f, aliquota: a, valor: calcGPS(f.salario, a) }) : f)
   }
 
   async function salvar() {
@@ -221,56 +223,62 @@ export default function InssPFPage() {
             <h2 className="font-semibold text-brand-900">{editId ? 'Editar INSS PF' : 'Nova GPS'}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-2">
-                <label className="label">Nome</label>
-                <input className="input" value={form.nome} onChange={e => setForm(f => f && ({ ...f, nome: e.target.value }))} />
+                <label className="label">Nome Completo *</label>
+                <input className="input" placeholder="Nome do contribuinte" value={form.nome} onChange={e => setForm(f => f && ({ ...f, nome: e.target.value }))} />
               </div>
               <div>
-                <label className="label">NIT</label>
-                <input className="input font-mono" value={form.nit ?? ''} onChange={e => setForm(f => f && ({ ...f, nit: e.target.value }))} />
+                <label className="label">NIT / PIS</label>
+                <input className="input font-mono" placeholder="000.00000.00-0" value={form.nit ?? ''} onChange={e => setForm(f => f && ({ ...f, nit: e.target.value }))} />
               </div>
               <div>
-                <label className="label">Cód. GPS</label>
-                <input className="input font-mono" value={form.cod_gps ?? ''} onChange={e => setForm(f => f && ({ ...f, cod_gps: e.target.value }))} />
+                <label className="label">Código GPS</label>
+                <input className="input font-mono" placeholder="1007, 1473..." value={form.codigo ?? ''} onChange={e => setForm(f => f && ({ ...f, codigo: e.target.value }))} />
               </div>
               <div>
-                <label className="label">Categoria</label>
+                <label className="label">Categoria *</label>
                 <select className="input" value={form.categoria} onChange={e => setForm(f => f && ({ ...f, categoria: e.target.value as CategoriaInss }))}>
                   {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>
-                <label className="label">Alíquota (%)</label>
+                <label className="label">Alíquota</label>
                 <select className="input" value={form.aliquota ?? ''} onChange={e => onChangeAliquota(e.target.value)}>
                   <option value="">—</option>
                   {ALIQUOTAS.map(a => <option key={a} value={a}>{a}%</option>)}
-                  <option value="custom">Outra</option>
                 </select>
               </div>
               <div>
-                <label className="label">Salário/Base (R$)</label>
-                <input className="input" type="number" step="0.01" value={form.salario ?? ''} onChange={e => onChangeSalario(e.target.value)} />
+                <label className="label">Salário Base (R$)</label>
+                <input className="input" type="number" step="0.01" placeholder="0,00" value={form.salario ?? ''} onChange={e => onChangeSalario(e.target.value)} />
               </div>
               <div>
                 <label className="label">Valor GPS (R$) <span className="text-brand-400 font-normal">— calculado</span></label>
-                <input className="input bg-brand-50" type="number" step="0.01" value={form.valor_gps ?? ''} onChange={e => setForm(f => f && ({ ...f, valor_gps: e.target.value ? Number(e.target.value) : null }))} />
+                <input className="input bg-brand-50" type="number" step="0.01" value={form.valor ?? ''} onChange={e => setForm(f => f && ({ ...f, valor: e.target.value ? Number(e.target.value) : null }))} />
               </div>
               <div>
-                <label className="label">Competência (MM/YYYY)</label>
-                <input className="input" placeholder="MM/YYYY" value={form.competencia ?? ''} onChange={e => setForm(f => f && ({ ...f, competencia: e.target.value }))} />
+                <label className="label">Competência</label>
+                <input className="input" type="month" value={form.competencia ? `${form.competencia.split('/')[1]}-${form.competencia.split('/')[0]}` : ''} onChange={e => {
+                  const [y, m] = e.target.value.split('-')
+                  setForm(f => f && ({ ...f, competencia: `${m}/${y}` }))
+                }} />
               </div>
               <div>
                 <label className="label">Vencimento</label>
                 <input className="input" type="date" value={form.vencimento ?? ''} onChange={e => setForm(f => f && ({ ...f, vencimento: e.target.value || null }))} />
               </div>
               <div>
-                <label className="label">Envio</label>
-                <input className="input" placeholder="Ex: WhatsApp, E-mail" value={form.envio ?? ''} onChange={e => setForm(f => f && ({ ...f, envio: e.target.value }))} />
+                <label className="label">Envio (WPP / E-mail)</label>
+                <input className="input" placeholder="WPP - Nome..." value={form.envio ?? ''} onChange={e => setForm(f => f && ({ ...f, envio: e.target.value }))} />
               </div>
               <div>
                 <label className="label">Status</label>
                 <select className="input" value={form.status} onChange={e => setForm(f => f && ({ ...f, status: e.target.value as StatusInss }))}>
                   {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
+              </div>
+              <div className="sm:col-span-3">
+                <label className="label">Observação</label>
+                <input className="input" value={form.obs ?? ''} onChange={e => setForm(f => f && ({ ...f, obs: e.target.value }))} />
               </div>
             </div>
             <div className="flex gap-2">
@@ -296,7 +304,7 @@ export default function InssPFPage() {
                   <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase text-brand-500">%</th>
                   <ThSort k="categoria"   label="Categoria" />
                   <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase text-brand-500">Salário</th>
-                  <ThSort k="valor_gps"   label="Valor GPS" />
+                  <ThSort k="valor"       label="Valor GPS" />
                   <ThSort k="competencia" label="Competência" />
                   <ThSort k="vencimento"  label="Vencimento" />
                   <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase text-brand-500">Envio</th>
@@ -311,11 +319,11 @@ export default function InssPFPage() {
                   <tr key={r.id} className="hover:bg-brand-50 group">
                     <td className="px-3 py-2.5 font-medium text-brand-900 whitespace-nowrap">{r.nome}</td>
                     <td className="px-3 py-2.5 text-brand-500 font-mono text-xs">{r.nit ?? '—'}</td>
-                    <td className="px-3 py-2.5 text-brand-500 font-mono text-xs">{r.cod_gps ?? '—'}</td>
+                    <td className="px-3 py-2.5 text-brand-500 font-mono text-xs">{r.codigo ?? '—'}</td>
                     <td className="px-3 py-2.5 text-brand-600 text-xs">{r.aliquota != null ? `${r.aliquota}%` : '—'}</td>
                     <td className="px-3 py-2.5 text-xs text-brand-600 whitespace-nowrap">{r.categoria}</td>
                     <td className="px-3 py-2.5 text-xs text-brand-600 whitespace-nowrap">{fmtBRL(r.salario)}</td>
-                    <td className="px-3 py-2.5 text-xs font-medium text-brand-800 whitespace-nowrap">{fmtBRL(r.valor_gps)}</td>
+                    <td className="px-3 py-2.5 text-xs font-medium text-brand-800 whitespace-nowrap">{fmtBRL(r.valor)}</td>
                     <td className="px-3 py-2.5 text-xs text-brand-500 font-mono">{r.competencia ?? '—'}</td>
                     <td className="px-3 py-2.5 text-xs text-brand-600">{fmtData(r.vencimento)}</td>
                     <td className="px-3 py-2.5 text-xs text-brand-400">{r.envio ?? '—'}</td>
