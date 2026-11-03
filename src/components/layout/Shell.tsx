@@ -11,7 +11,7 @@ import {
   LayoutDashboard, CheckSquare, Users, FileText, BarChart2,
   Repeat, Truck, Lock, Bell, ChevronLeft, ChevronRight,
   Menu, X, Building2, Scale, CalendarCheck, Paperclip,
-  Landmark, UserCheck, ShieldCheck, LogOut, Camera, ChevronDown,
+  Landmark, UserCheck, ShieldCheck, LogOut, Camera, ChevronDown, BadgeCheck,
 } from 'lucide-react'
 
 // ─── Nav items com gate de módulo ─────────────────────────────
@@ -37,7 +37,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/gerencial',      label: 'Gerencial',      icon: BarChart2,       modulo: 'modulo_financeiro' },
   { href: '/parcelamentos',  label: 'Parcelamentos',  icon: Landmark,        modulo: 'modulo_fiscal' },
   { href: '/inss-pf',        label: 'INSS PF',        icon: UserCheck,       modulo: 'modulo_fiscal' },
-  { href: '/radar-juridico', label: 'Radar Jurídico', icon: Scale,           modulo: null },
+  { href: '/radar-juridico',              label: 'Radar Jurídico',      icon: Scale,        modulo: null },
+  { href: '/departamentos/certificado-digital', label: 'Cert. Digital', icon: BadgeCheck,   modulo: null },
 ]
 
 // Itens da bottom nav mobile (sempre visíveis)

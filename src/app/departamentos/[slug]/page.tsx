@@ -166,36 +166,41 @@ export default function DepartamentoPage({ params }: { params: Promise<{ slug: s
               <table className="w-full text-sm">
                 <thead className="bg-brand-50 text-xs text-brand-500 uppercase">
                   <tr>
-                    <th className="text-left px-4 py-3">Tarefa</th>
-                    <th className="text-left px-4 py-3 hidden sm:table-cell">Empresa</th>
-                    <th className="text-left px-4 py-3">Status</th>
+                    <th className="text-left px-4 py-3">Título</th>
+                    <th className="text-left px-4 py-3 hidden sm:table-cell">Responsável</th>
+                    <th className="text-left px-4 py-3 hidden md:table-cell">Prioridade</th>
                     <th className="text-left px-4 py-3 hidden sm:table-cell">Prazo</th>
-                    <th className="text-left px-4 py-3 hidden md:table-cell">Responsável</th>
+                    <th className="text-left px-4 py-3">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-brand-50">
                   {tarefas.map(t => {
                     const atrasada = t.prazo && t.prazo < hoje && t.status !== 'Concluída' && t.status !== 'Cancelada'
+                    const PRIO_COLOR: Record<string, string> = {
+                      'Urgente': 'text-red-600 font-semibold',
+                      'Alta':    'text-orange-500 font-medium',
+                      'Média':   'text-amber-500',
+                      'Baixa':   'text-brand-400',
+                    }
                     return (
-                      <tr key={t.id} className={`hover:bg-brand-50 ${atrasada ? 'bg-red-50/40' : ''}`}>
+                      <tr key={t.id} className={`hover:bg-brand-50 transition-colors ${atrasada ? 'bg-red-50/40' : ''}`}>
                         <td className="px-4 py-3">
-                          <p className="font-medium text-brand-900 line-clamp-1">{t.titulo}</p>
-                          <p className="text-xs text-brand-400">{t.prioridade}</p>
+                          <p className="font-medium text-brand-900 line-clamp-2 text-sm">{t.titulo}</p>
+                          {t.clientes?.nome && <p className="text-xs text-brand-400 mt-0.5">{t.clientes.nome}</p>}
                         </td>
-                        <td className="px-4 py-3 hidden sm:table-cell text-xs text-brand-500">
-                          {t.clientes?.nome ?? '—'}
+                        <td className="px-4 py-3 hidden sm:table-cell text-sm text-brand-600">
+                          {t.responsavel ?? '—'}
+                        </td>
+                        <td className={`px-4 py-3 hidden md:table-cell text-sm ${PRIO_COLOR[t.prioridade ?? ''] ?? 'text-brand-400'}`}>
+                          {t.prioridade ? `• ${t.prioridade}` : '—'}
+                        </td>
+                        <td className={`px-4 py-3 hidden sm:table-cell text-sm font-medium ${atrasada ? 'text-red-600' : 'text-brand-700'}`}>
+                          {t.prazo ? new Date(t.prazo + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[t.status] ?? 'bg-brand-100 text-brand-600'}`}>
                             {t.status}
                           </span>
-                        </td>
-                        <td className={`px-4 py-3 hidden sm:table-cell text-xs ${atrasada ? 'text-danger-600 font-semibold' : 'text-brand-500'}`}>
-                          {t.prazo ? new Date(t.prazo + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
-                          {atrasada && ' ⚠'}
-                        </td>
-                        <td className="px-4 py-3 hidden md:table-cell text-xs text-brand-500">
-                          {t.responsavel ?? '—'}
                         </td>
                       </tr>
                     )
