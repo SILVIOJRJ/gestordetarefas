@@ -17,6 +17,7 @@ export default function PerfilPage() {
   const [setor, setSetor]       = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [erro, setErro]           = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -62,13 +63,18 @@ export default function PerfilPage() {
 
   async function salvar() {
     if (!userId) return
+    setErro(null)
     setSaving(true)
     try {
-      await (supabase.from('perfis_usuarios') as any).update({
-        nome, setor: setor || null, updated_at: new Date().toISOString(),
-      }).eq('id', userId)
-      setSalvo(true)
-      setTimeout(() => setSalvo(false), 2500)
+      const { error } = await (supabase.from('perfis_usuarios') as any)
+        .update({ nome, setor: setor || null })
+        .eq('id', userId)
+      if (error) {
+        setErro(error.message)
+      } else {
+        setSalvo(true)
+        setTimeout(() => setSalvo(false), 2500)
+      }
     } finally {
       setSaving(false)
     }
@@ -145,6 +151,12 @@ export default function PerfilPage() {
             </select>
           </div>
         </div>
+
+        {erro && (
+          <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 text-sm text-rose-700">
+            {erro}
+          </div>
+        )}
 
         <button
           onClick={salvar}
