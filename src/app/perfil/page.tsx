@@ -135,6 +135,7 @@ export default function PerfilPage() {
             <input
               value={nome}
               onChange={e => setNome(e.target.value)}
+              autoComplete="off"
               className="w-full border border-brand-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-400"
               placeholder="Seu nome"
             />
@@ -144,6 +145,7 @@ export default function PerfilPage() {
             <input
               value={email}
               disabled
+              autoComplete="off"
               className="w-full border border-brand-100 rounded-xl px-3 py-2 text-sm text-brand-400 bg-brand-50 cursor-not-allowed"
             />
           </div>
