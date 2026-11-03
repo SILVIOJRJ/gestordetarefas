@@ -9,9 +9,9 @@ import SmartUploadPanel from '@/components/documents/SmartUploadPanel'
 import type { PermissoesModulos, RoleUsuario } from '@/types/database.types'
 import {
   LayoutDashboard, CheckSquare, Users, FileText, BarChart2,
-  Repeat, Truck, Lock, Settings, Bell, ChevronLeft, ChevronRight,
+  Repeat, Truck, Lock, Bell, ChevronLeft, ChevronRight,
   Menu, X, Building2, Scale, FileSignature, CalendarCheck, Paperclip,
-  Landmark, UserCheck,
+  Landmark, UserCheck, ShieldCheck,
 } from 'lucide-react'
 
 // ─── Nav items com gate de módulo ─────────────────────────────
@@ -38,8 +38,6 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/officeboy',     label: 'Office Boy',       icon: Truck,           modulo: 'modulo_pessoal' },
   { href: '/cofre',         label: 'Cofre de Senhas',  icon: Lock,            modulo: null },
   { href: '/radar-juridico',    label: 'Radar Jurídico',     icon: Scale,          modulo: null },
-  { href: '/admin/contratos',   label: 'Gestão Contratual',  icon: FileSignature,  modulo: 'modulo_gestao_contratos' },
-  { href: '/configuracoes',     label: 'Configurações',       icon: Settings,       modulo: null },
 ]
 
 // Itens da bottom nav mobile (sempre visíveis)
@@ -204,6 +202,26 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
             </div>
           )}
         </nav>
+
+        {/* Botão Administração — só admin */}
+        {role === 'admin' && (
+          <div className="px-2 pb-2">
+            <Link
+              href="/admin"
+              onClick={() => setMobileOpen(false)}
+              className={[
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border',
+                pathname.startsWith('/admin')
+                  ? 'bg-rose-900 border-rose-700 text-rose-100'
+                  : 'border-rose-900/50 text-rose-400 hover:bg-rose-900/40 hover:text-rose-200',
+              ].join(' ')}
+              title={collapsed ? 'Administração' : undefined}
+            >
+              <ShieldCheck size={18} className="flex-shrink-0" />
+              {!collapsed && <span>Administração</span>}
+            </Link>
+          </div>
+        )}
 
         {/* Perfil + colapsar */}
         <div className="border-t border-brand-800 p-3 space-y-2">
