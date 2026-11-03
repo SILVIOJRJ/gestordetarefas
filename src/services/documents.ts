@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { analisarDocumentoComIA, type DadosDocumentoExtraidos, type TipoDocumento } from '@/lib/gemini'
 
-const BUCKET = 'documentos-empresa'
+const BUCKET = 'documentos'
 
 export interface DocumentoUploadResult {
   caminho: string
