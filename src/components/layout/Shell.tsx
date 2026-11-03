@@ -26,18 +26,18 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/dashboard',     label: 'Dashboard',       icon: LayoutDashboard, modulo: null },
-  { href: '/tarefas',       label: 'Tarefas',          icon: CheckSquare,     modulo: null },
-  { href: '/clientes',      label: 'Clientes',         icon: Users,           modulo: 'modulo_contabil' },
-  { href: '/legalizacao',   label: 'Legalização',      icon: FileText,        modulo: 'modulo_societario' },
-  { href: '/gerencial',       label: 'Gerencial',        icon: BarChart2,      modulo: 'modulo_financeiro' },
-  { href: '/controle-mensal', label: 'Controle Mensal',  icon: CalendarCheck,  modulo: 'modulo_fiscal' },
-  { href: '/rotinas',       label: 'Rotinas',          icon: Repeat,          modulo: 'modulo_fiscal' },
-  { href: '/parcelamentos', label: 'Parcelamentos',    icon: Landmark,        modulo: 'modulo_fiscal' },
-  { href: '/inss-pf',       label: 'INSS PF',          icon: UserCheck,       modulo: 'modulo_fiscal' },
-  { href: '/officeboy',     label: 'Office Boy',       icon: Truck,           modulo: 'modulo_pessoal' },
-  { href: '/cofre',         label: 'Cofre de Senhas',  icon: Lock,            modulo: null },
-  { href: '/radar-juridico',    label: 'Radar Jurídico',     icon: Scale,          modulo: null },
+  { href: '/dashboard',      label: 'Dashboard',      icon: LayoutDashboard, modulo: null },
+  { href: '/tarefas',        label: 'Tarefas',        icon: CheckSquare,     modulo: null },
+  { href: '/clientes',       label: 'Clientes',       icon: Users,           modulo: null },
+  { href: '/controle-mensal',label: 'Controle Mensal',icon: CalendarCheck,   modulo: null },
+  { href: '/rotinas',        label: 'Rotinas',        icon: Repeat,          modulo: null },
+  { href: '/officeboy',      label: 'Office Boy',     icon: Truck,           modulo: null },
+  { href: '/cofre',          label: 'Cofre de Senhas',icon: Lock,            modulo: null },
+  { href: '/legalizacao',    label: 'Legalização',    icon: FileText,        modulo: 'modulo_societario' },
+  { href: '/gerencial',      label: 'Gerencial',      icon: BarChart2,       modulo: 'modulo_financeiro' },
+  { href: '/parcelamentos',  label: 'Parcelamentos',  icon: Landmark,        modulo: 'modulo_fiscal' },
+  { href: '/inss-pf',        label: 'INSS PF',        icon: UserCheck,       modulo: 'modulo_fiscal' },
+  { href: '/radar-juridico', label: 'Radar Jurídico', icon: Scale,           modulo: null },
 ]
 
 // Itens da bottom nav mobile (sempre visíveis)
@@ -280,24 +280,55 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
           </div>
         </div>
 
-        {/* ── Departamento em destaque ── */}
-        {!collapsed && (
-          <div className="px-3 pt-3 pb-1">
+        {/* Nav + Departamentos integrados */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+          {navFiltrado.map(({ href, label, icon: Icon }) => {
+            const active = pathname.startsWith(href)
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setMobileOpen(false)}
+                className={[
+                  'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
+                  active
+                    ? 'bg-brand-700 text-white'
+                    : 'text-brand-400 hover:bg-brand-800 hover:text-white',
+                ].join(' ')}
+                title={collapsed ? label : undefined}
+              >
+                <Icon size={17} className="flex-shrink-0" />
+                {!collapsed && <span>{label}</span>}
+              </Link>
+            )
+          })}
+
+          {/* Divisor */}
+          {!collapsed && <div className="mx-3 my-1 border-t border-brand-800" />}
+
+          {/* Departamentos como item de nav com sub-menu */}
+          <div>
             <button
               onClick={() => setDeptAberto(o => !o)}
               className={[
-                'w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-colors',
+                'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
                 pathname.startsWith('/departamentos')
-                  ? 'bg-accent-600 text-white'
-                  : 'bg-brand-800 text-brand-300 hover:text-white',
+                  ? 'bg-brand-700 text-white'
+                  : 'text-brand-400 hover:bg-brand-800 hover:text-white',
               ].join(' ')}
+              title={collapsed ? 'Departamentos' : undefined}
             >
-              <Building2 size={14} className="flex-shrink-0" />
-              <span className="flex-1 text-left">Departamentos</span>
-              <ChevronDown size={12} className={`transition-transform ${deptAberto ? 'rotate-180' : ''}`} />
+              <Building2 size={17} className="flex-shrink-0" />
+              {!collapsed && (
+                <>
+                  <span className="flex-1 text-left">Departamentos</span>
+                  <ChevronDown size={13} className={`transition-transform duration-200 ${deptAberto ? 'rotate-180' : ''}`} />
+                </>
+              )}
             </button>
-            {deptAberto && (
-              <div className="mt-1 pl-2 space-y-0.5">
+
+            {deptAberto && !collapsed && (
+              <div className="mt-0.5 ml-3 pl-3 border-l border-brand-700 space-y-0.5 pb-1">
                 {DEPARTAMENTOS.map(({ slug, label }) => {
                   const href = `/departamentos/${slug}`
                   const active = pathname === href
@@ -307,11 +338,13 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
                       href={href}
                       onClick={() => setMobileOpen(false)}
                       className={[
-                        'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-colors',
-                        active ? 'bg-brand-700 text-white' : 'text-brand-400 hover:bg-brand-800 hover:text-white',
+                        'flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors',
+                        active
+                          ? 'text-white bg-brand-700'
+                          : 'text-brand-400 hover:text-white hover:bg-brand-800',
                       ].join(' ')}
                     >
-                      <span className="w-1 h-1 rounded-full bg-current opacity-60" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50 flex-shrink-0" />
                       {label}
                     </Link>
                   )
@@ -319,41 +352,6 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
               </div>
             )}
           </div>
-        )}
-        {collapsed && (
-          <div className="px-2 pt-2 pb-1">
-            <button
-              onClick={() => setDeptAberto(o => !o)}
-              className="w-full flex items-center justify-center p-2 rounded-lg bg-brand-800 text-brand-400 hover:text-white"
-              title="Departamentos"
-            >
-              <Building2 size={16} />
-            </button>
-          </div>
-        )}
-
-        {/* Nav filtrado por permissões */}
-        <nav className="flex-1 overflow-y-auto py-2 space-y-0.5 px-2">
-          {navFiltrado.map(({ href, label, icon: Icon }) => {
-            const active = pathname.startsWith(href)
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setMobileOpen(false)}
-                className={[
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                  active
-                    ? 'bg-brand-800 text-white'
-                    : 'text-brand-400 hover:bg-brand-800 hover:text-white',
-                ].join(' ')}
-                title={collapsed ? label : undefined}
-              >
-                <Icon size={18} className="flex-shrink-0" />
-                {!collapsed && <span>{label}</span>}
-              </Link>
-            )
-          })}
         </nav>
 
         {/* Botão Administração — só admin */}
