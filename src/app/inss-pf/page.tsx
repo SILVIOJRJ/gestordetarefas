@@ -279,13 +279,12 @@ export default function InssPFPage() {
         </div>
 
         {/* Cards de resumo — refletem o filtro atual */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Total',         value: total,              color: 'bg-brand-50 border-brand-200 text-brand-700' },
-            { label: 'Pagos',         value: pagos,              color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
-            { label: 'Pendentes',     value: pendentes,          color: 'bg-warning-50 border-warning-200 text-warning-700' },
-            { label: 'Enviados',      value: `${enviados}/${total}`, color: 'bg-blue-50 border-blue-200 text-blue-700' },
-            { label: 'Total GPS',     value: fmtBRL(totalGPS),   color: 'bg-purple-50 border-purple-200 text-purple-700' },
+            { label: 'Total',     value: total,                  color: 'bg-brand-50 border-brand-200 text-brand-700' },
+            { label: 'Pagos',     value: pagos,                  color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
+            { label: 'Pendentes', value: pendentes,              color: 'bg-warning-50 border-warning-200 text-warning-700' },
+            { label: 'Enviados',  value: `${enviados}/${total}`, color: 'bg-blue-50 border-blue-200 text-blue-700' },
           ].map(c => (
             <div key={c.label} className={`rounded-xl border px-4 py-3 ${c.color}`}>
               <p className="text-xl font-bold leading-tight">{c.value}</p>
