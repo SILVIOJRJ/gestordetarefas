@@ -224,9 +224,13 @@ export default function InssPFPage() {
   async function toggleEnviado(r: InssPF) {
     const novoValor = !r.enviado
     setRows(prev => prev.map(x => x.id === r.id ? { ...x, enviado: novoValor } : x))
-    await (supabase.from('inss_pf') as any)
+    const { error } = await (supabase.from('inss_pf') as any)
       .update({ enviado: novoValor, updated_at: new Date().toISOString() })
       .eq('id', r.id)
+    if (error) {
+      setRows(prev => prev.map(x => x.id === r.id ? { ...x, enviado: r.enviado } : x))
+      setErro('Erro ao atualizar envio: ' + error.message)
+    }
   }
 
   async function avancarCompetencia() {

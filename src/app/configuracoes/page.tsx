@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import Shell from '@/components/layout/Shell'
 import { supabase } from '@/lib/supabase'
 import type { PerfilUsuario, AcessoLog, RoleUsuario, PermissoesModulos } from '@/types/database.types'
@@ -36,7 +37,20 @@ const ROLE_CONFIG: Record<RoleUsuario, { label: string; cor: string; desc: strin
 // ─── Componente ───────────────────────────────────────────────
 
 export default function ConfiguracoesPage() {
+  const router = useRouter()
   const [aba, setAba] = useState<Aba>('usuarios')
+
+  // Guard de acesso — somente admin
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) { router.push('/login'); return }
+      ;(supabase.from('perfis_usuarios') as any)
+        .select('role').eq('id', user.id).single()
+        .then(({ data }: { data: { role: string } | null }) => {
+          if (data?.role !== 'admin') router.push('/dashboard')
+        })
+    })
+  }, [router])
 
   // Usuários
   const [usuarios, setUsuarios] = useState<PerfilUsuario[]>([])

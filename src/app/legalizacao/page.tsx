@@ -249,7 +249,8 @@ export default function LegalizacaoPage() {
   async function excluir(id: string) {
     if (!confirm('Excluir este processo?')) return
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase.from('processos_legalizacao') as any).delete().eq('id', id)
+    const { error } = await (supabase.from('processos_legalizacao') as any).delete().eq('id', id)
+    if (error) { setErroSalvar('Erro ao excluir: ' + error.message); return }
     await carregar()
   }
 

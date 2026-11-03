@@ -69,7 +69,8 @@ export default function OfficeBoyPage() {
         conferido_em: new Date().toISOString(),
       } : {}),
     }
-    await (supabase.from('entregas') as any).update(atualizacao).eq('id', id)
+    const { error } = await (supabase.from('entregas') as any).update(atualizacao).eq('id', id)
+    if (error) { setMsg({ tipo: 'err', texto: 'Erro ao atualizar status: ' + error.message }); return }
     setEntregas(prev => prev.map(e => e.id === id ? { ...e, ...atualizacao } : e))
   }
 

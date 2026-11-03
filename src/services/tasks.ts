@@ -101,5 +101,6 @@ export async function listarEventos(tarefaId: string) {
 
 export async function excluirTarefa(tarefaId: string): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase.from('tarefas') as any).delete().eq('id', tarefaId)
+  const { error } = await (supabase.from('tarefas') as any).delete().eq('id', tarefaId)
+  if (error) throw new Error(error.message)
 }

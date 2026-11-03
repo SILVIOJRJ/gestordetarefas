@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import Shell from '@/components/layout/Shell'
 import { supabase } from '@/lib/supabase'
 import {
@@ -724,7 +725,7 @@ export default function DashboardPage() {
           <h2 className="text-sm font-semibold text-brand-600 uppercase tracking-wider mb-3">Acesso Rápido</h2>
           <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
             {QUICK_LINKS.map(({ href, label, desc, icon: Icon }) => (
-              <a key={href} href={href} className="card-hover flex flex-col gap-3 group">
+              <Link key={href} href={href} className="card-hover flex flex-col gap-3 group">
                 <div className="w-9 h-9 rounded-lg bg-brand-100 flex items-center justify-center group-hover:bg-brand-900 transition-colors">
                   <Icon size={18} className="text-brand-600 group-hover:text-white transition-colors" />
                 </div>
@@ -732,7 +733,7 @@ export default function DashboardPage() {
                   <p className="text-sm font-semibold text-brand-900">{label}</p>
                   <p className="text-xs text-brand-500 mt-0.5">{desc}</p>
                 </div>
-              </a>
+              </Link>
             ))}
           </div>
         </section>

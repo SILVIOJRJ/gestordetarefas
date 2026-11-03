@@ -4,6 +4,7 @@ import { useEffect, useState, use } from 'react'
 import Shell from '@/components/layout/Shell'
 import { supabase } from '@/lib/supabase'
 import type { Tarefa, Setor } from '@/types/database.types'
+import Link from 'next/link'
 import {
   Users, BarChart2, Building2, Scale, DollarSign,
   Clock, CheckCircle2, AlertTriangle, Loader2, FileText,
@@ -233,9 +234,9 @@ export default function DepartamentoPage({ params }: { params: Promise<{ slug: s
 
 function DeptLink({ href, label, icon: Icon }: { href: string; label: string; icon: React.ElementType }) {
   return (
-    <a href={href} className="flex items-center gap-3 bg-white border border-brand-100 rounded-xl px-4 py-3 hover:bg-brand-50 transition group">
+    <Link href={href} className="flex items-center gap-3 bg-white border border-brand-100 rounded-xl px-4 py-3 hover:bg-brand-50 transition group">
       <Icon size={16} className="text-brand-400 group-hover:text-brand-700 transition" />
       <span className="text-sm font-medium text-brand-700">{label}</span>
-    </a>
+    </Link>
   )
 }

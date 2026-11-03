@@ -92,6 +92,7 @@ export default function AdminPage() {
   const [expandindoPerm, setExpandindoPerm] = useState<string | null>(null)
   const [salvandoPerm, setSalvandoPerm] = useState(false)
   const [buscaUsuario, setBuscaUsuario] = useState('')
+  const [erroAdmin, setErroAdmin] = useState<string | null>(null)
 
   const carregarUsuarios = useCallback(async () => {
     setLoadingUsuarios(true)
@@ -107,9 +108,11 @@ export default function AdminPage() {
 
   async function salvarRole(userId: string, novoRole: RoleUsuario) {
     setSalvandoRole(true)
+    setErroAdmin(null)
     try {
-      await (supabase.from('perfis_usuarios') as any)
+      const { error } = await (supabase.from('perfis_usuarios') as any)
         .update({ role: novoRole, updated_at: new Date().toISOString() }).eq('id', userId)
+      if (error) { setErroAdmin('Erro ao salvar role: ' + error.message); return }
       setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, role: novoRole } : u))
       setEditandoRole(null)
     } finally { setSalvandoRole(false) }
@@ -117,17 +120,20 @@ export default function AdminPage() {
 
   async function salvarPermissoes(userId: string, perm: PermissoesModulos) {
     setSalvandoPerm(true)
+    setErroAdmin(null)
     try {
-      await (supabase.from('perfis_usuarios') as any)
+      const { error } = await (supabase.from('perfis_usuarios') as any)
         .update({ permissoes_modulos: perm, updated_at: new Date().toISOString() }).eq('id', userId)
+      if (error) { setErroAdmin('Erro ao salvar permissões: ' + error.message); return }
       setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, permissoes_modulos: perm } : u))
     } finally { setSalvandoPerm(false) }
   }
 
   async function toggleAtivo(u: PerfilUsuario) {
     const ativo = !u.ativo
-    await (supabase.from('perfis_usuarios') as any)
+    const { error } = await (supabase.from('perfis_usuarios') as any)
       .update({ ativo, updated_at: new Date().toISOString() }).eq('id', u.id)
+    if (error) { setErroAdmin('Erro ao alterar status: ' + error.message); return }
     setUsuarios(prev => prev.map(x => x.id === u.id ? { ...x, ativo } : x))
   }
 
@@ -345,6 +351,14 @@ export default function AdminPage() {
             </button>
           ))}
         </div>
+
+        {/* Erro global admin */}
+        {erroAdmin && (
+          <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 text-sm text-rose-700 flex items-center justify-between">
+            <span>{erroAdmin}</span>
+            <button onClick={() => setErroAdmin(null)} className="ml-3 text-rose-400 hover:text-rose-700 font-bold">×</button>
+          </div>
+        )}
 
         {/* ─── ABA: USUÁRIOS ──────────────────────────────────── */}
         {aba === 'usuarios' && (

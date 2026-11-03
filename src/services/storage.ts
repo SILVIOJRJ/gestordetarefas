@@ -170,7 +170,8 @@ export async function deletarAnexo(
   bucket = BUCKET_PRINCIPAL,
 ): Promise<void> {
   await deletarArquivo(bucket, caminho)
-  await (supabase.from('anexos') as any).delete().eq('id', id)
+  const { error } = await (supabase.from('anexos') as any).delete().eq('id', id)
+  if (error) throw new Error('Erro ao remover registro do anexo: ' + error.message)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
