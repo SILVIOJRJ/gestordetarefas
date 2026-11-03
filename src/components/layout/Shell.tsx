@@ -85,6 +85,9 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
   const [deptAberto, setDeptAberto]     = useState(false)
   const [perfilOpen, setPerfilOpen]     = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [bellOpen, setBellOpen]         = useState(false)
+  const [headerUserOpen, setHeaderUserOpen] = useState(false)
+  const [notifs, setNotifs]             = useState<{ id: string; mensagem: string; created_at: string; lido: boolean }[]>([])
 
   const DEPARTAMENTOS = [
     { slug: 'pessoal',    label: 'Pessoal' },
@@ -96,6 +99,7 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
 
   useEffect(() => {
     async function init() {
+      try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       setUserId(user.id)
@@ -120,8 +124,24 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
       await (supabase.from('perfis_usuarios') as any)
         .update({ ultimo_acesso: new Date().toISOString() })
         .eq('id', user.id)
+      } catch (err) {
+        console.error('[Shell] init error:', err)
+      }
     }
     init()
+
+    // Busca notificações do usuário
+    async function fetchNotifs() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await (supabase.from('notificacoes') as any)
+        .select('id, mensagem, created_at, lido')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10)
+      if (data) setNotifs(data)
+    }
+    fetchNotifs()
   }, [])
 
   async function handleLogout() {
@@ -406,19 +426,99 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
           </button>
 
           {/* Notificações */}
-          <button className="relative p-2 rounded-lg text-brand-500 hover:bg-brand-100 hover:text-brand-900 transition-colors">
-            <Bell size={20} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent-500" />
-          </button>
+          <div
+            className="relative"
+            onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setBellOpen(false) }}
+          >
+            <button
+              onClick={() => setBellOpen(v => !v)}
+              className="relative p-2 rounded-lg text-brand-500 hover:bg-brand-100 hover:text-brand-900 transition-colors"
+            >
+              <Bell size={20} />
+              {notifs.some(n => !n.lido) && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent-500" />
+              )}
+            </button>
+            {bellOpen && (
+              <div
+                tabIndex={-1}
+                className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-brand-100 z-50 overflow-hidden"
+              >
+                <div className="px-4 py-3 border-b border-brand-100 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-brand-800">Notificações</span>
+                  {notifs.some(n => !n.lido) && (
+                    <span className="text-xs bg-accent-100 text-accent-700 px-2 py-0.5 rounded-full font-medium">
+                      {notifs.filter(n => !n.lido).length} novas
+                    </span>
+                  )}
+                </div>
+                <div className="max-h-72 overflow-y-auto divide-y divide-brand-50">
+                  {notifs.length === 0 ? (
+                    <p className="text-xs text-brand-400 text-center py-6">Nenhuma notificação</p>
+                  ) : notifs.map(n => (
+                    <div key={n.id} className={['px-4 py-3 text-sm', !n.lido ? 'bg-accent-50' : ''].join(' ')}>
+                      <p className={['text-brand-800', !n.lido ? 'font-medium' : ''].join(' ')}>{n.mensagem}</p>
+                      <p className="text-xs text-brand-400 mt-0.5">
+                        {new Date(n.created_at).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  className="sr-only"
+                  onClick={() => setBellOpen(false)}
+                >fechar</button>
+              </div>
+            )}
+          </div>
 
-          {/* Avatar */}
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-brand-200" />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-brand-900 flex items-center justify-center text-xs font-bold text-white">
-              {initials}
-            </div>
-          )}
+          {/* Avatar do header */}
+          <div
+            className="relative"
+            onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setHeaderUserOpen(false) }}
+          >
+            <button
+              onClick={() => setHeaderUserOpen(v => !v)}
+              className="flex items-center gap-1 rounded-xl hover:bg-brand-100 p-1 transition-colors"
+            >
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-brand-200" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-brand-900 flex items-center justify-center text-xs font-bold text-white">
+                  {initials}
+                </div>
+              )}
+              <ChevronDown size={14} className="text-brand-400" />
+            </button>
+            {headerUserOpen && (
+              <div
+                tabIndex={-1}
+                className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-brand-100 z-50 overflow-hidden"
+              >
+                <div className="px-4 py-3 border-b border-brand-100">
+                  <p className="text-sm font-semibold text-brand-800 truncate">{nomeCompleto || 'Meu perfil'}</p>
+                  <p className="text-xs text-brand-400 truncate">{email}</p>
+                </div>
+                <div className="p-1">
+                  <Link
+                    href="/perfil"
+                    onClick={() => setHeaderUserOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-brand-700 hover:bg-brand-50 transition-colors"
+                  >
+                    <Camera size={15} className="text-brand-400" />
+                    Meu Perfil
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-rose-600 hover:bg-rose-50 transition-colors"
+                  >
+                    <LogOut size={15} />
+                    Sair
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </header>
 
         {/* Área de conteúdo */}

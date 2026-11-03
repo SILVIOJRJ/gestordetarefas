@@ -17,6 +17,7 @@ export default function PerfilPage() {
   const [setor, setSetor]       = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [erro, setErro]           = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -48,13 +49,16 @@ export default function PerfilPage() {
     try {
       const ext = file.name.split('.').pop()
       const path = `avatars/${userId}.${ext}`
-      await supabase.storage.from('documentos').upload(path, file, { upsert: true })
+      const { error: upErr } = await supabase.storage.from('documentos').upload(path, file, { upsert: true })
+      if (upErr) { setErro('Erro no upload: ' + upErr.message); return }
       const { data: signed } = await supabase.storage.from('documentos').createSignedUrl(path, 60 * 60 * 24 * 365)
       const url = signed?.signedUrl ?? null
       if (url) {
         await (supabase.from('perfis_usuarios') as any).update({ avatar_url: url }).eq('id', userId)
         setAvatarUrl(url)
       }
+    } catch (err: unknown) {
+      setErro(err instanceof Error ? err.message : 'Erro desconhecido no upload')
     } finally {
       setUploading(false)
     }
@@ -62,13 +66,18 @@ export default function PerfilPage() {
 
   async function salvar() {
     if (!userId) return
+    setErro(null)
     setSaving(true)
     try {
-      await (supabase.from('perfis_usuarios') as any).update({
-        nome, setor: setor || null, updated_at: new Date().toISOString(),
-      }).eq('id', userId)
-      setSalvo(true)
-      setTimeout(() => setSalvo(false), 2500)
+      const { error } = await (supabase.from('perfis_usuarios') as any)
+        .update({ nome, setor: setor || null })
+        .eq('id', userId)
+      if (error) {
+        setErro(error.message)
+      } else {
+        setSalvo(true)
+        setTimeout(() => setSalvo(false), 2500)
+      }
     } finally {
       setSaving(false)
     }
@@ -145,6 +154,12 @@ export default function PerfilPage() {
             </select>
           </div>
         </div>
+
+        {erro && (
+          <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 text-sm text-rose-700">
+            {erro}
+          </div>
+        )}
 
         <button
           onClick={salvar}
