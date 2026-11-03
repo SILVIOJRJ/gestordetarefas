@@ -235,7 +235,7 @@ export async function uploadDocumentoComIA(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: anexo, error: dbErr } = await (supabase.from('anexos') as any)
     .insert({
-      referencia_tipo:  clienteId ? 'cliente' : null,
+      referencia_tipo:  clienteId ? 'cliente' : 'geral',
       referencia_id:    clienteId ?? null,
       nome_original:    arquivo.name,
       nome_arquivo:     caminho,
