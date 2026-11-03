@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRef } from 'react'
 import {
   X, Clock, User, Tag, FileText, Send,
   CheckCircle2, Circle, AlertCircle, Loader2,
-  Paperclip, Trash2, ExternalLink,
+  Paperclip, Trash2, ExternalLink, MessageCircle,
 } from 'lucide-react'
 import type { Tarefa, StatusTarefa, TipoEventoTarefa } from '@/types/database.types'
 import { atualizarStatus, registrarEvento, listarEventos } from '@/services/tasks'
@@ -33,7 +34,15 @@ interface Props {
   onUpdate: () => void
 }
 
-type Tab = 'historico' | 'anexos'
+type Tab = 'historico' | 'comentarios' | 'anexos'
+
+interface Comentario {
+  id: string
+  autor: string | null
+  autor_id: string | null
+  texto: string
+  created_at: string
+}
 
 const STATUS_OPTIONS: StatusTarefa[] = ['Pendente', 'Em andamento', 'Aguardando', 'Concluída', 'Cancelada']
 
@@ -54,7 +63,7 @@ const TIPO_ICON: Record<TipoEventoTarefa, React.ReactNode> = {
 }
 
 export default function TaskDetailModal({ tarefa, onClose, onUpdate }: Props) {
-  const [tab, setTab]                 = useState<Tab>('historico')
+  const [tab, setTab]                 = useState<Tab>('comentarios')
   const [eventos, setEventos]         = useState<Evento[]>([])
   const [loadingEvt, setLoadingEvt]   = useState(true)
   const [novoStatus, setNovoStatus]   = useState<StatusTarefa>(tarefa.status)
@@ -63,6 +72,13 @@ export default function TaskDetailModal({ tarefa, onClose, onUpdate }: Props) {
   const [autorNome, setAutorNome]     = useState('Usuário')
   const [userId, setUserId]           = useState('')
 
+  // Comentários
+  const [comentarios, setComentarios]   = useState<Comentario[]>([])
+  const [loadingComt, setLoadingComt]   = useState(false)
+  const [novoComt, setNovoComt]         = useState('')
+  const [enviandoComt, setEnviandoComt] = useState(false)
+  const comentFimRef = useRef<HTMLDivElement>(null)
+
   // Anexos
   const [anexos, setAnexos]           = useState<AnexoInfo[]>([])
   const [loadingAnexos, setLoadingAnexos] = useState(false)
@@ -70,15 +86,54 @@ export default function TaskDetailModal({ tarefa, onClose, onUpdate }: Props) {
   const [uploadErro, setUploadErro]   = useState<string | null>(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (data.user?.email) setAutorNome(data.user.email)
       if (data.user?.id)    setUserId(data.user.id)
+      // tenta pegar nome real do perfil
+      if (data.user?.id) {
+        const { data: p } = await (supabase.from('perfis_usuarios') as any)
+          .select('nome').eq('id', data.user.id).maybeSingle()
+        if (p?.nome) setAutorNome(p.nome)
+      }
     })
     listarEventos(tarefa.id).then((data) => {
       setEventos(data as Evento[])
       setLoadingEvt(false)
     })
+    carregarComentarios()
   }, [tarefa.id])
+
+  async function carregarComentarios() {
+    setLoadingComt(true)
+    try {
+      const { data } = await (supabase.from('task_comentarios') as any)
+        .select('*')
+        .eq('tarefa_id', tarefa.id)
+        .order('created_at', { ascending: true })
+      setComentarios((data ?? []) as Comentario[])
+    } finally {
+      setLoadingComt(false)
+    }
+  }
+
+  async function enviarComentario() {
+    if (!novoComt.trim()) return
+    setEnviandoComt(true)
+    try {
+      const payload = {
+        tarefa_id: tarefa.id,
+        autor: autorNome,
+        autor_id: userId || null,
+        texto: novoComt.trim(),
+      }
+      const { data } = await (supabase.from('task_comentarios') as any).insert(payload).select().single()
+      if (data) setComentarios(prev => [...prev, data as Comentario])
+      setNovoComt('')
+      setTimeout(() => comentFimRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    } finally {
+      setEnviandoComt(false)
+    }
+  }
 
   useEffect(() => {
     if (tab !== 'anexos') return
@@ -186,24 +241,101 @@ export default function TaskDetailModal({ tarefa, onClose, onUpdate }: Props) {
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-brand-200 px-5">
-            {(['historico', 'anexos'] as Tab[]).map(t => (
+          <div className="flex border-b border-brand-200 px-5 gap-1 overflow-x-auto">
+            {([
+              { id: 'comentarios', label: `💬 Comentários${comentarios.length > 0 ? ` (${comentarios.length})` : ''}` },
+              { id: 'historico',   label: '📋 Histórico' },
+              { id: 'anexos',      label: `📎 Anexos${anexos.length > 0 ? ` (${anexos.length})` : ''}` },
+            ] as { id: Tab; label: string }[]).map(({ id, label }) => (
               <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
-                  tab === t
+                key={id}
+                onClick={() => setTab(id)}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${
+                  tab === id
                     ? 'border-blue-600 text-blue-700'
                     : 'border-transparent text-brand-500 hover:text-brand-800'
                 }`}
               >
-                {t === 'historico' ? '📋 Histórico' : `📎 Anexos${anexos.length > 0 ? ` (${anexos.length})` : ''}`}
+                {label}
               </button>
             ))}
           </div>
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto px-5 py-4">
+
+            {/* ── Aba Comentários ── */}
+            {tab === 'comentarios' && (
+              <div className="flex flex-col h-full min-h-[280px]">
+                {loadingComt ? (
+                  <div className="flex-1 flex items-center justify-center">
+                    <Loader2 size={20} className="animate-spin text-brand-300" />
+                  </div>
+                ) : comentarios.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center gap-2 py-10 text-brand-300">
+                    <MessageCircle size={32} className="opacity-30" />
+                    <p className="text-sm">Nenhum comentário ainda. Seja o primeiro!</p>
+                  </div>
+                ) : (
+                  <div className="flex-1 space-y-3 pb-3">
+                    {comentarios.map(c => {
+                      const meu = c.autor_id === userId || c.autor === autorNome
+                      const hora = new Date(c.created_at).toLocaleString('pt-BR', {
+                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                      })
+                      return (
+                        <div key={c.id} className={`flex items-end gap-2 ${meu ? 'flex-row-reverse' : ''}`}>
+                          {/* Avatar */}
+                          <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white ${meu ? 'bg-accent-600' : 'bg-brand-600'}`}>
+                            {(c.autor ?? '?').charAt(0).toUpperCase()}
+                          </div>
+                          {/* Balão */}
+                          <div className={`max-w-[75%] group ${meu ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>
+                            {!meu && (
+                              <p className="text-[10px] text-brand-400 px-1">{c.autor}</p>
+                            )}
+                            <div className={`relative px-3 py-2 rounded-2xl text-sm ${
+                              meu
+                                ? 'bg-accent-600 text-white rounded-br-sm'
+                                : 'bg-brand-100 text-brand-800 rounded-bl-sm'
+                            }`}>
+                              <p className="whitespace-pre-wrap break-words">{c.texto}</p>
+                              {/* Pontinho do balão */}
+                              <span className={`absolute bottom-0 w-3 h-3 ${
+                                meu
+                                  ? 'right-[-4px] bg-accent-600'
+                                  : 'left-[-4px] bg-brand-100'
+                              }`} style={{ clipPath: meu ? 'polygon(0 0, 0 100%, 100% 100%)' : 'polygon(100% 0, 0 100%, 100% 100%)' }} />
+                            </div>
+                            <p className={`text-[10px] text-brand-400 px-1 ${meu ? 'text-right' : ''}`}>{hora}</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    <div ref={comentFimRef} />
+                  </div>
+                )}
+
+                {/* Input fixo */}
+                <div className="flex gap-2 pt-3 border-t border-brand-100 mt-auto">
+                  <input
+                    value={novoComt}
+                    onChange={e => setNovoComt(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarComentario() } }}
+                    placeholder="Escreva um comentário…"
+                    className="flex-1 border border-brand-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-400 bg-brand-50"
+                  />
+                  <button
+                    onClick={enviarComentario}
+                    disabled={enviandoComt || !novoComt.trim()}
+                    className="p-2 bg-accent-600 hover:bg-accent-700 text-white rounded-xl transition disabled:opacity-40"
+                  >
+                    {enviandoComt ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {tab === 'historico' && (
               <div className="space-y-3">
                 <p className="text-xs font-semibold text-brand-500 uppercase tracking-wide">Histórico</p>
