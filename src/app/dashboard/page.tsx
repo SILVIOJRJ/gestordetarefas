@@ -627,8 +627,8 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Status do sistema */}
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Status do sistema — visível apenas para admin */}
+        {isAdmin && <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="card">
             <h2 className="text-sm font-semibold text-brand-700 mb-3">Status do Sistema</h2>
             <ul className="space-y-2">
@@ -671,7 +671,7 @@ export default function DashboardPage() {
               ))}
             </ul>
           </div>
-        </section>
+        </section>}
       </div>
     </Shell>
   )
