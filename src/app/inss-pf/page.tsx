@@ -5,10 +5,8 @@ import Shell from '@/components/layout/Shell'
 import { supabase } from '@/lib/supabase'
 import {
   Plus, Search, X, Pencil, Trash2, Loader2, AlertTriangle,
-  ChevronUp, ChevronDown, Save,
+  ChevronUp, ChevronDown, Save, CheckCircle2, Circle, ArrowRight,
 } from 'lucide-react'
-
-// ─── Tipos ────────────────────────────────────────────────────
 
 type CategoriaInss = 'Facultativo' | 'Contribuinte Individual'
 type StatusInss    = 'Pago' | 'Pendente'
@@ -26,6 +24,7 @@ interface InssPF {
   vencimento: string | null
   envio: string | null
   status: StatusInss | string
+  enviado: boolean
   obs: string | null
   created_at: string
   updated_at: string
@@ -43,13 +42,26 @@ const STATUS_COLOR: Record<string, string> = {
 type SortKey = 'nome' | 'categoria' | 'status' | 'vencimento' | 'valor' | 'competencia'
 type SortDir = 'asc' | 'desc'
 
-const now = new Date()
-const mesAtual = `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`
+function mesAtualStr() {
+  const n = new Date()
+  return `${String(n.getMonth() + 1).padStart(2, '0')}/${n.getFullYear()}`
+}
 
-const VAZIO: Omit<InssPF, 'id' | 'created_at' | 'updated_at'> = {
-  nome: '', nit: '', codigo: '', aliquota: 11, categoria: 'Facultativo',
-  salario: null, valor: null, competencia: mesAtual,
-  vencimento: null, envio: '', status: 'Pendente', obs: '',
+function proximaCompetencia(comp: string): string {
+  const [m, y] = comp.split('/').map(Number)
+  if (m === 12) return `01/${y + 1}`
+  return `${String(m + 1).padStart(2, '0')}/${y}`
+}
+
+function compToInputMonth(comp: string) {
+  if (!comp) return ''
+  const [m, y] = comp.split('/')
+  return `${y}-${m}`
+}
+function inputMonthToComp(val: string) {
+  if (!val) return ''
+  const [y, m] = val.split('-')
+  return `${m}/${y}`
 }
 
 function fmtBRL(v: number | null) {
@@ -66,18 +78,27 @@ function calcGPS(salario: number | null, aliquota: number | null): number | null
   return Math.round(salario * (aliquota / 100) * 100) / 100
 }
 
+const VAZIO = {
+  nome: '', nit: '', codigo: '', aliquota: 11 as number | null,
+  categoria: 'Facultativo' as CategoriaInss,
+  salario: null as number | null, valor: null as number | null,
+  competencia: mesAtualStr(), vencimento: null as string | null,
+  envio: '', status: 'Pendente' as StatusInss, obs: '', enviado: false,
+}
+
 export default function InssPFPage() {
   const [rows, setRows]         = useState<InssPF[]>([])
   const [loading, setLoading]   = useState(true)
   const [erro, setErro]         = useState<string | null>(null)
   const [busca, setBusca]       = useState('')
   const [filtroStatus, setFiltroStatus] = useState<StatusInss | ''>('')
-  const [filtroComp, setFiltroComp]     = useState('')
+  const [filtroComp, setFiltroComp]     = useState(mesAtualStr())
   const [sortKey, setSortKey]   = useState<SortKey>('nome')
   const [sortDir, setSortDir]   = useState<SortDir>('asc')
   const [form, setForm]         = useState<typeof VAZIO | null>(null)
   const [editId, setEditId]     = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
+  const [avancando, setAvancando] = useState(false)
 
   const carregar = useCallback(async () => {
     setLoading(true); setErro(null)
@@ -110,20 +131,32 @@ export default function InssPFPage() {
     !busca || r.nome.toLowerCase().includes(busca.toLowerCase()) || (r.nit ?? '').includes(busca)
   )
 
-  const total    = rows.length
-  const pagos    = rows.filter(r => r.status === 'Pago').length
-  const pendentes = rows.filter(r => r.status === 'Pendente').length
-  const totalGPS = rows.reduce((acc, r) => acc + (r.valor ?? 0), 0)
+  const total     = filtrado.length
+  const pagos     = filtrado.filter(r => r.status === 'Pago').length
+  const pendentes = filtrado.filter(r => r.status === 'Pendente').length
+  const enviados  = filtrado.filter(r => r.enviado).length
+  const totalGPS  = filtrado.reduce((acc, r) => acc + (r.valor ?? 0), 0)
 
-  function abrirNovo() { setForm({ ...VAZIO }); setEditId(null) }
+  function abrirNovo() {
+    setForm({ ...VAZIO, competencia: filtroComp || mesAtualStr() })
+    setEditId(null)
+  }
+
   function abrirEditar(r: InssPF) {
     setForm({
-      nome: r.nome, nit: r.nit ?? '', codigo: r.codigo ?? '',
-      aliquota: r.aliquota, categoria: r.categoria,
-      salario: r.salario, valor: r.valor,
-      competencia: r.competencia ?? mesAtual,
-      vencimento: r.vencimento, envio: r.envio ?? '',
-      status: r.status, obs: r.obs ?? '',
+      nome: r.nome,
+      nit: r.nit ?? '',
+      codigo: r.codigo ?? '',
+      aliquota: r.aliquota,
+      categoria: r.categoria as CategoriaInss,
+      salario: r.salario,
+      valor: r.valor,
+      competencia: r.competencia ?? mesAtualStr(),
+      vencimento: r.vencimento,
+      envio: r.envio ?? '',
+      status: r.status as StatusInss,
+      obs: r.obs ?? '',
+      enviado: r.enviado,
     })
     setEditId(r.id)
   }
@@ -138,12 +171,21 @@ export default function InssPFPage() {
   }
 
   async function salvar() {
-    if (!form) return
-    setSalvando(true)
+    if (!form || !form.nome.trim()) return
+    setSalvando(true); setErro(null)
     try {
-      const payload = { ...form }
+      const payload = {
+        nome: form.nome, nit: form.nit || null, codigo: form.codigo || null,
+        aliquota: form.aliquota, categoria: form.categoria,
+        salario: form.salario, valor: form.valor,
+        competencia: form.competencia, vencimento: form.vencimento || null,
+        envio: form.envio || null, status: form.status,
+        obs: form.obs || null, enviado: form.enviado,
+      }
       if (editId) {
-        const { error } = await (supabase.from('inss_pf') as any).update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editId)
+        const { error } = await (supabase.from('inss_pf') as any)
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', editId)
         if (error) throw error
       } else {
         const { error } = await (supabase.from('inss_pf') as any).insert(payload)
@@ -158,6 +200,38 @@ export default function InssPFPage() {
     if (!confirm('Excluir este registro?')) return
     await (supabase.from('inss_pf') as any).delete().eq('id', id)
     setRows(prev => prev.filter(r => r.id !== id))
+  }
+
+  async function toggleEnviado(r: InssPF) {
+    const novoValor = !r.enviado
+    setRows(prev => prev.map(x => x.id === r.id ? { ...x, enviado: novoValor } : x))
+    await (supabase.from('inss_pf') as any)
+      .update({ enviado: novoValor, updated_at: new Date().toISOString() })
+      .eq('id', r.id)
+  }
+
+  async function avancarCompetencia() {
+    if (!filtroComp) return
+    const proxComp = proximaCompetencia(filtroComp)
+    if (!confirm(`Criar registros para ${proxComp} baseados em ${filtroComp}?`)) return
+    setAvancando(true); setErro(null)
+    try {
+      const { data: atuais, error: errLer } = await (supabase.from('inss_pf') as any)
+        .select('*').eq('competencia', filtroComp)
+      if (errLer) throw errLer
+      if (!atuais || atuais.length === 0) throw new Error('Nenhum registro na competência atual.')
+
+      const novos = (atuais as InssPF[]).map(r => ({
+        nome: r.nome, nit: r.nit, codigo: r.codigo, aliquota: r.aliquota,
+        categoria: r.categoria, salario: r.salario, valor: r.valor,
+        competencia: proxComp, vencimento: null, envio: null,
+        status: 'Pendente', obs: null, enviado: false,
+      }))
+      const { error: errIns } = await (supabase.from('inss_pf') as any).insert(novos)
+      if (errIns) throw errIns
+      setFiltroComp(proxComp)
+    } catch (e) { setErro(e instanceof Error ? e.message : 'Erro ao avançar.') }
+    finally { setAvancando(false) }
   }
 
   function ThSort({ k, label, cls = '' }: { k: SortKey; label: string; cls?: string }) {
@@ -178,19 +252,31 @@ export default function InssPFPage() {
             <h1 className="text-xl font-bold text-brand-900">INSS PF</h1>
             <p className="text-xs text-brand-500 mt-0.5">Contribuinte Individual e Facultativo — Guias GPS</p>
           </div>
-          <button onClick={abrirNovo} className="btn-primary"><Plus size={15} /> Nova GPS</button>
+          <div className="flex gap-2">
+            <button
+              onClick={avancarCompetencia}
+              disabled={avancando || !filtroComp}
+              className="btn-secondary text-sm"
+              title={`Criar registros para ${filtroComp ? proximaCompetencia(filtroComp) : 'próximo mês'}`}
+            >
+              {avancando ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
+              Avançar para {filtroComp ? proximaCompetencia(filtroComp) : '...'}
+            </button>
+            <button onClick={abrirNovo} className="btn-primary"><Plus size={15} /> Nova GPS</button>
+          </div>
         </div>
 
-        {/* Cards de resumo */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Cards de resumo — refletem o filtro atual */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { label: 'Total',         value: total,    color: 'bg-brand-50 border-brand-200 text-brand-700' },
-            { label: 'Pagos',         value: pagos,    color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
-            { label: 'Pendentes',     value: pendentes,color: 'bg-warning-50 border-warning-200 text-warning-700' },
-            { label: 'Total GPS (R$)',value: fmtBRL(totalGPS), color: 'bg-blue-50 border-blue-200 text-blue-700' },
+            { label: 'Total',         value: total,              color: 'bg-brand-50 border-brand-200 text-brand-700' },
+            { label: 'Pagos',         value: pagos,              color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
+            { label: 'Pendentes',     value: pendentes,          color: 'bg-warning-50 border-warning-200 text-warning-700' },
+            { label: 'Enviados',      value: `${enviados}/${total}`, color: 'bg-blue-50 border-blue-200 text-blue-700' },
+            { label: 'Total GPS',     value: fmtBRL(totalGPS),   color: 'bg-purple-50 border-purple-200 text-purple-700' },
           ].map(c => (
             <div key={c.label} className={`rounded-xl border px-4 py-3 ${c.color}`}>
-              <p className="text-2xl font-bold leading-tight">{c.value}</p>
+              <p className="text-xl font-bold leading-tight">{c.value}</p>
               <p className="text-xs font-medium mt-0.5 opacity-80">{c.label}</p>
             </div>
           ))}
@@ -202,9 +288,14 @@ export default function InssPFPage() {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400" />
             <input className="input pl-9" placeholder="Buscar por nome ou NIT..." value={busca} onChange={e => setBusca(e.target.value)} />
           </div>
-          <input className="input w-32" placeholder="MM/YYYY" value={filtroComp} onChange={e => setFiltroComp(e.target.value)} />
+          <input
+            className="input w-40"
+            type="month"
+            value={compToInputMonth(filtroComp)}
+            onChange={e => setFiltroComp(inputMonthToComp(e.target.value))}
+          />
           <select className="input w-36" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value as StatusInss | '')}>
-            <option value="">Todos</option>
+            <option value="">Todos status</option>
             {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
@@ -220,23 +311,27 @@ export default function InssPFPage() {
         {/* Formulário */}
         {form && (
           <div className="card border-2 border-brand-300 space-y-4">
-            <h2 className="font-semibold text-brand-900">{editId ? 'Editar INSS PF' : 'Nova GPS'}</h2>
+            <h2 className="font-semibold text-brand-900">{editId ? 'Editar GPS' : 'Nova GPS'}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-2">
                 <label className="label">Nome Completo *</label>
-                <input className="input" placeholder="Nome do contribuinte" value={form.nome} onChange={e => setForm(f => f && ({ ...f, nome: e.target.value }))} />
+                <input className="input" placeholder="Nome do contribuinte" value={form.nome}
+                  onChange={e => setForm(f => f && ({ ...f, nome: e.target.value }))} />
               </div>
               <div>
                 <label className="label">NIT / PIS</label>
-                <input className="input font-mono" placeholder="000.00000.00-0" value={form.nit ?? ''} onChange={e => setForm(f => f && ({ ...f, nit: e.target.value }))} />
+                <input className="input font-mono" placeholder="000.00000.00-0" value={form.nit ?? ''}
+                  onChange={e => setForm(f => f && ({ ...f, nit: e.target.value }))} />
               </div>
               <div>
                 <label className="label">Código GPS</label>
-                <input className="input font-mono" placeholder="1007, 1473..." value={form.codigo ?? ''} onChange={e => setForm(f => f && ({ ...f, codigo: e.target.value }))} />
+                <input className="input font-mono" placeholder="1007, 1473..." value={form.codigo ?? ''}
+                  onChange={e => setForm(f => f && ({ ...f, codigo: e.target.value }))} />
               </div>
               <div>
                 <label className="label">Categoria *</label>
-                <select className="input" value={form.categoria} onChange={e => setForm(f => f && ({ ...f, categoria: e.target.value as CategoriaInss }))}>
+                <select className="input" value={form.categoria}
+                  onChange={e => setForm(f => f && ({ ...f, categoria: e.target.value as CategoriaInss }))}>
                   {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
@@ -249,40 +344,46 @@ export default function InssPFPage() {
               </div>
               <div>
                 <label className="label">Salário Base (R$)</label>
-                <input className="input" type="number" step="0.01" placeholder="0,00" value={form.salario ?? ''} onChange={e => onChangeSalario(e.target.value)} />
+                <input className="input" type="number" step="0.01" placeholder="0,00"
+                  value={form.salario ?? ''} onChange={e => onChangeSalario(e.target.value)} />
               </div>
               <div>
                 <label className="label">Valor GPS (R$) <span className="text-brand-400 font-normal">— calculado</span></label>
-                <input className="input bg-brand-50" type="number" step="0.01" value={form.valor ?? ''} onChange={e => setForm(f => f && ({ ...f, valor: e.target.value ? Number(e.target.value) : null }))} />
+                <input className="input bg-brand-50" type="number" step="0.01"
+                  value={form.valor ?? ''}
+                  onChange={e => setForm(f => f && ({ ...f, valor: e.target.value ? Number(e.target.value) : null }))} />
               </div>
               <div>
                 <label className="label">Competência</label>
-                <input className="input" type="month" value={form.competencia ? `${form.competencia.split('/')[1]}-${form.competencia.split('/')[0]}` : ''} onChange={e => {
-                  const [y, m] = e.target.value.split('-')
-                  setForm(f => f && ({ ...f, competencia: `${m}/${y}` }))
-                }} />
+                <input className="input" type="month"
+                  value={compToInputMonth(form.competencia ?? '')}
+                  onChange={e => setForm(f => f && ({ ...f, competencia: inputMonthToComp(e.target.value) }))} />
               </div>
               <div>
                 <label className="label">Vencimento</label>
-                <input className="input" type="date" value={form.vencimento ?? ''} onChange={e => setForm(f => f && ({ ...f, vencimento: e.target.value || null }))} />
+                <input className="input" type="date" value={form.vencimento ?? ''}
+                  onChange={e => setForm(f => f && ({ ...f, vencimento: e.target.value || null }))} />
               </div>
               <div>
                 <label className="label">Envio (WPP / E-mail)</label>
-                <input className="input" placeholder="WPP - Nome..." value={form.envio ?? ''} onChange={e => setForm(f => f && ({ ...f, envio: e.target.value }))} />
+                <input className="input" placeholder="WPP - Nome..." value={form.envio ?? ''}
+                  onChange={e => setForm(f => f && ({ ...f, envio: e.target.value }))} />
               </div>
               <div>
                 <label className="label">Status</label>
-                <select className="input" value={form.status} onChange={e => setForm(f => f && ({ ...f, status: e.target.value as StatusInss }))}>
+                <select className="input" value={form.status}
+                  onChange={e => setForm(f => f && ({ ...f, status: e.target.value as StatusInss }))}>
                   {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div className="sm:col-span-3">
                 <label className="label">Observação</label>
-                <input className="input" value={form.obs ?? ''} onChange={e => setForm(f => f && ({ ...f, obs: e.target.value }))} />
+                <input className="input" value={form.obs ?? ''}
+                  onChange={e => setForm(f => f && ({ ...f, obs: e.target.value }))} />
               </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={salvar} disabled={salvando} className="btn-primary">
+              <button onClick={salvar} disabled={salvando || !form.nome.trim()} className="btn-primary">
                 {salvando ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Salvar
               </button>
               <button onClick={() => { setForm(null); setEditId(null) }} className="btn-secondary">Cancelar</button>
@@ -293,38 +394,60 @@ export default function InssPFPage() {
         {/* Tabela */}
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin text-brand-300" /></div>
+        ) : filtrado.length === 0 ? (
+          <div className="text-center py-16 text-brand-300 text-sm">
+            <p>Nenhum registro para {filtroComp || 'esta competência'}.</p>
+            {filtroComp && (
+              <p className="mt-1 text-xs">
+                Use <strong>Avançar competência</strong> para criar registros do mês anterior, ou <strong>+ Nova GPS</strong>.
+              </p>
+            )}
+          </div>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-brand-200">
             <table className="w-full text-sm">
               <thead className="bg-brand-50">
                 <tr>
+                  <th className="px-3 py-2.5 w-10 text-center text-[11px] font-semibold uppercase text-brand-500">Env.</th>
                   <ThSort k="nome"        label="Nome" />
                   <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase text-brand-500">NIT</th>
-                  <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase text-brand-500">Cód. GPS</th>
+                  <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase text-brand-500">Cód.</th>
                   <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase text-brand-500">%</th>
                   <ThSort k="categoria"   label="Categoria" />
-                  <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase text-brand-500">Salário</th>
                   <ThSort k="valor"       label="Valor GPS" />
-                  <ThSort k="competencia" label="Competência" />
                   <ThSort k="vencimento"  label="Vencimento" />
                   <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase text-brand-500">Envio</th>
                   <ThSort k="status"      label="Status" />
-                  <th className="px-3 py-2.5 w-20" />
+                  <th className="px-3 py-2.5 w-16" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-100">
-                {filtrado.length === 0 ? (
-                  <tr><td colSpan={12} className="text-center py-12 text-brand-300 text-sm">Nenhum registro encontrado.</td></tr>
-                ) : filtrado.map(r => (
-                  <tr key={r.id} className="hover:bg-brand-50 group">
-                    <td className="px-3 py-2.5 font-medium text-brand-900 whitespace-nowrap">{r.nome}</td>
+                {filtrado.map(r => (
+                  <tr
+                    key={r.id}
+                    className={`group transition-all ${r.enviado ? 'opacity-50' : 'hover:bg-brand-50'}`}
+                  >
+                    {/* Botão Enviado */}
+                    <td className="px-3 py-2.5 text-center">
+                      <button
+                        onClick={() => toggleEnviado(r)}
+                        className="relative group/env"
+                        title={r.enviado ? 'Marcar como não enviado' : 'Marcar como enviado'}
+                      >
+                        {r.enviado
+                          ? <CheckCircle2 size={18} className="text-emerald-500" />
+                          : <Circle size={18} className="text-brand-300 group-hover/env:text-emerald-400" />
+                        }
+                      </button>
+                    </td>
+                    <td className={`px-3 py-2.5 font-medium whitespace-nowrap ${r.enviado ? 'text-brand-400 line-through decoration-emerald-400' : 'text-brand-900'}`}>
+                      {r.nome}
+                    </td>
                     <td className="px-3 py-2.5 text-brand-500 font-mono text-xs">{r.nit ?? '—'}</td>
                     <td className="px-3 py-2.5 text-brand-500 font-mono text-xs">{r.codigo ?? '—'}</td>
                     <td className="px-3 py-2.5 text-brand-600 text-xs">{r.aliquota != null ? `${r.aliquota}%` : '—'}</td>
                     <td className="px-3 py-2.5 text-xs text-brand-600 whitespace-nowrap">{r.categoria}</td>
-                    <td className="px-3 py-2.5 text-xs text-brand-600 whitespace-nowrap">{fmtBRL(r.salario)}</td>
                     <td className="px-3 py-2.5 text-xs font-medium text-brand-800 whitespace-nowrap">{fmtBRL(r.valor)}</td>
-                    <td className="px-3 py-2.5 text-xs text-brand-500 font-mono">{r.competencia ?? '—'}</td>
                     <td className="px-3 py-2.5 text-xs text-brand-600">{fmtData(r.vencimento)}</td>
                     <td className="px-3 py-2.5 text-xs text-brand-400">{r.envio ?? '—'}</td>
                     <td className="px-3 py-2.5">
@@ -334,8 +457,12 @@ export default function InssPFPage() {
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                        <button onClick={() => abrirEditar(r)} className="p-1.5 rounded hover:bg-brand-100 text-brand-400 hover:text-brand-700"><Pencil size={13} /></button>
-                        <button onClick={() => excluir(r.id)} className="p-1.5 rounded hover:bg-red-100 text-brand-300 hover:text-red-500"><Trash2 size={13} /></button>
+                        <button onClick={() => abrirEditar(r)} className="p-1.5 rounded hover:bg-brand-100 text-brand-400 hover:text-brand-700">
+                          <Pencil size={13} />
+                        </button>
+                        <button onClick={() => excluir(r.id)} className="p-1.5 rounded hover:bg-red-100 text-brand-300 hover:text-red-500">
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                     </td>
                   </tr>
