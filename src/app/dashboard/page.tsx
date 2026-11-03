@@ -79,7 +79,114 @@ const QUICK_LINKS: QuickLink[] = [
 
 const SETORES_PROD: Setor[] = ['Legalização', 'Fiscal', 'RH', 'Office Boy', 'Gerencial', 'Administrativo']
 
-// ─── Componente ───────────────────────────────────────────────
+// ─── Ranking de Colaboradores ────────────────────────────────
+
+interface RankItem {
+  nome: string
+  avatar_url: string | null
+  concluidas: number
+  emDia: number
+  atrasadas: number
+  score: number
+}
+
+const MEDALHA = ['🥇', '🥈', '🥉']
+const COR_BARRA = ['bg-yellow-400', 'bg-gray-400', 'bg-amber-600']
+
+function RankingColaboradores() {
+  const [ranking, setRanking] = useState<RankItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    ;(async () => {
+      const inicio = new Date()
+      inicio.setDate(1)
+      const inicioStr = inicio.toISOString().split('T')[0]
+
+      const { data: tarefas } = await (supabase.from('tarefas') as any)
+        .select('responsavel, status, prazo, updated_at')
+        .eq('status', 'Concluída')
+        .gte('updated_at', inicioStr + 'T00:00:00')
+
+      const { data: perfis } = await (supabase.from('perfis_usuarios') as any)
+        .select('nome, avatar_url')
+        .eq('ativo', true)
+        .neq('role', 'admin')
+
+      const mapa: Record<string, RankItem> = {}
+      for (const p of (perfis ?? []) as Array<{ nome: string; avatar_url: string | null }>) {
+        if (!p.nome) continue
+        mapa[p.nome] = { nome: p.nome, avatar_url: p.avatar_url, concluidas: 0, emDia: 0, atrasadas: 0, score: 0 }
+      }
+
+      for (const t of (tarefas ?? []) as Array<{ responsavel: string | null; prazo: string | null; updated_at: string }>) {
+        if (!t.responsavel || !mapa[t.responsavel]) continue
+        const item = mapa[t.responsavel]
+        item.concluidas++
+        const prazoOk = !t.prazo || new Date(t.updated_at) <= new Date(t.prazo + 'T23:59:59')
+        if (prazoOk) item.emDia++
+        else          item.atrasadas++
+      }
+
+      const lista = Object.values(mapa)
+        .map(r => ({ ...r, score: r.emDia * 3 + r.concluidas - r.atrasadas * 2 }))
+        .filter(r => r.concluidas > 0)
+        .sort((a, b) => b.score - a.score)
+
+      setRanking(lista)
+      setLoading(false)
+    })()
+  }, [])
+
+  if (loading || ranking.length === 0) return null
+
+  const max = Math.max(...ranking.map(r => r.score), 1)
+
+  return (
+    <section>
+      <h2 className="text-sm font-semibold text-brand-600 uppercase tracking-wider mb-3">
+        🏆 Ranking do Mês
+      </h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {ranking.map((r, i) => (
+          <div key={r.nome} className={`card flex items-center gap-3 ${i === 0 ? 'ring-2 ring-yellow-300' : ''}`}>
+            {/* Posição */}
+            <div className="text-2xl flex-shrink-0 w-8 text-center">
+              {MEDALHA[i] ?? `#${i + 1}`}
+            </div>
+            {/* Avatar */}
+            <div className="flex-shrink-0">
+              {r.avatar_url ? (
+                <img src={r.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-brand-700 flex items-center justify-center text-sm font-bold text-white">
+                  {r.nome.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-brand-800 truncate">{r.nome}</p>
+              <div className="flex items-center gap-2 text-xs text-brand-500 mt-0.5">
+                <span className="text-accent-700 font-medium">{r.concluidas} concluídas</span>
+                {r.atrasadas > 0 && <span className="text-red-500">{r.atrasadas} atrasada{r.atrasadas > 1 ? 's' : ''}</span>}
+              </div>
+              {/* Barra de progresso */}
+              <div className="mt-1.5 h-1.5 bg-brand-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${COR_BARRA[i] ?? 'bg-accent-500'}`}
+                  style={{ width: `${Math.max(5, (r.score / max) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ─── Componente principal ─────────────────────────────────────
 
 export default function DashboardPage() {
   const [isAdmin, setIsAdmin]         = useState(false)
@@ -608,6 +715,9 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* Ranking de Desempenho — todos os usuários */}
+        <RankingColaboradores />
 
         {/* Atalhos rápidos */}
         <section>

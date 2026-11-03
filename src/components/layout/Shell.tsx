@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BroadcastNoticeModal from '@/components/admin/BroadcastNoticeModal'
 import SmartUploadPanel from '@/components/documents/SmartUploadPanel'
@@ -10,8 +10,8 @@ import type { PermissoesModulos, RoleUsuario } from '@/types/database.types'
 import {
   LayoutDashboard, CheckSquare, Users, FileText, BarChart2,
   Repeat, Truck, Lock, Bell, ChevronLeft, ChevronRight,
-  Menu, X, Building2, Scale, FileSignature, CalendarCheck, Paperclip,
-  Landmark, UserCheck, ShieldCheck,
+  Menu, X, Building2, Scale, CalendarCheck, Paperclip,
+  Landmark, UserCheck, ShieldCheck, LogOut, Camera, ChevronDown,
 } from 'lucide-react'
 
 // ─── Nav items com gate de módulo ─────────────────────────────
@@ -67,23 +67,41 @@ function fmtAcesso(ts: string | null | undefined): string {
 
 export default function Shell({ children, userEmail, userInitials = 'U' }: ShellProps) {
   const pathname = usePathname()
-  const [collapsed, setCollapsed]     = useState(false)
-  const [mobileOpen, setMobileOpen]   = useState(false)
-  const [uploadOpen, setUploadOpen]   = useState(false)
-  const [role, setRole]               = useState<RoleUsuario | null>(null)
-  const [permissoes, setPermissoes]   = useState<PermissoesModulos | null>(null)
+  const router   = useRouter()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [collapsed, setCollapsed]       = useState(false)
+  const [mobileOpen, setMobileOpen]     = useState(false)
+  const [uploadOpen, setUploadOpen]     = useState(false)
+  const [role, setRole]                 = useState<RoleUsuario | null>(null)
+  const [permissoes, setPermissoes]     = useState<PermissoesModulos | null>(null)
   const [ultimoAcesso, setUltimoAcesso] = useState<string | null>(null)
-  const [initials, setInitials]       = useState(userInitials)
-  const [email, setEmail]             = useState(userEmail ?? '')
+  const [initials, setInitials]         = useState(userInitials)
+  const [nomeCompleto, setNomeCompleto] = useState('')
+  const [email, setEmail]               = useState(userEmail ?? '')
+  const [avatarUrl, setAvatarUrl]       = useState<string | null>(null)
+  const [userId, setUserId]             = useState<string | null>(null)
+  const [setor, setSetor]               = useState<string | null>(null)
+  const [deptAberto, setDeptAberto]     = useState(false)
+  const [perfilOpen, setPerfilOpen]     = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+
+  const DEPARTAMENTOS = [
+    { slug: 'pessoal',    label: 'Pessoal' },
+    { slug: 'fiscal',     label: 'Fiscal' },
+    { slug: 'contabil',   label: 'Contábil' },
+    { slug: 'societario', label: 'Societário' },
+    { slug: 'financeiro', label: 'Financeiro' },
+  ]
 
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
+      setUserId(user.id)
 
-      // Registra acesso e busca perfil
       const { data: p } = await (supabase.from('perfis_usuarios') as any)
-        .select('role, permissoes_modulos, nome, email, ultimo_acesso')
+        .select('role, permissoes_modulos, nome, email, ultimo_acesso, avatar_url, setor')
         .eq('id', user.id)
         .single()
 
@@ -91,16 +109,44 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
       setRole(p.role as RoleUsuario)
       setPermissoes(p.permissoes_modulos ?? null)
       setUltimoAcesso(p.ultimo_acesso ?? null)
-      if (p.nome)  setInitials(p.nome.charAt(0).toUpperCase())
-      if (p.email) setEmail(p.email)
+      if (p.nome)       { setNomeCompleto(p.nome); setInitials(p.nome.charAt(0).toUpperCase()) }
+      if (p.email)      setEmail(p.email)
+      if (p.avatar_url) setAvatarUrl(p.avatar_url)
+      if (p.setor)      setSetor(p.setor)
 
-      // Atualiza último acesso (fire-and-forget)
+      // Abre dept do setor atual automaticamente
+      if (p.setor) setDeptAberto(true)
+
       await (supabase.from('perfis_usuarios') as any)
         .update({ ultimo_acesso: new Date().toISOString() })
         .eq('id', user.id)
     }
     init()
   }, [])
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !userId) return
+    setUploadingAvatar(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const path = `avatars/${userId}.${ext}`
+      await supabase.storage.from('documentos').upload(path, file, { upsert: true })
+      const { data: signed } = await supabase.storage.from('documentos').createSignedUrl(path, 60 * 60 * 24 * 365)
+      const url = signed?.signedUrl ?? null
+      if (url) {
+        await (supabase.from('perfis_usuarios') as any).update({ avatar_url: url }).eq('id', userId)
+        setAvatarUrl(url)
+      }
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
 
   // Filtra nav baseado em role + permissões
   const navFiltrado = NAV_ITEMS.filter(item => {
@@ -130,27 +176,144 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
           collapsed ? 'lg:w-[72px]' : 'lg:w-64',
         ].join(' ')}
       >
-        {/* Logo */}
-        <div className="flex h-16 items-center gap-3 px-4 border-b border-brand-800">
-          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-accent-500 flex items-center justify-center font-bold text-brand-900 text-sm">
-            N
+        {/* Logo + perfil */}
+        <div className="border-b border-brand-800">
+          {/* Logo */}
+          <div className="flex h-14 items-center gap-3 px-4">
+            <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-accent-500 flex items-center justify-center font-bold text-brand-900 text-xs">
+              N
+            </div>
+            {!collapsed && (
+              <span className="font-semibold text-sm leading-tight">
+                Nascente<span className="text-brand-400 font-normal"> Contábil</span>
+              </span>
+            )}
+            <button
+              className="ml-auto lg:hidden text-brand-400 hover:text-white"
+              onClick={() => setMobileOpen(false)}
+            >
+              <X size={20} />
+            </button>
           </div>
-          {!collapsed && (
-            <span className="font-semibold text-sm leading-tight">
-              Nascente<br />
-              <span className="text-brand-400 font-normal">Contábil</span>
-            </span>
-          )}
-          <button
-            className="ml-auto lg:hidden text-brand-400 hover:text-white"
-            onClick={() => setMobileOpen(false)}
-          >
-            <X size={20} />
-          </button>
+
+          {/* Perfil compacto */}
+          <div className="px-3 pb-3">
+            <button
+              onClick={() => setPerfilOpen(o => !o)}
+              className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-brand-800 transition-colors text-left"
+            >
+              {/* Avatar */}
+              <div className="relative flex-shrink-0">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-brand-700" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-accent-600 flex items-center justify-center text-xs font-bold text-white">
+                    {initials}
+                  </div>
+                )}
+                {uploadingAvatar && (
+                  <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
+                    <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
+              {!collapsed && (
+                <>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-white truncate">{nomeCompleto || email}</p>
+                    <p className="text-[10px] text-brand-500 truncate">{setor ?? (role === 'admin' ? 'Administrador' : '')}</p>
+                  </div>
+                  <ChevronDown size={12} className={`text-brand-500 transition-transform ${perfilOpen ? 'rotate-180' : ''}`} />
+                </>
+              )}
+            </button>
+
+            {/* Menu de perfil expandido */}
+            {perfilOpen && !collapsed && (
+              <div className="mt-1 bg-brand-950/60 rounded-xl overflow-hidden">
+                <label className="flex items-center gap-2 px-3 py-2 text-xs text-brand-300 hover:text-white hover:bg-brand-800 transition-colors cursor-pointer">
+                  <Camera size={13} />
+                  <span>{uploadingAvatar ? 'Enviando…' : 'Alterar foto'}</span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                  />
+                </label>
+                <Link
+                  href="/perfil"
+                  onClick={() => { setMobileOpen(false); setPerfilOpen(false) }}
+                  className="flex items-center gap-2 px-3 py-2 text-xs text-brand-300 hover:text-white hover:bg-brand-800 transition-colors"
+                >
+                  <Building2 size={13} /> Meu perfil
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-400 hover:text-rose-200 hover:bg-rose-900/30 transition-colors"
+                >
+                  <LogOut size={13} /> Sair do sistema
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
+        {/* ── Departamento em destaque ── */}
+        {!collapsed && (
+          <div className="px-3 pt-3 pb-1">
+            <button
+              onClick={() => setDeptAberto(o => !o)}
+              className={[
+                'w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-colors',
+                pathname.startsWith('/departamentos')
+                  ? 'bg-accent-600 text-white'
+                  : 'bg-brand-800 text-brand-300 hover:text-white',
+              ].join(' ')}
+            >
+              <Building2 size={14} className="flex-shrink-0" />
+              <span className="flex-1 text-left">Departamentos</span>
+              <ChevronDown size={12} className={`transition-transform ${deptAberto ? 'rotate-180' : ''}`} />
+            </button>
+            {deptAberto && (
+              <div className="mt-1 pl-2 space-y-0.5">
+                {DEPARTAMENTOS.map(({ slug, label }) => {
+                  const href = `/departamentos/${slug}`
+                  const active = pathname === href
+                  return (
+                    <Link
+                      key={slug}
+                      href={href}
+                      onClick={() => setMobileOpen(false)}
+                      className={[
+                        'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-colors',
+                        active ? 'bg-brand-700 text-white' : 'text-brand-400 hover:bg-brand-800 hover:text-white',
+                      ].join(' ')}
+                    >
+                      <span className="w-1 h-1 rounded-full bg-current opacity-60" />
+                      {label}
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+        {collapsed && (
+          <div className="px-2 pt-2 pb-1">
+            <button
+              onClick={() => setDeptAberto(o => !o)}
+              className="w-full flex items-center justify-center p-2 rounded-lg bg-brand-800 text-brand-400 hover:text-white"
+              title="Departamentos"
+            >
+              <Building2 size={16} />
+            </button>
+          </div>
+        )}
+
         {/* Nav filtrado por permissões */}
-        <nav className="flex-1 overflow-y-auto py-4 space-y-0.5 px-2">
+        <nav className="flex-1 overflow-y-auto py-2 space-y-0.5 px-2">
           {navFiltrado.map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href)
             return (
@@ -171,36 +334,6 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
               </Link>
             )
           })}
-
-          {/* Departamentos (visível para admin) */}
-          {role === 'admin' && !collapsed && (
-            <div className="pt-3 pb-1 px-3">
-              <p className="text-[10px] font-semibold text-brand-600 uppercase tracking-wider mb-1">Departamentos</p>
-              {[
-                { slug: 'pessoal',    label: 'Pessoal' },
-                { slug: 'fiscal',     label: 'Fiscal' },
-                { slug: 'contabil',   label: 'Contábil' },
-                { slug: 'societario', label: 'Societário' },
-                { slug: 'financeiro', label: 'Financeiro' },
-              ].map(({ slug, label }) => {
-                const href = `/departamentos/${slug}`
-                const active = pathname === href
-                return (
-                  <Link
-                    key={slug}
-                    href={href}
-                    onClick={() => setMobileOpen(false)}
-                    className={[
-                      'flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                      active ? 'bg-brand-800 text-white' : 'text-brand-500 hover:bg-brand-800 hover:text-white',
-                    ].join(' ')}
-                  >
-                    <Building2 size={13} className="flex-shrink-0" /> {label}
-                  </Link>
-                )
-              })}
-            </div>
-          )}
         </nav>
 
         {/* Botão Administração — só admin */}
@@ -223,20 +356,16 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
           </div>
         )}
 
-        {/* Perfil + colapsar */}
-        <div className="border-t border-brand-800 p-3 space-y-2">
-          {!collapsed && (
-            <div className="flex items-center gap-3 px-2 py-1.5">
-              <div className="w-8 h-8 rounded-full bg-accent-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-                {initials}
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-brand-400 truncate">{email}</p>
-                {ultimoAcesso && (
-                  <p className="text-[10px] text-brand-600 truncate">Acesso ant.: {fmtAcesso(ultimoAcesso)}</p>
-                )}
-              </div>
-            </div>
+        {/* Rodapé: logout (collapsed) + recolher */}
+        <div className="border-t border-brand-800 p-2 space-y-1">
+          {collapsed && (
+            <button
+              onClick={handleLogout}
+              title="Sair"
+              className="w-full flex items-center justify-center p-2 rounded-lg text-rose-400 hover:bg-rose-900/30 hover:text-rose-200 transition-colors"
+            >
+              <LogOut size={16} />
+            </button>
           )}
           <button
             onClick={() => setCollapsed((c) => !c)}
@@ -283,9 +412,13 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
           </button>
 
           {/* Avatar */}
-          <div className="w-8 h-8 rounded-full bg-brand-900 flex items-center justify-center text-xs font-bold text-white">
-            {initials}
-          </div>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-brand-200" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-brand-900 flex items-center justify-center text-xs font-bold text-white">
+              {initials}
+            </div>
+          )}
         </header>
 
         {/* Área de conteúdo */}
