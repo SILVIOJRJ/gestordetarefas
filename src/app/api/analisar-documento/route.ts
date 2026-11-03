@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { DadosDocumentoExtraidos } from '@/lib/gemini'
 
-const GEMINI_API_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent'
+const GEMINI_MODELS = [
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
+  'gemini-2.0-flash-lite',
+]
 
 const PROMPT = `
 Você é um sistema especializado em análise de documentos fiscais e contábeis brasileiros.
@@ -75,21 +78,30 @@ export async function POST(req: NextRequest) {
       generationConfig: { temperature: 0.1, maxOutputTokens: 1024 },
     }
 
-    // Retry até 3x em caso de 503 (sobrecarga temporária do Gemini)
+    // Tenta cada modelo em sequência; pula para o próximo em 503/404
     let resp: Response | null = null
-    for (let attempt = 0; attempt < 3; attempt++) {
-      resp = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      if (resp.status !== 503) break
-      await new Promise(r => setTimeout(r, (attempt + 1) * 1500))
+    let lastErr = ''
+    for (const model of GEMINI_MODELS) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
+      for (let attempt = 0; attempt < 2; attempt++) {
+        resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        if (resp.ok) break
+        if (resp.status === 503) {
+          await new Promise(r => setTimeout(r, (attempt + 1) * 2000))
+          continue
+        }
+        break // 404, 400, etc — tenta próximo modelo
+      }
+      if (resp?.ok) break
+      lastErr = await resp?.text() ?? ''
     }
 
     if (!resp || !resp.ok) {
-      const txt = await resp?.text() ?? 'sem resposta'
-      return NextResponse.json({ error: `Gemini error: ${txt}` }, { status: resp?.status ?? 500 })
+      return NextResponse.json({ error: `Gemini error: ${lastErr}` }, { status: resp?.status ?? 500 })
     }
 
     const json = await resp.json()
