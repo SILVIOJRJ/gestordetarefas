@@ -49,13 +49,16 @@ export default function PerfilPage() {
     try {
       const ext = file.name.split('.').pop()
       const path = `avatars/${userId}.${ext}`
-      await supabase.storage.from('documentos').upload(path, file, { upsert: true })
+      const { error: upErr } = await supabase.storage.from('documentos').upload(path, file, { upsert: true })
+      if (upErr) { setErro('Erro no upload: ' + upErr.message); return }
       const { data: signed } = await supabase.storage.from('documentos').createSignedUrl(path, 60 * 60 * 24 * 365)
       const url = signed?.signedUrl ?? null
       if (url) {
         await (supabase.from('perfis_usuarios') as any).update({ avatar_url: url }).eq('id', userId)
         setAvatarUrl(url)
       }
+    } catch (err: unknown) {
+      setErro(err instanceof Error ? err.message : 'Erro desconhecido no upload')
     } finally {
       setUploading(false)
     }

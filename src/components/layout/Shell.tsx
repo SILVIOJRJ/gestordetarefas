@@ -99,6 +99,7 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
 
   useEffect(() => {
     async function init() {
+      try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       setUserId(user.id)
@@ -123,6 +124,9 @@ export default function Shell({ children, userEmail, userInitials = 'U' }: Shell
       await (supabase.from('perfis_usuarios') as any)
         .update({ ultimo_acesso: new Date().toISOString() })
         .eq('id', user.id)
+      } catch (err) {
+        console.error('[Shell] init error:', err)
+      }
     }
     init()
 
