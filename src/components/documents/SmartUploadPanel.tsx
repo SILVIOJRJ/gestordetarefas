@@ -110,26 +110,25 @@ export default function SmartUploadPanel({ open, onClose }: Props) {
       // Tenta encontrar cliente pela razão social ou CNPJ extraído pela IA
       let clienteSugerido: ClienteMatch | null = null
       const cnpjDigits = r.dados.cnpj_cpf?.replace(/\D/g, '') ?? ''
-      // Formata CNPJ para bater com o banco que armazena com pontuação
-      const cnpjFmt = cnpjDigits.length === 14
-        ? `${cnpjDigits.slice(0,2)}.${cnpjDigits.slice(2,5)}.${cnpjDigits.slice(5,8)}/${cnpjDigits.slice(8,12)}-${cnpjDigits.slice(12)}`
-        : cnpjDigits
-      const nome = (r.dados.razao_social_ou_nome ?? '').toLowerCase()
+      const nomeIA = r.dados.razao_social_ou_nome ?? ''
 
-      if (cnpjDigits || nome) {
-        // Monta filtro OR: tenta CNPJ formatado, dígitos puros e nome
-        const filtros: string[] = []
-        if (cnpjFmt)    filtros.push(`cnpj_cpf.ilike.%${cnpjFmt}%`)
-        if (cnpjDigits) filtros.push(`cnpj_cpf.ilike.%${cnpjDigits}%`)
-        if (nome)       filtros.push(`nome.ilike.%${nome}%`)
-
+      if (cnpjDigits) {
+        // RPC que compara CNPJ ignorando pontuação (regexp_replace no servidor)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: found } = await (supabase.from('clientes') as any)
+        const { data: porCnpj } = await (supabase as any)
+          .rpc('buscar_cliente_por_cnpj', { cnpj_busca: cnpjDigits })
+        if (porCnpj && porCnpj.length > 0) clienteSugerido = porCnpj[0] as ClienteMatch
+      }
+
+      if (!clienteSugerido && nomeIA) {
+        // Fallback: busca por nome
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: porNome } = await (supabase.from('clientes') as any)
           .select('id, nome, telefone')
-          .or(filtros.join(','))
+          .ilike('nome', `%${nomeIA}%`)
           .limit(1)
           .single()
-        if (found) clienteSugerido = found as ClienteMatch
+        if (porNome) clienteSugerido = porNome as ClienteMatch
       }
 
       // Tarefas abertas para o cliente sugerido (ou selecionado)
