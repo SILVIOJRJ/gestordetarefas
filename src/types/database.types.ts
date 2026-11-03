@@ -135,8 +135,45 @@ export interface Tarefa {
   status: StatusTarefa;
   descricao: string | null;
   cliente_id: string | null; // uuid → clientes.id
+  atribuido_para: string | null;
+  atribuido_por: string | null;
+  atribuido_em: string | null;
+  privado: boolean | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface TarefaComentario {
+  id: string;
+  tarefa_id: string;
+  autor_id: string | null;
+  autor_nome: string;
+  corpo: string;
+  criado_em: string;
+}
+
+export interface TarefaAndamento {
+  id: string;
+  tarefa_id: string;
+  autor_id: string | null;
+  autor_nome: string;
+  descricao: string;
+  status_novo: string | null;
+  percentual: number | null;
+  criado_em: string;
+}
+
+export interface AdminCompromisso {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  data_inicio: string;
+  data_fim: string | null;
+  dia_todo: boolean;
+  tipo: 'compromisso' | 'reuniao' | 'prazo' | 'lembrete';
+  cor: string;
+  criado_por: string | null;
+  criado_em: string;
 }
 
 export interface TaskEvento {
