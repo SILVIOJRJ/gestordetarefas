@@ -114,8 +114,35 @@ export default function RadarJuridicoPage() {
       const lista: Cliente[] = (data ?? []) as Cliente[]
       setClientes(lista)
       setTotalClientes(lista.length)
-      const resultado = analisarClientes(lista)
-      setAlertas(resultado)
+
+      // Alertas estáticos (base sempre disponível)
+      const estaticos = analisarClientes(lista)
+
+      // Tenta buscar alertas dinâmicos do Gemini
+      try {
+        const resp = await fetch('/api/radar-juridico')
+        if (resp.ok) {
+          const { alertas: dinamicos } = await resp.json() as { alertas: AlertaJuridico[] }
+          // Combina: dinâmicos primeiro (mais recentes), depois estáticos que não se repetem
+          const idsdinamicos = new Set(dinamicos.map((a: AlertaJuridico) => a.id))
+          const estaticosUnicos = estaticos.filter(a => !idsdinamicos.has(a.id))
+          const dinamicosComClientes = dinamicos.map((a: AlertaJuridico) => ({
+            ...a,
+            cnaesImpactados: a.cnaesImpactados ?? [],
+            municipiosImpactados: a.municipiosImpactados ?? [],
+            clientesAfetados: lista.filter(c =>
+              a.regimesImpactados.includes('Todos') ||
+              a.regimesImpactados.includes(c.regime as typeof a.regimesImpactados[number])
+            ).map(c => ({ id: c.id, nome: c.nome })),
+          }))
+          setAlertas([...dinamicosComClientes, ...estaticosUnicos])
+          return
+        }
+      } catch {
+        // fallback para alertas estáticos
+      }
+
+      setAlertas(estaticos)
     } finally {
       setLoading(false)
     }
